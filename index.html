@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v4</title>
+    <title>포커 핸드 로거 v8</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -49,31 +49,31 @@
     <div id="app" class="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">ID/레벨 선택 개선 버전</p>
+            <p class="text-gray-400">New Sheet Structure</p>
         </header>
 
         <!-- Settings Section -->
         <div id="settings-section" class="bg-gray-800 p-4 rounded-lg mb-4">
             <h2 class="text-xl font-bold mb-4 section-title">사전 설정</h2>
+            <div class="mb-4">
+                <label for="google-sheet-url" class="block text-sm font-medium text-gray-300 mb-2">Google Sheet URL (.csv로 웹에 게시)</label>
+                <div class="flex gap-2">
+                    <input type="url" id="google-sheet-url" placeholder="게시된 구글 시트 CSV 링크" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                    <button id="load-sheet-data" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">불러오기</button>
+                </div>
+            </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">카메라 ID 프리셋</label>
-                    <div id="prefix-buttons" class="flex flex-wrap gap-2 mb-2"></div>
-                    <div class="flex gap-2">
-                        <input type="text" id="new-prefix-name" placeholder="프리셋 추가 (예: kai)" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                        <button id="add-prefix" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md">추가</button>
-                    </div>
+                    <div id="prefix-buttons" class="flex flex-wrap gap-2 mb-2 min-h-[36px]"></div>
                 </div>
                 <div>
-                    <label for="new-player-name" class="block text-sm font-medium text-gray-300 mb-2">신규 플레이어 추가</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="new-player-name" placeholder="플레이어 이름" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                        <button id="add-player" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">추가</button>
-                    </div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">플레이어 목록</label>
+                    <p id="player-count" class="text-gray-400"></p>
                 </div>
             </div>
             <div class="mt-4">
-                 <button id="save-settings" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-2 px-4 rounded-md transition-colors">현재 설정 저장</button>
+                 <button id="save-settings" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-2 px-4 rounded-md transition-colors">현재 URL 저장</button>
             </div>
         </div>
 
@@ -89,7 +89,7 @@
                 <!-- Camera Number Selection -->
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold mb-2">카메라 번호 (<span id="selected-prefix-display"></span>)</h3>
-                    <div id="camera-number-buttons" class="grid grid-cols-5 gap-2"></div>
+                    <div id="camera-number-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
                     <div class="flex justify-between items-center mt-3">
                         <button id="prev-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button>
                         <span id="camera-page-info" class="font-semibold"></span>
@@ -100,13 +100,18 @@
                 <!-- Level Selection -->
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold mb-2">레벨</h3>
-                    <div id="level-buttons" class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-2"></div>
+                    <div id="level-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
+                     <div class="flex justify-between items-center mt-3">
+                        <button id="prev-level-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button>
+                        <span id="level-page-info" class="font-semibold"></span>
+                        <button id="next-level-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button>
+                    </div>
                 </div>
 
                 <!-- Table Selection -->
                 <div>
                     <h3 class="text-lg font-semibold mb-2">테이블</h3>
-                    <div id="table-buttons" class="grid grid-cols-5 gap-2"></div>
+                    <div id="table-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
                     <div class="flex justify-between items-center mt-3">
                         <button id="prev-table-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button>
                         <span id="table-page-info" class="font-semibold"></span>
@@ -123,11 +128,11 @@
 
             <div id="card-selection" class="hidden">
                 <div id="card-deck" class="space-y-3"></div>
-                 <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg">카드 선택 완료</button>
+                 <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-lg">카드 선택 완료</button>
             </div>
 
             <div id="final-step" class="hidden mt-6">
-                 <button id="generate-output" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-4 px-4 rounded-lg text-xl transform hover:scale-105 animate-pulse">
+                 <button id="generate-output" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-4 rounded-lg text-xl transform hover:scale-105 animate-pulse">
                     🕒 타임스탬프 & 전송용 텍스트 생성
                 </button>
             </div>
@@ -138,7 +143,7 @@
             <div class="bg-gray-900 border-2 border-dashed border-amber-400 p-4 rounded-lg">
                 <h2 class="text-xl font-bold mb-2 text-amber-400">생성된 정보</h2>
                 <textarea id="output-text" class="w-full text-lg break-all bg-gray-700 p-3 rounded-md text-white" rows="4" readonly></textarea>
-                <button id="copy-output" class="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-3 px-4 rounded-md text-lg">클립보드에 복사</button>
+                <button id="copy-output" class="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-2 px-4 rounded-md text-lg">클립보드에 복사</button>
                 <p id="copy-feedback" class="text-green-400 text-center mt-2 h-5 font-semibold"></p>
                 <button id="reset-all" class="mt-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md">새 핸드 기록하기</button>
             </div>
@@ -148,22 +153,27 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const state = {
-                cameraPrefixes: ['kai', 'cam'],
+                googleSheetUrl: '',
+                // Default values
+                cameraPrefixes: ['kai', 'cam', 'eng'],
+                players: ['김갑환', '이영희', '박철수', '최민준', '정수빈', '강지우', '윤서아', '임도윤'],
+                
                 selectedCameraPrefix: 'kai',
                 selectedCameraNumber: 1,
                 totalCameraNumbers: 100,
-                cameraNumbersPerPage: 10,
+                cameraNumbersPerPage: 12,
                 currentCameraNumberPage: 1,
                 level: 1,
-                maxLevel: 30,
+                totalLevels: 100,
+                levelsPerPage: 12,
+                currentLevelPage: 1,
                 table: null,
-                totalTables: 30,
-                tablesPerPage: 10,
+                totalTables: 100,
+                tablesPerPage: 12,
                 currentTablePage: 1,
                 winner: null, winnerHand: [],
                 loser: null, loserHand: [],
                 board: [],
-                players: ['김갑환', '이영희', '박철수', '최민준', '정수빈', '강지우', '윤서아', '임도윤'],
                 currentStep: 'setup',
             };
 
@@ -172,11 +182,10 @@
 
             const el = {
                 // Settings
-                newPrefixInput: document.getElementById('new-prefix-name'),
-                addPrefixBtn: document.getElementById('add-prefix'),
+                googleSheetUrlInput: document.getElementById('google-sheet-url'),
+                loadSheetDataBtn: document.getElementById('load-sheet-data'),
                 prefixButtonsContainer: document.getElementById('prefix-buttons'),
-                newPlayerInput: document.getElementById('new-player-name'),
-                addPlayerBtn: document.getElementById('add-player'),
+                playerCount: document.getElementById('player-count'),
                 saveSettingsBtn: document.getElementById('save-settings'),
                 // Workflow
                 statusText: document.getElementById('status-text'),
@@ -192,6 +201,9 @@
                 cameraPageInfo: document.getElementById('camera-page-info'),
                 // Level
                 levelButtonsContainer: document.getElementById('level-buttons'),
+                prevLevelPageBtn: document.getElementById('prev-level-page'),
+                nextLevelPageBtn: document.getElementById('next-level-page'),
+                levelPageInfo: document.getElementById('level-page-info'),
                 // Table
                 tableButtonsContainer: document.getElementById('table-buttons'),
                 prevTablePageBtn: document.getElementById('prev-table-page'),
@@ -210,7 +222,58 @@
                 resetBtn: document.getElementById('reset-all'),
             };
 
-            // --- RENDER FUNCTIONS ---
+            // --- DATA & RENDER FUNCTIONS ---
+            async function loadDataFromGoogleSheet() {
+                const url = el.googleSheetUrlInput.value;
+                if (!url) {
+                    alert('Google Sheet URL을 입력해주세요.');
+                    return;
+                }
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('네트워크 응답이 올바르지 않습니다.');
+                    const csvText = await response.text();
+                    const lines = csvText.trim().split(/\r?\n/);
+                    
+                    if (lines.length < 2) {
+                        alert('시트에 데이터가 없습니다.');
+                        return;
+                    }
+
+                    const headers = lines[0].split(',').map(h => h.trim());
+                    const prefixIndex = headers.indexOf('prefix');
+                    const playerIndex = headers.indexOf('player');
+
+                    const newPrefixes = [];
+                    const newPlayers = [];
+
+                    for (let i = 1; i < lines.length; i++) {
+                        const values = lines[i].split(',');
+                        if (prefixIndex !== -1 && values[prefixIndex] && values[prefixIndex].trim()) {
+                            newPrefixes.push(values[prefixIndex].trim());
+                        }
+                        if (playerIndex !== -1 && values[playerIndex] && values[playerIndex].trim()) {
+                            newPlayers.push(values[playerIndex].trim());
+                        }
+                    }
+
+                    state.cameraPrefixes = newPrefixes.length > 0 ? newPrefixes : state.cameraPrefixes;
+                    state.players = newPlayers.length > 0 ? newPlayers : state.players;
+                    
+                    if (!state.cameraPrefixes.includes(state.selectedCameraPrefix)) {
+                        state.selectedCameraPrefix = state.cameraPrefixes[0] || '';
+                    }
+
+                    renderPrefixButtons();
+                    el.playerCount.textContent = `${state.players.length}명의 플레이어가 로드되었습니다.`;
+                    alert('데이터를 성공적으로 불러왔습니다.');
+
+                } catch (error) {
+                    console.error('Google Sheet 데이터 로딩 실패:', error);
+                    alert('데이터를 불러오는 데 실패했습니다. URL과 시트 공유 설정을 확인해주세요.');
+                }
+            }
+            
             function renderPrefixButtons() {
                 el.prefixButtonsContainer.innerHTML = '';
                 state.cameraPrefixes.forEach(prefix => {
@@ -222,60 +285,49 @@
                     el.prefixButtonsContainer.appendChild(button);
                 });
                 el.selectedPrefixDisplay.textContent = state.selectedCameraPrefix;
+                 el.playerCount.textContent = `${state.players.length}명의 플레이어가 로드되었습니다.`;
             }
 
-            function renderCameraNumberButtons() {
-                const container = el.cameraNumberButtonsContainer;
-                container.innerHTML = '';
-                const start = (state.currentCameraNumberPage - 1) * state.cameraNumbersPerPage + 1;
-                const end = Math.min(start + state.cameraNumbersPerPage - 1, state.totalCameraNumbers);
+            function renderPaginatedButtons(type) {
+                const configs = {
+                    camera: { container: el.cameraNumberButtonsContainer, pageInfo: el.cameraPageInfo, prevBtn: el.prevCameraPageBtn, nextBtn: el.nextCameraPageBtn, stateKey: 'currentCameraNumberPage', totalKey: 'totalCameraNumbers', perPageKey: 'cameraNumbersPerPage', selectedKey: 'selectedCameraNumber', prefix: '', suffix: '', onClick: selectCameraNumber },
+                    level: { container: el.levelButtonsContainer, pageInfo: el.levelPageInfo, prevBtn: el.prevLevelPageBtn, nextBtn: el.nextLevelPageBtn, stateKey: 'currentLevelPage', totalKey: 'totalLevels', perPageKey: 'levelsPerPage', selectedKey: 'level', prefix: 'Lv ', suffix: '', onClick: selectLevel },
+                    table: { container: el.tableButtonsContainer, pageInfo: el.tablePageInfo, prevBtn: el.prevTablePageBtn, nextBtn: el.nextTablePageBtn, stateKey: 'currentTablePage', totalKey: 'totalTables', perPageKey: 'tablesPerPage', selectedKey: 'table', prefix: 'T', suffix: '', pad: 2, onClick: selectTable }
+                };
+                const config = configs[type];
+                config.container.innerHTML = '';
                 
+                const currentPage = state[config.stateKey];
+                const perPage = state[config.perPageKey];
+                const total = state[config.totalKey];
+                
+                const start = (currentPage - 1) * perPage + 1;
+                const end = Math.min(start + perPage - 1, total);
+
                 for (let i = start; i <= end; i++) {
-                    const button = document.createElement('button');
-                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 rounded-md';
-                    if (i === state.selectedCameraNumber) button.classList.add('btn-selected');
-                    button.textContent = i;
-                    button.onclick = () => selectCameraNumber(i);
-                    container.appendChild(button);
-                }
-
-                const totalPages = Math.ceil(state.totalCameraNumbers / state.cameraNumbersPerPage);
-                el.cameraPageInfo.textContent = `페이지 ${state.currentCameraNumberPage} / ${totalPages}`;
-                el.prevCameraPageBtn.disabled = state.currentCameraNumberPage === 1;
-                el.nextCameraPageBtn.disabled = state.currentCameraNumberPage === totalPages;
-            }
-
-            function renderLevelButtons() {
-                const container = el.levelButtonsContainer;
-                container.innerHTML = '';
-                for (let i = 1; i <= state.maxLevel; i++) {
                     const button = document.createElement('button');
                     button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-2 rounded-md';
-                    if (i === state.level) button.classList.add('btn-selected');
-                    button.textContent = `Lv ${i}`;
-                    button.onclick = () => selectLevel(i);
-                    container.appendChild(button);
+                    const textValue = config.pad ? String(i).padStart(config.pad, '0') : i;
+                    const fullText = `${config.prefix}${textValue}${config.suffix}`;
+                    
+                    if (fullText === state[config.selectedKey] || i === state[config.selectedKey]) {
+                         button.classList.add('btn-selected');
+                    }
+                    button.textContent = fullText;
+                    button.onclick = () => config.onClick(type === 'table' ? fullText : i);
+                    config.container.appendChild(button);
                 }
+
+                const totalPages = Math.ceil(total / perPage);
+                config.pageInfo.textContent = `페이지 ${currentPage} / ${totalPages}`;
+                config.prevBtn.disabled = currentPage === 1;
+                config.nextBtn.disabled = currentPage === totalPages;
             }
 
-            function renderTableButtons() {
-                const container = el.tableButtonsContainer;
-                container.innerHTML = '';
-                const start = (state.currentTablePage - 1) * state.tablesPerPage + 1;
-                const end = Math.min(start + state.tablesPerPage - 1, state.totalTables);
-                
-                for (let i = start; i <= end; i++) {
-                    const button = document.createElement('button');
-                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 rounded-md';
-                    button.textContent = `T${String(i).padStart(2, '0')}`;
-                    button.onclick = () => selectTable(`T${String(i).padStart(2, '0')}`);
-                    container.appendChild(button);
-                }
-
-                const totalPages = Math.ceil(state.totalTables / state.tablesPerPage);
-                el.tablePageInfo.textContent = `페이지 ${state.currentTablePage} / ${totalPages}`;
-                el.prevTablePageBtn.disabled = state.currentTablePage === 1;
-                el.nextTablePageBtn.disabled = state.currentTablePage === totalPages;
+            function renderAllPaginatedButtons() {
+                renderPaginatedButtons('camera');
+                renderPaginatedButtons('level');
+                renderPaginatedButtons('table');
             }
 
             function renderPlayerButtons() {
@@ -395,28 +447,20 @@
                 state.selectedCameraPrefix = prefix;
                 renderPrefixButtons();
             }
-            
-            function addPrefix() {
-                const newPrefix = el.newPrefixInput.value.trim();
-                if (newPrefix && !state.cameraPrefixes.includes(newPrefix)) {
-                    state.cameraPrefixes.push(newPrefix);
-                    el.newPrefixInput.value = '';
-                    renderPrefixButtons();
-                }
-            }
 
             function selectCameraNumber(number) {
                 state.selectedCameraNumber = number;
-                renderCameraNumberButtons();
+                renderPaginatedButtons('camera');
             }
 
             function selectLevel(level) {
                 state.level = level;
-                renderLevelButtons();
+                renderPaginatedButtons('level');
             }
 
             function selectTable(tableNum) {
                 state.table = tableNum;
+                renderPaginatedButtons('table');
                 nextStep();
             }
 
@@ -455,14 +499,12 @@
             
             function changePage(type, direction) {
                 const pageState = {
-                    camera: { current: 'currentCameraNumberPage', total: 'totalCameraNumbers', perPage: 'cameraNumbersPerPage', render: renderCameraNumberButtons },
-                    table: { current: 'currentTablePage', total: 'totalTables', perPage: 'tablesPerPage', render: renderTableButtons }
+                    camera: { current: 'currentCameraNumberPage', render: () => renderPaginatedButtons('camera') },
+                    level: { current: 'currentLevelPage', render: () => renderPaginatedButtons('level') },
+                    table: { current: 'currentTablePage', render: () => renderPaginatedButtons('table') }
                 };
                 const config = pageState[type];
-                const totalPages = Math.ceil(state[config.total] / state[config.perPage]);
                 state[config.current] += direction;
-                if (state[config.current] < 1) state[config.current] = 1;
-                if (state[config.current] > totalPages) state[config.current] = totalPages;
                 config.render();
             }
 
@@ -502,56 +544,45 @@
             }
 
             function resetState() {
-                Object.assign(state, {
-                    table: null, winner: null, winnerHand: [],
-                    loser: null, loserHand: [], board: [],
-                    currentStep: 'setup'
-                });
+                // Keep setup selections, reset hand data
+                state.winner = null;
+                state.winnerHand = [];
+                state.loser = null;
+                state.loserHand = [];
+                state.board = [];
+                state.currentStep = 'setup';
+                
                 el.outputSection.style.display = 'none';
                 updateUI();
+                renderAllPaginatedButtons(); // Re-render to show selections
             }
 
             function saveSettings() {
-                localStorage.setItem('pokerLoggerSettings_v4', JSON.stringify({
-                    cameraPrefixes: state.cameraPrefixes,
-                    selectedCameraPrefix: state.selectedCameraPrefix,
-                    players: state.players
+                localStorage.setItem('pokerLoggerSettings_v8', JSON.stringify({
+                    googleSheetUrl: el.googleSheetUrlInput.value
                 }));
-                alert('설정이 저장되었습니다.');
+                alert('URL이 저장되었습니다.');
             }
             
-            function loadSettings() {
-                const savedSettings = localStorage.getItem('pokerLoggerSettings_v4');
+            async function loadSettings() {
+                const savedSettings = localStorage.getItem('pokerLoggerSettings_v8');
                 if (savedSettings) {
-                    const { cameraPrefixes, selectedCameraPrefix, players } = JSON.parse(savedSettings);
-                    state.cameraPrefixes = cameraPrefixes || ['kai', 'cam'];
-                    state.selectedCameraPrefix = selectedCameraPrefix || 'kai';
-                    state.players = players || [];
-                }
-            }
-
-            function addPlayer() {
-                const newName = el.newPlayerInput.value.trim();
-                if (newName && !state.players.includes(newName)) {
-                    state.players.push(newName);
-                    el.newPlayerInput.value = '';
-                    if (state.currentStep === 'winner' || state.currentStep === 'loser') {
-                        renderPlayerButtons();
+                    const { googleSheetUrl } = JSON.parse(savedSettings);
+                    if(googleSheetUrl) {
+                        el.googleSheetUrlInput.value = googleSheetUrl;
+                        await loadDataFromGoogleSheet();
                     }
                 }
             }
 
             // --- INITIALIZATION ---
-            loadSettings();
-            
-            el.addPrefixBtn.onclick = addPrefix;
-            el.newPrefixInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPrefix(); });
-            el.addPlayerBtn.onclick = addPlayer;
-            el.newPlayerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPlayer(); });
+            el.loadSheetDataBtn.onclick = loadDataFromGoogleSheet;
             el.saveSettingsBtn.onclick = saveSettings;
             
             el.prevCameraPageBtn.onclick = () => changePage('camera', -1);
             el.nextCameraPageBtn.onclick = () => changePage('camera', 1);
+            el.prevLevelPageBtn.onclick = () => changePage('level', -1);
+            el.nextLevelPageBtn.onclick = () => changePage('level', 1);
             el.prevTablePageBtn.onclick = () => changePage('table', -1);
             el.nextTablePageBtn.onclick = () => changePage('table', 1);
 
@@ -562,11 +593,11 @@
             el.copyBtn.onclick = copyToClipboard;
             el.resetBtn.onclick = resetState;
 
-            renderPrefixButtons();
-            renderCameraNumberButtons();
-            renderLevelButtons();
-            renderTableButtons();
-            updateUI();
+            loadSettings().then(() => {
+                renderPrefixButtons();
+                renderAllPaginatedButtons();
+                updateUI();
+            });
         });
     </script>
 </body>
