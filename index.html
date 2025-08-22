@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>포커 핸드 로거 v2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            touch-action: manipulation; /* 더블탭 확대 방지 */
+            -webkit-tap-highlight-color: transparent; /* 탭 시 하이라이트 제거 */
+        }
+        .card {
+            font-family: 'Roboto', sans-serif; /* 카드 폰트를 더 명확하게 */
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card.selected {
+            transform: translateY(-5px) scale(1.08);
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.9);
+            border-color: #FBBF24;
+        }
+        .card.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background-color: #E5E7EB;
+        }
+        .card-red { color: #DC2626; } /* 하트, 다이아몬드 */
+        .card-black { color: #111827; } /* 스페이드, 클로버 */
+        .section-title {
+            border-bottom: 2px solid #4B5563;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+        }
+        /* 스크롤바 스타일링 */
+        .scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .scroll-container::-webkit-scrollbar-track {
+            background: #4B5563;
+            border-radius: 3px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #FBBF24;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white p-2 sm:p-4 antialiased">
+
+    <div id="app" class="max-w-md mx-auto">
+        <header class="text-center mb-4">
+            <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
+            <p class="text-gray-400">모바일 최적화 버전</p>
+        </header>
+
+        <!-- Settings Section -->
+        <div id="settings-section" class="bg-gray-800 p-4 rounded-lg mb-4">
+            <h2 class="text-xl font-bold mb-4 section-title">사전 설정</h2>
+            <div>
+                <label for="camera-id" class="block text-sm font-medium text-gray-300 mb-1">카메라 ID</label>
+                <input type="text" id="camera-id" value="kai002" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-amber-500 focus:border-amber-500">
+            </div>
+             <div class="mt-4">
+                <label for="new-player-name" class="block text-sm font-medium text-gray-300 mb-1">신규 플레이어 추가</label>
+                <div class="flex gap-2">
+                    <input type="text" id="new-player-name" placeholder="플레이어 이름" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-amber-500 focus:border-amber-500">
+                    <button id="add-player" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-colors">추가</button>
+                </div>
+            </div>
+            <div class="mt-4">
+                 <button id="save-settings" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-2 px-4 rounded-md transition-colors">현재 설정 저장</button>
+            </div>
+        </div>
+
+        <!-- Logging Workflow -->
+        <div class="bg-gray-800 p-4 rounded-lg">
+            <h2 class="text-xl font-bold mb-4 section-title">정보 기록</h2>
+            
+            <div id="status-display" class="mb-4 p-3 bg-gray-700/50 rounded-md text-center">
+                <p id="status-text" class="text-lg font-semibold text-amber-300">테이블과 레벨을 선택하세요.</p>
+            </div>
+
+            <div id="table-level-selection" class="mb-4">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">레벨</h3>
+                    <div class="flex items-center gap-2">
+                        <button id="level-down" class="bg-gray-600 p-2 rounded-full w-12 h-12 text-2xl font-bold flex items-center justify-center">-</button>
+                        <span id="level-display" class="text-2xl font-bold w-12 text-center">1</span>
+                        <button id="level-up" class="bg-gray-600 p-2 rounded-full w-12 h-12 text-2xl font-bold flex items-center justify-center">+</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">테이블</h3>
+                    <div id="table-buttons" class="grid grid-cols-4 sm:grid-cols-5 gap-2"></div>
+                </div>
+            </div>
+
+            <div id="player-selection" class="hidden">
+                <div class="scroll-container max-h-64 overflow-y-auto pr-2">
+                    <div id="player-buttons" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+                </div>
+            </div>
+
+            <div id="card-selection" class="hidden">
+                <div id="card-deck" class="grid grid-cols-7 gap-1 text-center"></div>
+                 <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors text-lg">카드 선택 완료</button>
+            </div>
+
+            <div id="final-step" class="hidden mt-6">
+                 <button id="generate-output" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-4 px-4 rounded-lg text-xl transition-transform transform hover:scale-105 animate-pulse">
+                    🕒 타임스탬프 & 전송용 텍스트 생성
+                </button>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div id="output-section" class="mt-6 hidden">
+            <div class="bg-gray-900 border-2 border-dashed border-amber-400 p-4 rounded-lg">
+                <h2 class="text-xl font-bold mb-2 text-amber-400">생성된 정보</h2>
+                <textarea id="output-text" class="w-full text-lg break-all bg-gray-700 p-3 rounded-md text-white" rows="4" readonly></textarea>
+                <button id="copy-output" class="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-3 px-4 rounded-md transition-colors text-lg">클립보드에 복사</button>
+                <p id="copy-feedback" class="text-green-400 text-center mt-2 h-5 font-semibold"></p>
+                <button id="reset-all" class="mt-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md transition-colors">새 핸드 기록하기</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const state = {
+                cameraID: 'kai002',
+                level: 1,
+                timecode: '',
+                table: null,
+                winner: null,
+                winnerHand: [],
+                loser: null,
+                loserHand: [],
+                board: [],
+                players: ['김갑환', '이영희', '박철수', '최민준', '정수빈', '강지우', '윤서아', '임도윤'],
+                currentStep: 'table-level',
+            };
+
+            const SUITS = { s: '♠', h: '♥', d: '♦', c: '♣' };
+            const RANKS = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
+
+            const el = {
+                cameraIdInput: document.getElementById('camera-id'),
+                saveSettingsBtn: document.getElementById('save-settings'),
+                newPlayerInput: document.getElementById('new-player-name'),
+                addPlayerBtn: document.getElementById('add-player'),
+                levelDownBtn: document.getElementById('level-down'),
+                levelUpBtn: document.getElementById('level-up'),
+                levelDisplay: document.getElementById('level-display'),
+                tableButtonsContainer: document.getElementById('table-buttons'),
+                playerButtonsContainer: document.getElementById('player-buttons'),
+                cardDeckContainer: document.getElementById('card-deck'),
+                confirmCardsBtn: document.getElementById('confirm-cards'),
+                statusText: document.getElementById('status-text'),
+                tableLevelSection: document.getElementById('table-level-selection'),
+                playerSection: document.getElementById('player-selection'),
+                cardSection: document.getElementById('card-selection'),
+                finalSection: document.getElementById('final-step'),
+                outputSection: document.getElementById('output-section'),
+                outputText: document.getElementById('output-text'),
+                copyBtn: document.getElementById('copy-output'),
+                copyFeedback: document.getElementById('copy-feedback'),
+                resetBtn: document.getElementById('reset-all'),
+                generateBtn: document.getElementById('generate-output'),
+            };
+
+            function renderTableButtons() {
+                el.tableButtonsContainer.innerHTML = '';
+                for (let i = 1; i <= 10; i++) {
+                    const tableNum = `T${String(i).padStart(2, '0')}`;
+                    const button = document.createElement('button');
+                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 px-2 rounded-md transition-colors';
+                    button.textContent = tableNum;
+                    button.onclick = () => selectTable(tableNum);
+                    el.tableButtonsContainer.appendChild(button);
+                }
+            }
+
+            function renderPlayerButtons() {
+                el.playerButtonsContainer.innerHTML = '';
+                state.players.forEach(player => {
+                    const button = document.createElement('button');
+                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-4 px-2 rounded-md transition-colors text-lg';
+                    button.textContent = player;
+                    button.onclick = () => selectPlayer(player);
+                    if (state.currentStep === 'loser' && player === state.winner) {
+                        button.disabled = true;
+                        button.className += ' opacity-50 cursor-not-allowed';
+                    }
+                    el.playerButtonsContainer.appendChild(button);
+                });
+            }
+
+            function renderCardDeck() {
+                el.cardDeckContainer.innerHTML = '';
+                RANKS.forEach(rank => {
+                    Object.keys(SUITS).forEach(suitKey => {
+                        const card = document.createElement('div');
+                        card.className = `card bg-white border-2 border-gray-300 rounded-md p-1 cursor-pointer flex flex-col justify-center items-center h-14 sm:h-16`;
+                        
+                        if (suitKey === 'h' || suitKey === 'd') card.classList.add('card-red');
+                        else card.classList.add('card-black');
+                        
+                        card.innerHTML = `<span class="font-bold text-lg">${rank}</span><span>${SUITS[suitKey]}</span>`;
+                        card.dataset.rank = rank;
+                        card.dataset.suit = suitKey;
+                        
+                        const cardId = `${rank}${suitKey}`;
+                        const isUsed = state.winnerHand.includes(cardId) || state.loserHand.includes(cardId) || state.board.includes(cardId);
+                        
+                        if (isUsed) {
+                            card.classList.add('disabled');
+                        } else {
+                            card.onclick = () => selectCard(rank, suitKey);
+                        }
+                        el.cardDeckContainer.appendChild(card);
+                    });
+                });
+            }
+
+            function updateUI() {
+                el.tableLevelSection.style.display = 'none';
+                el.playerSection.style.display = 'none';
+                el.cardSection.style.display = 'none';
+                el.finalSection.style.display = 'none';
+
+                switch (state.currentStep) {
+                    case 'table-level':
+                        el.tableLevelSection.style.display = 'block';
+                        el.statusText.textContent = '테이블과 레벨을 선택하세요.';
+                        break;
+                    case 'winner':
+                        el.playerSection.style.display = 'block';
+                        el.statusText.textContent = `승자(Winner)를 선택하세요.`;
+                        renderPlayerButtons();
+                        break;
+                    case 'winnerHand':
+                        el.cardSection.style.display = 'block';
+                        el.statusText.textContent = `${state.winner}의 핸드 카드 2장을 선택하세요.`;
+                        renderCardDeck();
+                        break;
+                    case 'loser':
+                        el.playerSection.style.display = 'block';
+                        el.statusText.textContent = `패자(Loser)를 선택하세요.`;
+                        renderPlayerButtons();
+                        break;
+                    case 'loserHand':
+                        el.cardSection.style.display = 'block';
+                        el.statusText.textContent = `${state.loser}의 핸드 카드 2장을 선택하세요.`;
+                        renderCardDeck();
+                        break;
+                    case 'board':
+                        el.cardSection.style.display = 'block';
+                        el.statusText.textContent = '보드 카드(최대 5장)를 선택하세요.';
+                        renderCardDeck();
+                        break;
+                    case 'final':
+                        el.finalSection.style.display = 'block';
+                        el.statusText.textContent = '모든 정보 입력 완료! 아래 버튼을 누르세요.';
+                        break;
+                }
+            }
+            
+            function nextStep() {
+                const steps = ['table-level', 'winner', 'winnerHand', 'loser', 'loserHand', 'board', 'final'];
+                const currentIndex = steps.indexOf(state.currentStep);
+                if (currentIndex < steps.length - 1) {
+                    state.currentStep = steps[currentIndex + 1];
+                    updateUI();
+                }
+            }
+
+            function updateLevel(change) {
+                state.level = Math.max(1, state.level + change);
+                el.levelDisplay.textContent = state.level;
+            }
+
+            function selectTable(tableNum) {
+                state.table = tableNum;
+                nextStep();
+            }
+
+            function selectPlayer(name) {
+                if (state.currentStep === 'winner') state.winner = name;
+                else if (state.currentStep === 'loser') state.loser = name;
+                nextStep();
+            }
+
+            function selectCard(rank, suit) {
+                const cardId = `${rank}${suit}`;
+                let currentHand, limit;
+
+                switch(state.currentStep) {
+                    case 'winnerHand': currentHand = state.winnerHand; limit = 2; break;
+                    case 'loserHand': currentHand = state.loserHand; limit = 2; break;
+                    case 'board': currentHand = state.board; limit = 5; break;
+                    default: return;
+                }
+
+                const cardEl = document.querySelector(`[data-rank="${rank}"][data-suit="${suit}"]`);
+                if (currentHand.includes(cardId)) {
+                    currentHand.splice(currentHand.indexOf(cardId), 1);
+                    cardEl.classList.remove('selected');
+                } else {
+                    if (currentHand.length < limit) {
+                        currentHand.push(cardId);
+                        cardEl.classList.add('selected');
+                    }
+                }
+                
+                if ((state.currentStep === 'winnerHand' || state.currentStep === 'loserHand') && currentHand.length === limit) {
+                    setTimeout(nextStep, 300);
+                }
+            }
+            
+            el.confirmCardsBtn.onclick = () => {
+                if (state.currentStep === 'board' && state.board.length >= 3) {
+                    nextStep();
+                } else if ((state.currentStep === 'winnerHand' && state.winnerHand.length === 2) || (state.currentStep === 'loserHand' && state.loserHand.length === 2)) {
+                    nextStep();
+                } else {
+                    // Simple feedback without alert
+                    el.statusText.textContent = '카드를 정확히 선택해주세요!';
+                    setTimeout(() => updateUI(), 1500);
+                }
+            };
+
+            function generateOutputString() {
+                const now = new Date();
+                const timecode = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+                state.timecode = timecode;
+                const formatHand = (hand) => hand.join('');
+                
+                const output = [
+                    state.cameraID,
+                    `Lv${String(state.level).padStart(2, '0')}`,
+                    state.timecode,
+                    state.table,
+                    state.winner,
+                    `Hand(${formatHand(state.winnerHand)})`,
+                    state.loser,
+                    `Hand(${formatHand(state.loserHand)})`,
+                    `board(${formatHand(state.board)})`
+                ].join('_');
+                
+                el.outputText.value = output;
+                el.outputSection.style.display = 'block';
+                el.outputSection.scrollIntoView({ behavior: 'smooth' });
+            }
+
+            function copyToClipboard() {
+                el.outputText.select();
+                el.outputText.setSelectionRange(0, 99999); // For mobile devices
+                try {
+                    document.execCommand('copy');
+                    el.copyFeedback.textContent = '✅ 복사되었습니다!';
+                } catch (err) {
+                    el.copyFeedback.textContent = '❌ 복사에 실패했습니다.';
+                }
+                setTimeout(() => { el.copyFeedback.textContent = ''; }, 2000);
+            }
+
+            function resetState() {
+                Object.assign(state, {
+                    table: null, winner: null, winnerHand: [],
+                    loser: null, loserHand: [], board: [],
+                    currentStep: 'table-level'
+                });
+                el.outputSection.style.display = 'none';
+                updateUI();
+            }
+
+            function saveSettings() {
+                state.cameraID = el.cameraIdInput.value;
+                localStorage.setItem('pokerLoggerSettings', JSON.stringify({
+                    cameraID: state.cameraID,
+                    players: state.players
+                }));
+                alert('설정이 저장되었습니다.');
+            }
+            
+            function loadSettings() {
+                const savedSettings = localStorage.getItem('pokerLoggerSettings');
+                if (savedSettings) {
+                    const { cameraID, players } = JSON.parse(savedSettings);
+                    state.cameraID = cameraID || 'kai002';
+                    state.players = players || [];
+                    el.cameraIdInput.value = state.cameraID;
+                }
+            }
+
+            function addPlayer() {
+                const newName = el.newPlayerInput.value.trim();
+                if (newName && !state.players.includes(newName)) {
+                    state.players.push(newName);
+                    el.newPlayerInput.value = '';
+                    if (state.currentStep === 'winner' || state.currentStep === 'loser') {
+                        renderPlayerButtons();
+                    }
+                }
+            }
+
+            el.levelUpBtn.onclick = () => updateLevel(1);
+            el.levelDownBtn.onclick = () => updateLevel(-1);
+            el.generateBtn.onclick = generateOutputString;
+            el.copyBtn.onclick = copyToClipboard;
+            el.resetBtn.onclick = resetState;
+            el.saveSettingsBtn.onclick = saveSettings;
+            el.addPlayerBtn.onclick = addPlayer;
+            el.newPlayerInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addPlayer();
+            });
+
+            loadSettings();
+            renderTableButtons();
+            updateUI();
+        });
+    </script>
+</body>
+</html>
