@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v13</title>
+    <title>포커 핸드 로거 v12</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -18,20 +18,22 @@
         .scroll-container::-webkit-scrollbar-thumb { background: #FBBF24; border-radius: 3px; }
         .btn-selected { background-color: #FBBF24 !important; color: #111827 !important; font-weight: bold; }
         .data-tag { background-color: #374151; color: #D1D5DB; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; }
+        #template-modal { transition: opacity 0.3s ease; }
     </style>
 </head>
 <body class="bg-gray-900 text-white p-2 sm:p-4 antialiased">
 
-    <div id="app" class="max-w-md md:max-w-3xl lg:max-w-5xl mx-auto">
+    <div id="app" class="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">반응형 UI / 시트 템플릿</p>
+            <p class="text-gray-400">템플릿 편집 기능</p>
         </header>
 
         <!-- Settings Section -->
         <div id="settings-section" class="bg-gray-800 p-4 rounded-lg mb-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold section-title flex-grow">데이터 정보</h2>
+                <button id="edit-templates-btn" class="ml-2 text-2xl" title="템플릿 편집">📝</button>
                 <button id="refresh-data" class="ml-4 text-2xl" title="데이터 새로고침">🔄</button>
             </div>
             <div class="mt-4">
@@ -60,23 +62,23 @@
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold mb-2">카메라 번호 (<span id="selected-prefix-display"></span>)</h3>
                     <div id="prefix-buttons-interactive" class="flex flex-wrap gap-2 mb-2"></div>
-                    <div id="camera-number-buttons" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2"></div>
+                    <div id="camera-number-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
                     <div class="flex justify-between items-center mt-3"><button id="prev-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button><span id="camera-page-info" class="font-semibold"></span><button id="next-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button></div>
                 </div>
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold mb-2">레벨</h3>
-                    <div id="level-buttons" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2"></div>
+                    <div id="level-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
                      <div class="flex justify-between items-center mt-3"><button id="prev-level-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button><span id="level-page-info" class="font-semibold"></span><button id="next-level-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button></div>
                 </div>
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold mb-2">테이블</h3>
-                    <div id="table-buttons" class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2"></div>
+                    <div id="table-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
                     <div class="flex justify-between items-center mt-3"><button id="prev-table-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button><span id="table-page-info" class="font-semibold"></span><button id="next-table-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button></div>
                 </div>
                 <button id="confirm-setup" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-lg">선택 완료 & 다음</button>
             </div>
             <div id="player-selection" class="hidden">
-                 <div class="scroll-container max-h-64 overflow-y-auto pr-2"><div id="player-buttons" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"></div></div>
+                 <div class="scroll-container max-h-64 overflow-y-auto pr-2"><div id="player-buttons" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div></div>
             </div>
             <div id="card-selection" class="hidden">
                 <div id="card-deck" class="space-y-3"></div>
@@ -99,11 +101,44 @@
         </div>
     </div>
 
+    <!-- Template Editor Modal -->
+    <div id="template-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden opacity-0">
+        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-lg max-h-[90vh] flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-amber-400">템플릿 편집기</h2>
+                <button id="close-template-modal" class="text-2xl">&times;</button>
+            </div>
+            <div class="flex-grow overflow-y-auto pr-2 scroll-container">
+                <!-- Create New Template -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-2">새 템플릿 만들기</h3>
+                    <input type="text" id="new-template-name" placeholder="템플릿 이름" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 mb-2">
+                    <div class="p-2 bg-gray-900 rounded-md min-h-[40px] mb-2 text-center" id="new-template-sequence-display">순서를 추가하세요</div>
+                    <div class="flex flex-wrap gap-2 mb-2" id="template-step-buttons"></div>
+                    <div class="flex gap-2">
+                        <button id="save-template-btn" class="flex-grow bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">저장</button>
+                        <button id="clear-template-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">초기화</button>
+                    </div>
+                </div>
+                <!-- Existing Templates -->
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">저장된 템플릿</h3>
+                    <div id="existing-templates-list" class="space-y-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const state = {
                 googleSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?output=csv',
-                templates: { '기본': ['setup', 'winner', 'winnerHand', 'loser', 'loserHand', 'board', 'final'] },
+                templates: {
+                    '기본': ['setup', 'winner', 'winnerHand', 'loser', 'loserHand', 'board', 'final'],
+                },
+                newTemplateSequence: [],
+                availableSteps: { 'setup': '환경설정', 'winner': '승자', 'winnerHand': '승자핸드', 'loser': '패자', 'loserHand': '패자핸드', 'board': '보드' },
                 activeTemplate: '기본',
                 cameraPrefixes: ['kai'], players: ['Player 1'],
                 selectedCameraPrefix: 'kai', selectedCameraNumber: 1, totalCameraNumbers: 100, cameraNumbersPerPage: 12, currentCameraNumberPage: 1,
@@ -117,33 +152,50 @@
             const RANKS = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
 
             const el = {
+                // Settings
                 refreshDataBtn: document.getElementById('refresh-data'),
+                editTemplatesBtn: document.getElementById('edit-templates-btn'),
                 templateButtons: document.getElementById('template-buttons'),
                 loadedPrefixesDisplay: document.getElementById('loaded-prefixes-display'),
                 loadedPlayersDisplay: document.getElementById('loaded-players-display'),
+                // Template Modal
+                templateModal: document.getElementById('template-modal'),
+                closeTemplateModalBtn: document.getElementById('close-template-modal'),
+                newTemplateNameInput: document.getElementById('new-template-name'),
+                newTemplateSequenceDisplay: document.getElementById('new-template-sequence-display'),
+                templateStepButtons: document.getElementById('template-step-buttons'),
+                saveTemplateBtn: document.getElementById('save-template-btn'),
+                clearTemplateBtn: document.getElementById('clear-template-btn'),
+                existingTemplatesList: document.getElementById('existing-templates-list'),
+                // Workflow
                 statusText: document.getElementById('status-text'),
                 setupSection: document.getElementById('setup-selection'),
                 playerSection: document.getElementById('player-selection'),
                 cardSection: document.getElementById('card-selection'),
                 finalSection: document.getElementById('final-step'),
+                // Camera
                 selectedPrefixDisplay: document.getElementById('selected-prefix-display'),
                 prefixButtonsInteractive: document.getElementById('prefix-buttons-interactive'),
                 cameraNumberButtonsContainer: document.getElementById('camera-number-buttons'),
                 prevCameraPageBtn: document.getElementById('prev-camera-page'),
                 nextCameraPageBtn: document.getElementById('next-camera-page'),
                 cameraPageInfo: document.getElementById('camera-page-info'),
+                // Level
                 levelButtonsContainer: document.getElementById('level-buttons'),
                 prevLevelPageBtn: document.getElementById('prev-level-page'),
                 nextLevelPageBtn: document.getElementById('next-level-page'),
                 levelPageInfo: document.getElementById('level-page-info'),
+                // Table
                 tableButtonsContainer: document.getElementById('table-buttons'),
                 prevTablePageBtn: document.getElementById('prev-table-page'),
                 nextTablePageBtn: document.getElementById('next-table-page'),
                 tablePageInfo: document.getElementById('table-page-info'),
                 confirmSetupBtn: document.getElementById('confirm-setup'),
+                // Player & Card
                 playerButtonsContainer: document.getElementById('player-buttons'),
                 cardDeckContainer: document.getElementById('card-deck'),
                 confirmCardsBtn: document.getElementById('confirm-cards'),
+                // Output
                 generateBtn: document.getElementById('generate-output'),
                 outputSection: document.getElementById('output-section'),
                 outputText: document.getElementById('output-text'),
@@ -154,6 +206,7 @@
             
             const stepToSectionMap = { setup: el.setupSection, winner: el.playerSection, loser: el.playerSection, winnerHand: el.cardSection, loserHand: el.cardSection, board: el.cardSection, final: el.finalSection };
 
+            // --- DATA & RENDER FUNCTIONS ---
             async function loadDataFromGoogleSheet() {
                 const url = state.googleSheetUrl;
                 try {
@@ -162,32 +215,22 @@
                     const csvText = await response.text();
                     const lines = csvText.trim().split(/\r?\n/);
                     
-                    if (lines.length < 2) { console.warn('시트에 데이터가 없습니다.'); return; }
+                    if (lines.length < 2) { console.warn('시트에 데이터가 없습니다. 기본값을 사용합니다.'); return; }
 
                     const headers = lines[0].split(',').map(h => h.trim());
                     const prefixIndex = headers.indexOf('prefix');
                     const playerIndex = headers.indexOf('player');
-                    const templateNameIndex = headers.indexOf('template_name');
-                    const templateSeqIndex = headers.indexOf('template_sequence');
 
-                    const newPrefixes = [], newPlayers = [], newTemplates = {};
+                    const newPrefixes = [], newPlayers = [];
                     for (let i = 1; i < lines.length; i++) {
                         const values = lines[i].split(',');
-                        if (prefixIndex !== -1 && values[prefixIndex]?.trim()) newPrefixes.push(values[prefixIndex].trim());
-                        if (playerIndex !== -1 && values[playerIndex]?.trim()) newPlayers.push(values[playerIndex].trim());
-                        if (templateNameIndex !== -1 && values[templateNameIndex]?.trim() && templateSeqIndex !== -1 && values[templateSeqIndex]?.trim()) {
-                            const name = values[templateNameIndex].trim();
-                            const sequence = values[templateSeqIndex].trim().split(',').concat('final');
-                            newTemplates[name] = sequence;
-                        }
+                        if (prefixIndex !== -1 && values[prefixIndex] && values[prefixIndex].trim()) newPrefixes.push(values[prefixIndex].trim());
+                        if (playerIndex !== -1 && values[playerIndex] && values[playerIndex].trim()) newPlayers.push(values[playerIndex].trim());
                     }
 
                     state.cameraPrefixes = newPrefixes.length > 0 ? newPrefixes : ['kai'];
                     state.players = newPlayers.length > 0 ? newPlayers : ['Player 1'];
-                    if (Object.keys(newTemplates).length > 0) state.templates = newTemplates;
-                    
                     if (!state.cameraPrefixes.includes(state.selectedCameraPrefix)) state.selectedCameraPrefix = state.cameraPrefixes[0] || '';
-                    if (!state.templates[state.activeTemplate]) state.activeTemplate = Object.keys(state.templates)[0] || '기본';
 
                 } catch (error) {
                     console.error('Google Sheet 데이터 로딩 실패:', error);
@@ -385,17 +428,87 @@
                 renderAllPaginatedButtons();
             }
             
-            function saveSettings() { localStorage.setItem('pokerLoggerActiveTemplate', state.activeTemplate); }
+            function saveSettings() { localStorage.setItem('pokerLoggerSettings_v12', JSON.stringify({ templates: state.templates, activeTemplate: state.activeTemplate })); }
             function loadSettings() {
-                const savedTemplate = localStorage.getItem('pokerLoggerActiveTemplate');
-                if (savedTemplate && state.templates[savedTemplate]) state.activeTemplate = savedTemplate;
+                const saved = localStorage.getItem('pokerLoggerSettings_v12');
+                if (saved) {
+                    const { templates, activeTemplate } = JSON.parse(saved);
+                    if (templates) state.templates = templates;
+                    if (activeTemplate && state.templates[activeTemplate]) state.activeTemplate = activeTemplate;
+                }
+            }
+            
+            // --- Template Editor ---
+            function openTemplateEditor() { renderTemplateEditor(); el.templateModal.classList.remove('hidden'); setTimeout(() => el.templateModal.classList.remove('opacity-0'), 10); }
+            function closeTemplateEditor() { el.templateModal.classList.add('opacity-0'); setTimeout(() => el.templateModal.classList.add('hidden'), 300); }
+            function renderTemplateEditor() {
+                el.templateStepButtons.innerHTML = '';
+                Object.entries(state.availableSteps).forEach(([key, name]) => {
+                    const button = document.createElement('button');
+                    button.className = 'bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded-md';
+                    button.textContent = name;
+                    button.onclick = () => addStepToTemplate(key);
+                    el.templateStepButtons.appendChild(button);
+                });
+                renderNewTemplateSequence();
+                renderExistingTemplates();
+            }
+            function addStepToTemplate(step) { state.newTemplateSequence.push(step); renderNewTemplateSequence(); }
+            function renderNewTemplateSequence() {
+                el.newTemplateSequenceDisplay.innerHTML = state.newTemplateSequence.map(s => `<span class="data-tag">${state.availableSteps[s]}</span>`).join(' <span class="text-gray-500">&rarr;</span> ');
+                if (state.newTemplateSequence.length === 0) el.newTemplateSequenceDisplay.textContent = '순서를 추가하세요';
+            }
+            function clearNewTemplate() { state.newTemplateSequence = []; el.newTemplateNameInput.value = ''; renderNewTemplateSequence(); }
+            function saveNewTemplate() {
+                const name = el.newTemplateNameInput.value.trim();
+                if (!name) { alert('템플릿 이름을 입력하세요.'); return; }
+                if (state.templates[name]) { alert('이미 존재하는 이름입니다.'); return; }
+                if (state.newTemplateSequence.length === 0) { alert('작업 순서를 추가하세요.'); return; }
+                if (!state.newTemplateSequence.includes('setup')) { alert("'환경설정' 단계는 반드시 포함되어야 합니다."); return; }
+                state.templates[name] = [...state.newTemplateSequence, 'final'];
+                saveSettings();
+                renderTemplateButtons();
+                renderExistingTemplates();
+                clearNewTemplate();
+            }
+            function deleteTemplate(name) {
+                if (name === '기본') { alert("'기본' 템플릿은 삭제할 수 없습니다."); return; }
+                if (confirm(`'${name}' 템플릿을 삭제하시겠습니까?`)) {
+                    delete state.templates[name];
+                    if (state.activeTemplate === name) state.activeTemplate = '기본';
+                    saveSettings();
+                    renderTemplateButtons();
+                    renderExistingTemplates();
+                }
+            }
+            function renderExistingTemplates() {
+                el.existingTemplatesList.innerHTML = '';
+                Object.keys(state.templates).forEach(name => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between bg-gray-700 p-2 rounded-md';
+                    const sequence = state.templates[name].slice(0, -1).map(s => state.availableSteps[s]).join(' → ');
+                    div.innerHTML = `<div><p class="font-bold">${name}</p><p class="text-sm text-gray-400">${sequence}</p></div>`;
+                    if (name !== '기본') {
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.className = 'text-red-500 font-bold px-2';
+                        deleteBtn.textContent = '삭제';
+                        deleteBtn.onclick = () => deleteTemplate(name);
+                        div.appendChild(deleteBtn);
+                    }
+                    el.existingTemplatesList.appendChild(div);
+                });
             }
 
+            // --- INITIALIZATION ---
             el.refreshDataBtn.onclick = () => {
                 el.loadedPrefixesDisplay.innerHTML = '<span class="text-gray-400">갱신 중...</span>';
                 el.loadedPlayersDisplay.innerHTML = '<span class="text-gray-400">갱신 중...</span>';
-                loadDataFromGoogleSheet().finally(() => { renderLoadedData(); renderTemplateButtons(); renderPrefixButtons(); });
+                loadDataFromGoogleSheet().finally(() => { renderLoadedData(); renderPrefixButtons(); });
             };
+            el.editTemplatesBtn.onclick = openTemplateEditor;
+            el.closeTemplateModalBtn.onclick = closeTemplateEditor;
+            el.saveTemplateBtn.onclick = saveNewTemplate;
+            el.clearTemplateBtn.onclick = clearNewTemplate;
             el.confirmSetupBtn.onclick = () => { if(state.table) nextStep(); else alert('테이블을 선택해주세요.'); };
             el.prevCameraPageBtn.onclick = () => changePage('camera', -1); el.nextCameraPageBtn.onclick = () => changePage('camera', 1);
             el.prevLevelPageBtn.onclick = () => changePage('level', -1); el.nextLevelPageBtn.onclick = () => changePage('level', 1);
@@ -405,8 +518,8 @@
             el.copyBtn.onclick = copyToClipboard;
             el.resetBtn.onclick = resetState;
 
+            loadSettings();
             loadDataFromGoogleSheet().finally(() => {
-                loadSettings();
                 renderLoadedData();
                 renderTemplateButtons();
                 renderPrefixButtons();
