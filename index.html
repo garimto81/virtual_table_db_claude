@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v14</title>
+    <title>포커 핸드 로거 v17</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -17,6 +17,7 @@
         .scroll-container::-webkit-scrollbar-track { background: #4B5563; border-radius: 3px; }
         .scroll-container::-webkit-scrollbar-thumb { background: #FBBF24; border-radius: 3px; }
         .btn-selected { background-color: #FBBF24 !important; color: #111827 !important; font-weight: bold; }
+        .player-btn.btn-selected { background-color: #FBBF24 !important; color: #111827 !important; font-weight: bold; border: 2px solid #FBBF24;}
         .data-tag { background-color: #374151; color: #D1D5DB; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; }
         #template-modal { transition: opacity 0.3s ease; }
     </style>
@@ -26,7 +27,7 @@
     <div id="app" class="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">템플릿 편집 & 구글 시트 연동</p>
+            <p class="text-gray-400">UI 개선 & 출력 포맷 고정</p>
         </header>
 
         <!-- Settings Section -->
@@ -58,6 +59,33 @@
             <div id="status-display" class="mb-4 p-3 bg-gray-700/50 rounded-md text-center">
                 <p id="status-text" class="text-lg font-semibold text-amber-300">데이터를 로드 중입니다...</p>
             </div>
+
+            <!-- Batch Input Section -->
+            <div id="batch-input-section" class="hidden space-y-4">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-lg font-semibold">승자 (Winner)</h3>
+                        <div id="winner-info-display" class="text-right"></div>
+                    </div>
+                    <div id="winner-player-buttons-batch" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3"></div>
+                    <div id="winner-hand-deck-batch"></div>
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-lg font-semibold">패자 (Loser)</h3>
+                        <div id="loser-info-display" class="text-right"></div>
+                    </div>
+                    <div id="loser-player-buttons-batch" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3"></div>
+                    <div id="loser-hand-deck-batch"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">보드 (Board)</h3>
+                    <div id="board-deck-batch"></div>
+                </div>
+                <button id="confirm-batch" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-lg">일괄 입력 완료 & 다음</button>
+            </div>
+
+            <!-- Setup Section -->
             <div id="setup-selection" class="hidden">
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold mb-2">카메라 번호 (<span id="selected-prefix-display"></span>)</h3>
@@ -77,13 +105,20 @@
                 </div>
                 <button id="confirm-setup" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-lg">선택 완료 & 다음</button>
             </div>
+
+            <!-- Step-by-step Player Section -->
             <div id="player-selection" class="hidden">
                  <div class="scroll-container max-h-64 overflow-y-auto pr-2"><div id="player-buttons" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div></div>
             </div>
+
+            <!-- Step-by-step Card Section -->
             <div id="card-selection" class="hidden">
+                <div id="special-card-buttons" class="flex gap-2 mb-3 justify-center"></div>
                 <div id="card-deck" class="space-y-3"></div>
-                 <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-lg">카드 선택 완료</button>
+                <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-lg">카드 선택 완료</button>
             </div>
+
+            <!-- Final Section -->
             <div id="final-step" class="hidden mt-6">
                  <button id="generate-output" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-4 rounded-lg text-xl transform hover:scale-105 animate-pulse">🕒 타임스탬프 & 전송용 텍스트 생성</button>
             </div>
@@ -133,19 +168,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const state = {
-                // ---> 중요: 아래 두 URL을 실제 구글 시트의 '웹에 게시' CSV URL로 교체하세요.
-                
-                // 'prefix', 'player' 정보가 있는 'Type' 시트의 게시 URL
                 dataSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv', 
-                
-                // 'template_name', 'sequence' 정보가 있는 'templates' 시트의 게시 URL
                 templateSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1243817276&single=true&output=csv', 
-
                 templates: {
-                    '기본': ['board', 'winner', 'winnerHand', 'loser', 'loserHand',  'final'],
+                    '기본': ['batch', 'setup', 'final'],
                 },
                 newTemplateSequence: [],
-                availableSteps: { 'setup': '환경설정', 'winner': '승자', 'winnerHand': '승자핸드', 'loser': '패자', 'loserHand': '패자핸드', 'board': '보드' },
+                availableSteps: { 'batch': '일괄입력', 'setup': '환경설정', 'winner': '승자', 'winnerHand': '승자핸드', 'loser': '패자', 'loserHand': '패자핸드', 'board': '보드' },
                 activeTemplate: '기본',
                 cameraPrefixes: ['kai'], players: ['Player 1'],
                 selectedCameraPrefix: 'kai', selectedCameraNumber: 1, totalCameraNumbers: 100, cameraNumbersPerPage: 12, currentCameraNumberPage: 1,
@@ -174,34 +203,43 @@
                 saveTemplateBtn: document.getElementById('save-template-btn'),
                 clearTemplateBtn: document.getElementById('clear-template-btn'),
                 existingTemplatesList: document.getElementById('existing-templates-list'),
-                // Workflow
+                // Workflow Sections
                 statusText: document.getElementById('status-text'),
+                batchSection: document.getElementById('batch-input-section'),
                 setupSection: document.getElementById('setup-selection'),
                 playerSection: document.getElementById('player-selection'),
                 cardSection: document.getElementById('card-selection'),
                 finalSection: document.getElementById('final-step'),
-                // Camera
+                // Batch Input Elements
+                winnerInfoDisplay: document.getElementById('winner-info-display'),
+                winnerPlayerButtonsBatch: document.getElementById('winner-player-buttons-batch'),
+                winnerHandDeckBatch: document.getElementById('winner-hand-deck-batch'),
+                loserInfoDisplay: document.getElementById('loser-info-display'),
+                loserPlayerButtonsBatch: document.getElementById('loser-player-buttons-batch'),
+                loserHandDeckBatch: document.getElementById('loser-hand-deck-batch'),
+                boardDeckBatch: document.getElementById('board-deck-batch'),
+                confirmBatchBtn: document.getElementById('confirm-batch'),
+                // Step-by-step Card Elements
+                specialCardButtonsContainer: document.getElementById('special-card-buttons'),
+                cardDeckContainer: document.getElementById('card-deck'),
+                confirmCardsBtn: document.getElementById('confirm-cards'),
+                // Setup Elements
                 selectedPrefixDisplay: document.getElementById('selected-prefix-display'),
                 prefixButtonsInteractive: document.getElementById('prefix-buttons-interactive'),
                 cameraNumberButtonsContainer: document.getElementById('camera-number-buttons'),
                 prevCameraPageBtn: document.getElementById('prev-camera-page'),
                 nextCameraPageBtn: document.getElementById('next-camera-page'),
                 cameraPageInfo: document.getElementById('camera-page-info'),
-                // Level
                 levelButtonsContainer: document.getElementById('level-buttons'),
                 prevLevelPageBtn: document.getElementById('prev-level-page'),
                 nextLevelPageBtn: document.getElementById('next-level-page'),
                 levelPageInfo: document.getElementById('level-page-info'),
-                // Table
                 tableButtonsContainer: document.getElementById('table-buttons'),
                 prevTablePageBtn: document.getElementById('prev-table-page'),
                 nextTablePageBtn: document.getElementById('next-table-page'),
                 tablePageInfo: document.getElementById('table-page-info'),
                 confirmSetupBtn: document.getElementById('confirm-setup'),
-                // Player & Card
                 playerButtonsContainer: document.getElementById('player-buttons'),
-                cardDeckContainer: document.getElementById('card-deck'),
-                confirmCardsBtn: document.getElementById('confirm-cards'),
                 // Output
                 generateBtn: document.getElementById('generate-output'),
                 outputSection: document.getElementById('output-section'),
@@ -211,18 +249,17 @@
                 resetBtn: document.getElementById('reset-all'),
             };
             
-            const stepToSectionMap = { setup: el.setupSection, winner: el.playerSection, loser: el.playerSection, winnerHand: el.cardSection, loserHand: el.cardSection, board: el.cardSection, final: el.finalSection };
+            const stepToSectionMap = { batch: el.batchSection, setup: el.setupSection, winner: el.playerSection, loser: el.playerSection, winnerHand: el.cardSection, loserHand: el.cardSection, board: el.cardSection, final: el.finalSection };
 
             // --- DATA & RENDER FUNCTIONS ---
             async function loadDataFromGoogleSheet() {
                 // Fetch players and prefixes
-                if (state.dataSheetUrl && state.dataSheetUrl !== 'YOUR_TYPE_SHEET_PUBLISHED_URL') {
+                if (state.dataSheetUrl) {
                     try {
                         const response = await fetch(`${state.dataSheetUrl}&_=${new Date().getTime()}`, { cache: 'no-store' });
                         if (!response.ok) throw new Error(`Data Sheet 네트워크 응답 오류: Status ${response.status}`);
                         const csvText = await response.text();
                         const lines = csvText.trim().split(/\r?\n/);
-                        
                         if (lines.length >= 2) {
                             const headers = lines[0].split(',').map(h => h.trim());
                             const prefixIndex = headers.indexOf('prefix');
@@ -237,20 +274,16 @@
                             state.players = newPlayers.length > 0 ? [...new Set(newPlayers)] : ['Player 1'];
                             if (!state.cameraPrefixes.includes(state.selectedCameraPrefix)) state.selectedCameraPrefix = state.cameraPrefixes[0] || '';
                         }
-                    } catch (error) {
-                        console.error('Google Sheet 데이터 로딩 실패:', error);
-                        showFeedback('플레이어/프리셋 시트 로딩 실패. 기본값 사용.');
-                    }
+                    } catch (error) { console.error('Google Sheet 데이터 로딩 실패:', error); showFeedback('플레이어/프리셋 시트 로딩 실패.'); }
                 }
 
                 // Fetch templates
-                if (state.templateSheetUrl && state.templateSheetUrl !== 'YOUR_TEMPLATES_SHEET_PUBLISHED_URL') {
+                if (state.templateSheetUrl) {
                     try {
                         const response = await fetch(`${state.templateSheetUrl}&_=${new Date().getTime()}`, { cache: 'no-store' });
                         if (!response.ok) throw new Error(`Template Sheet 네트워크 응답 오류: Status ${response.status}`);
                         const csvText = await response.text();
                         const lines = csvText.trim().split(/\r?\n/);
-
                         if (lines.length >= 2) {
                             const headers = lines[0].split(',').map(h => h.trim());
                             const nameIndex = headers.indexOf('template_name');
@@ -262,18 +295,12 @@
                                 const sequenceStr = values[sequenceIndex]?.trim();
                                 if (name && sequenceStr) {
                                     const sequence = sequenceStr.split('/').map(s => s.trim()).filter(s => state.availableSteps[s]);
-                                    if(sequence.length > 0 && sequence[0] === 'setup') {
-                                        sheetTemplates[name] = [...sequence, 'final'];
-                                    }
+                                    if(sequence.length > 0) { sheetTemplates[name] = [...sequence, 'final']; }
                                 }
                             }
-                            // Merge sheet templates with local templates, sheet templates take priority
                             state.templates = { ...state.templates, ...sheetTemplates };
                         }
-                    } catch (error) {
-                        console.error('Google Sheet 템플릿 로딩 실패:', error);
-                        showFeedback('템플릿 시트 로딩 실패. 로컬 템플릿만 사용.');
-                    }
+                    } catch (error) { console.error('Google Sheet 템플릿 로딩 실패:', error); showFeedback('템플릿 시트 로딩 실패.'); }
                 }
             }
             
@@ -338,20 +365,41 @@
 
             function renderAllPaginatedButtons() { renderPaginatedButtons('camera'); renderPaginatedButtons('level'); renderPaginatedButtons('table'); }
 
-            function renderPlayerButtons() {
-                el.playerButtonsContainer.innerHTML = '';
+            function renderPlayerButtons(targetContainer, clickHandler, selectedPlayer, disabledPlayer) {
+                targetContainer.innerHTML = '';
                 state.players.forEach(player => {
                     const button = document.createElement('button');
-                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-4 px-2 rounded-md text-lg';
+                    button.className = 'player-btn bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 px-2 rounded-md text-md';
                     button.textContent = player;
-                    button.onclick = () => selectPlayer(player);
-                    if (state.currentStep === 'loser' && player === state.winner) { button.disabled = true; button.className += ' opacity-50 cursor-not-allowed'; }
-                    el.playerButtonsContainer.appendChild(button);
+                    button.onclick = () => clickHandler(player);
+                    if (player === selectedPlayer) button.classList.add('btn-selected');
+                    if (player === disabledPlayer) { button.disabled = true; button.className += ' opacity-50 cursor-not-allowed'; }
+                    targetContainer.appendChild(button);
                 });
             }
 
-            function renderCardDeck() {
-                el.cardDeckContainer.innerHTML = '';
+            function renderCardDeck(target, container) {
+                container.innerHTML = '';
+                const showUnknown = target !== 'board';
+                
+                if(showUnknown) {
+                    const specialButtonsContainer = document.createElement('div');
+                    specialButtonsContainer.className = 'flex gap-2 mb-3 justify-center';
+                    container.appendChild(specialButtonsContainer);
+                    for (let i = 1; i <= 2; i++) {
+                        const unknownCardBtn = document.createElement('button');
+                        unknownCardBtn.className = 'card bg-gray-600 border-2 border-gray-400 rounded-md cursor-pointer h-14 w-20 flex justify-center items-center font-bold text-2xl text-white';
+                        unknownCardBtn.textContent = '?';
+                        unknownCardBtn.onclick = () => selectCard('?', String(i), target);
+                        if (state[target].includes(`?${i}`)) unknownCardBtn.classList.add('selected');
+                        specialButtonsContainer.appendChild(unknownCardBtn);
+                    }
+                }
+
+                const deckContainer = document.createElement('div');
+                deckContainer.className = 'space-y-3';
+                container.appendChild(deckContainer);
+
                 Object.keys(SUITS).forEach(suitKey => {
                     const suitRow = document.createElement('div');
                     suitRow.className = 'flex justify-between items-center space-x-1';
@@ -362,35 +410,87 @@
                         card.className = `card bg-white border-2 border-gray-300 rounded-md cursor-pointer flex-grow h-14 flex flex-col justify-center items-center font-bold text-lg`;
                         if (suitKey === 'h' || suitKey === 'd') card.classList.add('card-red'); else card.classList.add('card-black');
                         card.innerHTML = `<span>${rank}</span><span>${SUITS[suitKey]}</span>`;
-                        card.dataset.rank = rank; card.dataset.suit = suitKey;
-                        if (isUsed && !currentSelectedHand().includes(cardId)) { card.classList.add('disabled'); card.disabled = true; } else { card.onclick = () => selectCard(rank, suitKey); }
-                        if (currentSelectedHand().includes(cardId)) card.classList.add('selected');
+                        if (isUsed && !state[target].includes(cardId)) {
+                            card.classList.add('disabled'); card.disabled = true;
+                        } else {
+                            card.onclick = () => selectCard(rank, suitKey, target);
+                        }
+                        if (state[target].includes(cardId)) card.classList.add('selected');
                         suitRow.appendChild(card);
                     });
-                    el.cardDeckContainer.appendChild(suitRow);
+                    deckContainer.appendChild(suitRow);
                 });
             }
-            
-            function currentSelectedHand() {
-                switch(state.currentStep) {
-                    case 'winnerHand': return state.winnerHand;
-                    case 'loserHand': return state.loserHand;
-                    case 'board': return state.board;
-                    default: return [];
-                }
-            }
 
+            function renderSelectedInfoDisplay(type, container) {
+                container.innerHTML = '';
+                const player = state[type];
+                const hand = state[`${type}Hand`];
+
+                const playerTag = document.createElement('span');
+                playerTag.className = 'data-tag bg-amber-500 text-gray-900 font-bold';
+                playerTag.textContent = player;
+                container.appendChild(playerTag);
+
+                hand.forEach(cardId => {
+                    const cardTag = document.createElement('span');
+                    cardTag.className = 'data-tag';
+                    cardTag.textContent = cardId;
+                    container.appendChild(cardTag);
+                });
+
+                const changeBtn = document.createElement('button');
+                changeBtn.className = 'ml-2 bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded-md text-xs';
+                changeBtn.textContent = '변경';
+                changeBtn.onclick = () => {
+                    state[type] = null;
+                    state[`${type}Hand`] = [];
+                    updateUI();
+                };
+                container.appendChild(changeBtn);
+            }
+            
             function updateUI() {
                 Object.values(stepToSectionMap).forEach(section => section.style.display = 'none');
                 const currentSection = stepToSectionMap[state.currentStep];
                 if (currentSection) currentSection.style.display = 'block';
+
                 const stepActions = {
+                    'batch': () => {
+                        el.statusText.textContent = '핸드 정보를 일괄 입력하세요.';
+                        
+                        if (state.winner) {
+                            renderSelectedInfoDisplay('winner', el.winnerInfoDisplay);
+                            el.winnerPlayerButtonsBatch.style.display = 'none';
+                            if (state.winnerHand.length === 2) { el.winnerHandDeckBatch.style.display = 'none'; }
+                            else { el.winnerHandDeckBatch.style.display = 'block'; renderCardDeck('winnerHand', el.winnerHandDeckBatch); }
+                        } else {
+                            el.winnerInfoDisplay.innerHTML = '';
+                            el.winnerPlayerButtonsBatch.style.display = 'grid';
+                            el.winnerHandDeckBatch.style.display = 'none';
+                            renderPlayerButtons(el.winnerPlayerButtonsBatch, (player) => { state.winner = player; updateUI(); }, state.winner, state.loser);
+                        }
+
+                        if (state.loser) {
+                            renderSelectedInfoDisplay('loser', el.loserInfoDisplay);
+                            el.loserPlayerButtonsBatch.style.display = 'none';
+                            if (state.loserHand.length === 2) { el.loserHandDeckBatch.style.display = 'none'; }
+                            else { el.loserHandDeckBatch.style.display = 'block'; renderCardDeck('loserHand', el.loserHandDeckBatch); }
+                        } else {
+                            el.loserInfoDisplay.innerHTML = '';
+                            el.loserPlayerButtonsBatch.style.display = 'grid';
+                            el.loserHandDeckBatch.style.display = 'none';
+                            renderPlayerButtons(el.loserPlayerButtonsBatch, (player) => { state.loser = player; updateUI(); }, state.loser, state.winner);
+                        }
+
+                        renderCardDeck('board', el.boardDeckBatch);
+                    },
                     'setup': () => el.statusText.textContent = '카메라, 레벨, 테이블을 선택하세요.',
-                    'winner': () => { el.statusText.textContent = `승자(Winner)를 선택하세요.`; renderPlayerButtons(); },
-                    'winnerHand': () => { el.statusText.textContent = `${state.winner}의 핸드 카드 2장을 선택하세요.`; renderCardDeck(); },
-                    'loser': () => { el.statusText.textContent = `패자(Loser)를 선택하세요.`; renderPlayerButtons(); },
-                    'loserHand': () => { el.statusText.textContent = `${state.loser}의 핸드 카드 2장을 선택하세요.`; renderCardDeck(); },
-                    'board': () => { el.statusText.textContent = '보드 카드(최대 5장)를 선택하세요.'; renderCardDeck(); },
+                    'winner': () => { el.statusText.textContent = `승자(Winner)를 선택하세요.`; renderPlayerButtons(el.playerButtonsContainer, selectPlayer, null, state.loser); },
+                    'loser': () => { el.statusText.textContent = `패자(Loser)를 선택하세요.`; renderPlayerButtons(el.playerButtonsContainer, selectPlayer, null, state.winner); },
+                    'winnerHand': () => { el.statusText.textContent = `${state.winner}의 핸드 카드 2장을 선택하세요.`; renderCardDeck('winnerHand', el.cardSection); },
+                    'loserHand': () => { el.statusText.textContent = `${state.loser}의 핸드 카드 2장을 선택하세요.`; renderCardDeck('loserHand', el.cardSection); },
+                    'board': () => { el.statusText.textContent = '보드 카드(최대 5장)를 선택하세요.'; renderCardDeck('board', el.cardSection); },
                     'final': () => el.statusText.textContent = '모든 정보 입력 완료! 아래 버튼을 누르세요.'
                 };
                 if (stepActions[state.currentStep]) stepActions[state.currentStep]();
@@ -414,51 +514,66 @@
                 nextStep();
             }
 
-            function selectCard(rank, suit) {
-                const cardId = `${rank}${suit}`;
-                let currentHand, limit;
-                switch(state.currentStep) {
-                    case 'winnerHand': currentHand = state.winnerHand; limit = 2; break;
-                    case 'loserHand': currentHand = state.loserHand; limit = 2; break;
-                    case 'board': currentHand = state.board; limit = 5; break;
-                    default: return;
+            function selectCard(rank, suit, target) {
+                const cardId = (rank === '?') ? `?${suit}` : `${rank}${suit}`;
+                const isBatchMode = state.currentStep === 'batch';
+                const targetHand = isBatchMode ? state[target] : state[state.currentStep];
+                
+                let limit = 5; // default for board
+                if ((isBatchMode && (target === 'winnerHand' || target === 'loserHand')) || (!isBatchMode && (state.currentStep === 'winnerHand' || state.currentStep === 'loserHand'))) {
+                    limit = 2;
                 }
-                const cardEl = document.querySelector(`[data-rank="${rank}"][data-suit="${suit}"]`);
-                if (currentHand.includes(cardId)) { currentHand.splice(currentHand.indexOf(cardId), 1); cardEl.classList.remove('selected'); } 
-                else if (currentHand.length < limit) { currentHand.push(cardId); cardEl.classList.add('selected'); }
-                if ((state.currentStep === 'winnerHand' || state.currentStep === 'loserHand') && currentHand.length === limit) setTimeout(nextStep, 300);
+
+                const cardIndex = targetHand.indexOf(cardId);
+                if (cardIndex > -1) {
+                    targetHand.splice(cardIndex, 1);
+                } else if (targetHand.length < limit) {
+                    targetHand.push(cardId);
+                }
+
+                if (isBatchMode) {
+                    updateUI();
+                } else {
+                    renderCardDeck(state.currentStep, el.cardSection);
+                    if (targetHand.length === limit) {
+                        setTimeout(nextStep, 300);
+                    }
+                }
             }
             
             function changePage(type, direction) {
-                const pageState = {
-                    camera: { current: 'currentCameraNumberPage', render: () => renderPaginatedButtons('camera') },
-                    level: { current: 'currentLevelPage', render: () => renderPaginatedButtons('level') },
-                    table: { current: 'currentTablePage', render: () => renderPaginatedButtons('table') }
-                };
-                const config = pageState[type];
-                state[config.current] += direction;
-                config.render();
+                const pageState = { camera: { current: 'currentCameraNumberPage' }, level: { current: 'currentLevelPage' }, table: { current: 'currentTablePage' } };
+                state[pageState[type].current] += direction;
+                renderPaginatedButtons(type);
+            }
+
+            function formatBoard(board) {
+                if (!board || board.length === 0) return '';
+                const flop = board.slice(0, 3).sort().join('');
+                const turn = board.slice(3, 4).join('');
+                const river = board.slice(4, 5).join('');
+                return [flop, turn, river].filter(p => p).join('_');
             }
 
             function generateOutputString() {
                 const now = new Date();
                 const timecode = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                const formatHand = (hand) => hand.join('');
+                const formatHand = (hand) => hand.sort().join('');
                 const cameraID = `${state.selectedCameraPrefix}${String(state.selectedCameraNumber).padStart(3, '0')}`;
                 
-                const outputParts = [];
-                const workflow = state.templates[state.activeTemplate];
-
-                if (workflow.includes('setup')) {
-                    outputParts.push(cameraID, `Lv${String(state.level).padStart(2, '0')}`, timecode, state.table);
-                }
-                if (workflow.includes('winner')) outputParts.push(state.winner);
-                if (workflow.includes('winnerHand')) outputParts.push(formatHand(state.winnerHand));
-                if (workflow.includes('loser')) outputParts.push(state.loser);
-                if (workflow.includes('loserHand')) outputParts.push(formatHand(state.loserHand));
-                if (workflow.includes('board')) outputParts.push(formatHand(state.board));
+                const outputParts = [
+                    cameraID,
+                    `Lv${String(state.level).padStart(2, '0')}`,
+                    timecode,
+                    state.table,
+                    state.winner,
+                    formatHand(state.winnerHand),
+                    state.loser,
+                    formatHand(state.loserHand),
+                    formatBoard(state.board)
+                ];
                 
-                el.outputText.value = outputParts.filter(p => p).join('_'); // Filter out null/empty parts
+                el.outputText.value = outputParts.filter(p => p).join('_');
                 el.outputSection.style.display = 'block';
                 el.outputSection.scrollIntoView({ behavior: 'smooth' });
             }
@@ -466,19 +581,15 @@
             function copyToClipboard() {
                 el.outputText.select();
                 el.outputText.setSelectionRange(0, 99999);
-                try { 
-                    document.execCommand('copy'); 
-                    el.copyFeedback.textContent = '✅ 복사되었습니다!'; 
-                } catch (err) { 
-                    el.copyFeedback.textContent = '❌ 복사에 실패했습니다.'; 
-                }
+                try { document.execCommand('copy'); el.copyFeedback.textContent = '✅ 복사되었습니다!'; } 
+                catch (err) { el.copyFeedback.textContent = '❌ 복사에 실패했습니다.'; }
                 setTimeout(() => { el.copyFeedback.textContent = ''; }, 2000);
             }
 
             function resetState() {
                 state.winner = null; state.winnerHand = []; state.loser = null; state.loserHand = []; state.board = [];
                 if (!state.templates[state.activeTemplate]) {
-                    state.activeTemplate = '기본'; // Fallback to default if active template is gone
+                    state.activeTemplate = '기본';
                     saveSettings();
                 }
                 state.currentStep = state.templates[state.activeTemplate][0];
@@ -490,21 +601,16 @@
             function saveSettings() {
                 const localTemplates = {};
                 Object.keys(state.templates).forEach(name => {
-                    // Only save templates that are not from the sheet (or are custom overrides)
-                    // For simplicity, we save all non-default templates that might have been edited.
-                    // A more robust system would track sheet-only templates.
-                    if (name !== '기본') { // Example: don't save the default one if it's never changed
-                         localTemplates[name] = state.templates[name];
-                    }
+                    if (name !== '기본') { localTemplates[name] = state.templates[name]; }
                 });
-                localStorage.setItem('pokerLoggerSettings_v14', JSON.stringify({ templates: localTemplates, activeTemplate: state.activeTemplate }));
+                localStorage.setItem('pokerLoggerSettings_v17', JSON.stringify({ templates: localTemplates, activeTemplate: state.activeTemplate }));
             }
             
             function loadSettings() {
-                const saved = localStorage.getItem('pokerLoggerSettings_v14');
+                const saved = localStorage.getItem('pokerLoggerSettings_v17');
                 if (saved) {
                     const { templates, activeTemplate } = JSON.parse(saved);
-                    if (templates) state.templates = {...state.templates, ...templates}; // Merge, saved takes priority
+                    if (templates) state.templates = {...state.templates, ...templates};
                     if (activeTemplate && state.templates[activeTemplate]) state.activeTemplate = activeTemplate;
                 }
             }
@@ -517,7 +623,6 @@
                 setTimeout(() => feedbackEl.remove(), 3000);
             }
             
-            // --- Template Editor ---
             function openTemplateEditor() { renderTemplateEditor(); el.templateModal.classList.remove('hidden'); setTimeout(() => el.templateModal.classList.remove('opacity-0'), 10); }
             function closeTemplateEditor() { el.templateModal.classList.add('opacity-0'); setTimeout(() => el.templateModal.classList.add('hidden'), 300); }
             function renderTemplateEditor() {
@@ -543,45 +648,29 @@
                 if (!name) { showFeedback('템플릿 이름을 입력하세요.'); return; }
                 if (state.templates[name]) { showFeedback('이미 존재하는 이름입니다.'); return; }
                 if (state.newTemplateSequence.length === 0) { showFeedback('작업 순서를 추가하세요.'); return; }
-                if (!state.newTemplateSequence.includes('setup')) { showFeedback("'환경설정' 단계는 반드시 포함되어야 합니다."); return; }
                 
                 state.templates[name] = [...state.newTemplateSequence, 'final'];
-                saveSettings(); // Save to local storage
+                saveSettings();
                 renderTemplateButtons();
                 renderExistingTemplates();
                 clearNewTemplate();
                 showFeedback('템플릿이 로컬에 저장되었습니다!', false);
             }
             function deleteTemplate(name) {
-                if (name === '기본') { 
-                    showFeedback("'기본' 템플릿은 삭제할 수 없습니다.");
-                    return; 
-                }
-                
+                if (name === '기본') { showFeedback("'기본' 템플릿은 삭제할 수 없습니다."); return; }
                 const confirmModal = document.createElement('div');
                 confirmModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-                confirmModal.innerHTML = `
-                    <div class="bg-gray-800 p-6 rounded-lg shadow-xl text-center">
-                        <p class="mb-4">정말로 '${name}' 템플릿을 삭제하시겠습니까?<br><small class="text-gray-400">(시트에서 불러온 템플릿은 새로고침 시 복구됩니다)</small></p>
-                        <div class="flex justify-center gap-4">
-                            <button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">삭제</button>
-                            <button id="cancel-delete-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">취소</button>
-                        </div>
-                    </div>
-                `;
+                confirmModal.innerHTML = `<div class="bg-gray-800 p-6 rounded-lg shadow-xl text-center"><p class="mb-4">정말로 '${name}' 템플릿을 삭제하시겠습니까?<br><small class="text-gray-400">(시트에서 불러온 템플릿은 새로고침 시 복구됩니다)</small></p><div class="flex justify-center gap-4"><button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">삭제</button><button id="cancel-delete-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">취소</button></div></div>`;
                 document.body.appendChild(confirmModal);
-
                 document.getElementById('confirm-delete-btn').onclick = () => {
                     delete state.templates[name];
                     if (state.activeTemplate === name) state.activeTemplate = '기본';
-                    saveSettings(); // Update local storage
+                    saveSettings();
                     renderTemplateButtons();
                     renderExistingTemplates();
                     confirmModal.remove();
                 };
-                document.getElementById('cancel-delete-btn').onclick = () => {
-                    confirmModal.remove();
-                };
+                document.getElementById('cancel-delete-btn').onclick = () => confirmModal.remove();
             }
             function renderExistingTemplates() {
                 el.existingTemplatesList.innerHTML = '';
@@ -603,8 +692,8 @@
 
             // --- INITIALIZATION ---
             async function initializeApp() {
-                loadSettings(); // Load local settings first
-                await loadDataFromGoogleSheet(); // Fetch and merge sheet data
+                loadSettings();
+                await loadDataFromGoogleSheet();
                 renderLoadedData();
                 renderTemplateButtons();
                 renderPrefixButtons();
@@ -612,21 +701,13 @@
                 resetState();
             }
 
-            el.refreshDataBtn.onclick = () => {
-                el.statusText.textContent = '데이터 새로고침 중...';
-                initializeApp();
-            };
+            el.refreshDataBtn.onclick = () => { el.statusText.textContent = '데이터 새로고침 중...'; initializeApp(); };
             el.editTemplatesBtn.onclick = openTemplateEditor;
             el.closeTemplateModalBtn.onclick = closeTemplateEditor;
             el.saveTemplateBtn.onclick = saveNewTemplate;
             el.clearTemplateBtn.onclick = clearNewTemplate;
-            el.confirmSetupBtn.onclick = () => { 
-                if(state.table) {
-                    nextStep();
-                } else {
-                    showFeedback('테이블을 선택해주세요.');
-                }
-            };
+            el.confirmSetupBtn.onclick = () => { if(state.table) nextStep(); else showFeedback('테이블을 선택해주세요.'); };
+            el.confirmBatchBtn.onclick = nextStep;
             el.prevCameraPageBtn.onclick = () => changePage('camera', -1); el.nextCameraPageBtn.onclick = () => changePage('camera', 1);
             el.prevLevelPageBtn.onclick = () => changePage('level', -1); el.nextLevelPageBtn.onclick = () => changePage('level', 1);
             el.prevTablePageBtn.onclick = () => changePage('table', -1); el.nextTablePageBtn.onclick = () => changePage('table', 1);
