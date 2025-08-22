@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v2</title>
+    <title>포커 핸드 로거 v4</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
         body {
             font-family: 'Noto Sans KR', sans-serif;
-            touch-action: manipulation; /* 더블탭 확대 방지 */
-            -webkit-tap-highlight-color: transparent; /* 탭 시 하이라이트 제거 */
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         .card {
-            font-family: 'Roboto', sans-serif; /* 카드 폰트를 더 명확하게 */
+            font-family: 'Roboto', sans-serif;
             transition: all 0.2s ease-in-out;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
@@ -27,47 +27,49 @@
             cursor: not-allowed;
             background-color: #E5E7EB;
         }
-        .card-red { color: #DC2626; } /* 하트, 다이아몬드 */
-        .card-black { color: #111827; } /* 스페이드, 클로버 */
+        .card-red { color: #DC2626; }
+        .card-black { color: #111827; }
         .section-title {
             border-bottom: 2px solid #4B5563;
             padding-bottom: 8px;
             margin-bottom: 16px;
         }
-        /* 스크롤바 스타일링 */
-        .scroll-container::-webkit-scrollbar {
-            width: 6px;
-        }
-        .scroll-container::-webkit-scrollbar-track {
-            background: #4B5563;
-            border-radius: 3px;
-        }
-        .scroll-container::-webkit-scrollbar-thumb {
-            background: #FBBF24;
-            border-radius: 3px;
+        .scroll-container::-webkit-scrollbar { width: 6px; }
+        .scroll-container::-webkit-scrollbar-track { background: #4B5563; border-radius: 3px; }
+        .scroll-container::-webkit-scrollbar-thumb { background: #FBBF24; border-radius: 3px; }
+        .btn-selected {
+            background-color: #FBBF24 !important;
+            color: #111827 !important;
+            font-weight: bold;
         }
     </style>
 </head>
 <body class="bg-gray-900 text-white p-2 sm:p-4 antialiased">
 
-    <div id="app" class="max-w-md mx-auto">
+    <div id="app" class="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">모바일 최적화 버전</p>
+            <p class="text-gray-400">ID/레벨 선택 개선 버전</p>
         </header>
 
         <!-- Settings Section -->
         <div id="settings-section" class="bg-gray-800 p-4 rounded-lg mb-4">
             <h2 class="text-xl font-bold mb-4 section-title">사전 설정</h2>
-            <div>
-                <label for="camera-id" class="block text-sm font-medium text-gray-300 mb-1">카메라 ID</label>
-                <input type="text" id="camera-id" value="kai002" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-amber-500 focus:border-amber-500">
-            </div>
-             <div class="mt-4">
-                <label for="new-player-name" class="block text-sm font-medium text-gray-300 mb-1">신규 플레이어 추가</label>
-                <div class="flex gap-2">
-                    <input type="text" id="new-player-name" placeholder="플레이어 이름" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2 focus:ring-amber-500 focus:border-amber-500">
-                    <button id="add-player" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition-colors">추가</button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">카메라 ID 프리셋</label>
+                    <div id="prefix-buttons" class="flex flex-wrap gap-2 mb-2"></div>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-prefix-name" placeholder="프리셋 추가 (예: kai)" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                        <button id="add-prefix" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-md">추가</button>
+                    </div>
+                </div>
+                <div>
+                    <label for="new-player-name" class="block text-sm font-medium text-gray-300 mb-2">신규 플레이어 추가</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="new-player-name" placeholder="플레이어 이름" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                        <button id="add-player" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">추가</button>
+                    </div>
                 </div>
             </div>
             <div class="mt-4">
@@ -80,37 +82,52 @@
             <h2 class="text-xl font-bold mb-4 section-title">정보 기록</h2>
             
             <div id="status-display" class="mb-4 p-3 bg-gray-700/50 rounded-md text-center">
-                <p id="status-text" class="text-lg font-semibold text-amber-300">테이블과 레벨을 선택하세요.</p>
+                <p id="status-text" class="text-lg font-semibold text-amber-300">카메라, 레벨, 테이블을 선택하세요.</p>
             </div>
 
-            <div id="table-level-selection" class="mb-4">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 class="text-lg font-semibold">레벨</h3>
-                    <div class="flex items-center gap-2">
-                        <button id="level-down" class="bg-gray-600 p-2 rounded-full w-12 h-12 text-2xl font-bold flex items-center justify-center">-</button>
-                        <span id="level-display" class="text-2xl font-bold w-12 text-center">1</span>
-                        <button id="level-up" class="bg-gray-600 p-2 rounded-full w-12 h-12 text-2xl font-bold flex items-center justify-center">+</button>
+            <div id="setup-selection">
+                <!-- Camera Number Selection -->
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold mb-2">카메라 번호 (<span id="selected-prefix-display"></span>)</h3>
+                    <div id="camera-number-buttons" class="grid grid-cols-5 gap-2"></div>
+                    <div class="flex justify-between items-center mt-3">
+                        <button id="prev-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button>
+                        <span id="camera-page-info" class="font-semibold"></span>
+                        <button id="next-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button>
                     </div>
                 </div>
+                
+                <!-- Level Selection -->
+                <div class="mb-4">
+                    <h3 class="text-lg font-semibold mb-2">레벨</h3>
+                    <div id="level-buttons" class="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-10 gap-2"></div>
+                </div>
+
+                <!-- Table Selection -->
                 <div>
                     <h3 class="text-lg font-semibold mb-2">테이블</h3>
-                    <div id="table-buttons" class="grid grid-cols-4 sm:grid-cols-5 gap-2"></div>
+                    <div id="table-buttons" class="grid grid-cols-5 gap-2"></div>
+                    <div class="flex justify-between items-center mt-3">
+                        <button id="prev-table-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button>
+                        <span id="table-page-info" class="font-semibold"></span>
+                        <button id="next-table-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button>
+                    </div>
                 </div>
             </div>
 
             <div id="player-selection" class="hidden">
-                <div class="scroll-container max-h-64 overflow-y-auto pr-2">
-                    <div id="player-buttons" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+                 <div class="scroll-container max-h-64 overflow-y-auto pr-2">
+                    <div id="player-buttons" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
                 </div>
             </div>
 
             <div id="card-selection" class="hidden">
-                <div id="card-deck" class="grid grid-cols-7 gap-1 text-center"></div>
-                 <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition-colors text-lg">카드 선택 완료</button>
+                <div id="card-deck" class="space-y-3"></div>
+                 <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg text-lg">카드 선택 완료</button>
             </div>
 
             <div id="final-step" class="hidden mt-6">
-                 <button id="generate-output" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-4 px-4 rounded-lg text-xl transition-transform transform hover:scale-105 animate-pulse">
+                 <button id="generate-output" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-4 px-4 rounded-lg text-xl transform hover:scale-105 animate-pulse">
                     🕒 타임스탬프 & 전송용 텍스트 생성
                 </button>
             </div>
@@ -121,9 +138,9 @@
             <div class="bg-gray-900 border-2 border-dashed border-amber-400 p-4 rounded-lg">
                 <h2 class="text-xl font-bold mb-2 text-amber-400">생성된 정보</h2>
                 <textarea id="output-text" class="w-full text-lg break-all bg-gray-700 p-3 rounded-md text-white" rows="4" readonly></textarea>
-                <button id="copy-output" class="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-3 px-4 rounded-md transition-colors text-lg">클립보드에 복사</button>
+                <button id="copy-output" class="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-3 px-4 rounded-md text-lg">클립보드에 복사</button>
                 <p id="copy-feedback" class="text-green-400 text-center mt-2 h-5 font-semibold"></p>
-                <button id="reset-all" class="mt-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md transition-colors">새 핸드 기록하기</button>
+                <button id="reset-all" class="mt-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md">새 핸드 기록하기</button>
             </div>
         </div>
     </div>
@@ -131,64 +148,141 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const state = {
-                cameraID: 'kai002',
+                cameraPrefixes: ['kai', 'cam'],
+                selectedCameraPrefix: 'kai',
+                selectedCameraNumber: 1,
+                totalCameraNumbers: 100,
+                cameraNumbersPerPage: 10,
+                currentCameraNumberPage: 1,
                 level: 1,
-                timecode: '',
+                maxLevel: 30,
                 table: null,
-                winner: null,
-                winnerHand: [],
-                loser: null,
-                loserHand: [],
+                totalTables: 30,
+                tablesPerPage: 10,
+                currentTablePage: 1,
+                winner: null, winnerHand: [],
+                loser: null, loserHand: [],
                 board: [],
                 players: ['김갑환', '이영희', '박철수', '최민준', '정수빈', '강지우', '윤서아', '임도윤'],
-                currentStep: 'table-level',
+                currentStep: 'setup',
             };
 
             const SUITS = { s: '♠', h: '♥', d: '♦', c: '♣' };
             const RANKS = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
 
             const el = {
-                cameraIdInput: document.getElementById('camera-id'),
-                saveSettingsBtn: document.getElementById('save-settings'),
+                // Settings
+                newPrefixInput: document.getElementById('new-prefix-name'),
+                addPrefixBtn: document.getElementById('add-prefix'),
+                prefixButtonsContainer: document.getElementById('prefix-buttons'),
                 newPlayerInput: document.getElementById('new-player-name'),
                 addPlayerBtn: document.getElementById('add-player'),
-                levelDownBtn: document.getElementById('level-down'),
-                levelUpBtn: document.getElementById('level-up'),
-                levelDisplay: document.getElementById('level-display'),
-                tableButtonsContainer: document.getElementById('table-buttons'),
-                playerButtonsContainer: document.getElementById('player-buttons'),
-                cardDeckContainer: document.getElementById('card-deck'),
-                confirmCardsBtn: document.getElementById('confirm-cards'),
+                saveSettingsBtn: document.getElementById('save-settings'),
+                // Workflow
                 statusText: document.getElementById('status-text'),
-                tableLevelSection: document.getElementById('table-level-selection'),
+                setupSection: document.getElementById('setup-selection'),
                 playerSection: document.getElementById('player-selection'),
                 cardSection: document.getElementById('card-selection'),
                 finalSection: document.getElementById('final-step'),
+                // Camera
+                selectedPrefixDisplay: document.getElementById('selected-prefix-display'),
+                cameraNumberButtonsContainer: document.getElementById('camera-number-buttons'),
+                prevCameraPageBtn: document.getElementById('prev-camera-page'),
+                nextCameraPageBtn: document.getElementById('next-camera-page'),
+                cameraPageInfo: document.getElementById('camera-page-info'),
+                // Level
+                levelButtonsContainer: document.getElementById('level-buttons'),
+                // Table
+                tableButtonsContainer: document.getElementById('table-buttons'),
+                prevTablePageBtn: document.getElementById('prev-table-page'),
+                nextTablePageBtn: document.getElementById('next-table-page'),
+                tablePageInfo: document.getElementById('table-page-info'),
+                // Player & Card
+                playerButtonsContainer: document.getElementById('player-buttons'),
+                cardDeckContainer: document.getElementById('card-deck'),
+                confirmCardsBtn: document.getElementById('confirm-cards'),
+                // Output
+                generateBtn: document.getElementById('generate-output'),
                 outputSection: document.getElementById('output-section'),
                 outputText: document.getElementById('output-text'),
                 copyBtn: document.getElementById('copy-output'),
                 copyFeedback: document.getElementById('copy-feedback'),
                 resetBtn: document.getElementById('reset-all'),
-                generateBtn: document.getElementById('generate-output'),
             };
 
-            function renderTableButtons() {
-                el.tableButtonsContainer.innerHTML = '';
-                for (let i = 1; i <= 10; i++) {
-                    const tableNum = `T${String(i).padStart(2, '0')}`;
+            // --- RENDER FUNCTIONS ---
+            function renderPrefixButtons() {
+                el.prefixButtonsContainer.innerHTML = '';
+                state.cameraPrefixes.forEach(prefix => {
                     const button = document.createElement('button');
-                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 px-2 rounded-md transition-colors';
-                    button.textContent = tableNum;
-                    button.onclick = () => selectTable(tableNum);
-                    el.tableButtonsContainer.appendChild(button);
+                    button.className = 'bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded-md';
+                    if (prefix === state.selectedCameraPrefix) button.classList.add('btn-selected');
+                    button.textContent = prefix;
+                    button.onclick = () => selectPrefix(prefix);
+                    el.prefixButtonsContainer.appendChild(button);
+                });
+                el.selectedPrefixDisplay.textContent = state.selectedCameraPrefix;
+            }
+
+            function renderCameraNumberButtons() {
+                const container = el.cameraNumberButtonsContainer;
+                container.innerHTML = '';
+                const start = (state.currentCameraNumberPage - 1) * state.cameraNumbersPerPage + 1;
+                const end = Math.min(start + state.cameraNumbersPerPage - 1, state.totalCameraNumbers);
+                
+                for (let i = start; i <= end; i++) {
+                    const button = document.createElement('button');
+                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 rounded-md';
+                    if (i === state.selectedCameraNumber) button.classList.add('btn-selected');
+                    button.textContent = i;
+                    button.onclick = () => selectCameraNumber(i);
+                    container.appendChild(button);
                 }
+
+                const totalPages = Math.ceil(state.totalCameraNumbers / state.cameraNumbersPerPage);
+                el.cameraPageInfo.textContent = `페이지 ${state.currentCameraNumberPage} / ${totalPages}`;
+                el.prevCameraPageBtn.disabled = state.currentCameraNumberPage === 1;
+                el.nextCameraPageBtn.disabled = state.currentCameraNumberPage === totalPages;
+            }
+
+            function renderLevelButtons() {
+                const container = el.levelButtonsContainer;
+                container.innerHTML = '';
+                for (let i = 1; i <= state.maxLevel; i++) {
+                    const button = document.createElement('button');
+                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-2 rounded-md';
+                    if (i === state.level) button.classList.add('btn-selected');
+                    button.textContent = `Lv ${i}`;
+                    button.onclick = () => selectLevel(i);
+                    container.appendChild(button);
+                }
+            }
+
+            function renderTableButtons() {
+                const container = el.tableButtonsContainer;
+                container.innerHTML = '';
+                const start = (state.currentTablePage - 1) * state.tablesPerPage + 1;
+                const end = Math.min(start + state.tablesPerPage - 1, state.totalTables);
+                
+                for (let i = start; i <= end; i++) {
+                    const button = document.createElement('button');
+                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 rounded-md';
+                    button.textContent = `T${String(i).padStart(2, '0')}`;
+                    button.onclick = () => selectTable(`T${String(i).padStart(2, '0')}`);
+                    container.appendChild(button);
+                }
+
+                const totalPages = Math.ceil(state.totalTables / state.tablesPerPage);
+                el.tablePageInfo.textContent = `페이지 ${state.currentTablePage} / ${totalPages}`;
+                el.prevTablePageBtn.disabled = state.currentTablePage === 1;
+                el.nextTablePageBtn.disabled = state.currentTablePage === totalPages;
             }
 
             function renderPlayerButtons() {
                 el.playerButtonsContainer.innerHTML = '';
                 state.players.forEach(player => {
                     const button = document.createElement('button');
-                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-4 px-2 rounded-md transition-colors text-lg';
+                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-4 px-2 rounded-md text-lg';
                     button.textContent = player;
                     button.onclick = () => selectPlayer(player);
                     if (state.currentStep === 'loser' && player === state.winner) {
@@ -201,76 +295,94 @@
 
             function renderCardDeck() {
                 el.cardDeckContainer.innerHTML = '';
-                RANKS.forEach(rank => {
-                    Object.keys(SUITS).forEach(suitKey => {
-                        const card = document.createElement('div');
-                        card.className = `card bg-white border-2 border-gray-300 rounded-md p-1 cursor-pointer flex flex-col justify-center items-center h-14 sm:h-16`;
+                Object.keys(SUITS).forEach(suitKey => {
+                    const suitRow = document.createElement('div');
+                    suitRow.className = 'flex justify-between items-center space-x-1';
+                    RANKS.forEach(rank => {
+                        const cardId = `${rank}${suitKey}`;
+                        const isUsed = state.winnerHand.includes(cardId) || state.loserHand.includes(cardId) || state.board.includes(cardId);
+                        const card = document.createElement('button');
+                        card.className = `card bg-white border-2 border-gray-300 rounded-md cursor-pointer flex-grow h-14 flex-col justify-center items-center font-bold text-lg`;
                         
                         if (suitKey === 'h' || suitKey === 'd') card.classList.add('card-red');
                         else card.classList.add('card-black');
-                        
-                        card.innerHTML = `<span class="font-bold text-lg">${rank}</span><span>${SUITS[suitKey]}</span>`;
+
+                        card.innerHTML = `<span>${rank}</span><span>${SUITS[suitKey]}</span>`;
                         card.dataset.rank = rank;
                         card.dataset.suit = suitKey;
-                        
-                        const cardId = `${rank}${suitKey}`;
-                        const isUsed = state.winnerHand.includes(cardId) || state.loserHand.includes(cardId) || state.board.includes(cardId);
-                        
-                        if (isUsed) {
+
+                        if (isUsed && !currentSelectedHand().includes(cardId)) {
                             card.classList.add('disabled');
+                            card.disabled = true;
                         } else {
                             card.onclick = () => selectCard(rank, suitKey);
                         }
-                        el.cardDeckContainer.appendChild(card);
+
+                        if (currentSelectedHand().includes(cardId)) {
+                           card.classList.add('selected');
+                        }
+                        suitRow.appendChild(card);
                     });
+                    el.cardDeckContainer.appendChild(suitRow);
                 });
             }
+            
+            function currentSelectedHand() {
+                switch(state.currentStep) {
+                    case 'winnerHand': return state.winnerHand;
+                    case 'loserHand': return state.loserHand;
+                    case 'board': return state.board;
+                    default: return [];
+                }
+            }
 
+            // --- UI & WORKFLOW ---
             function updateUI() {
-                el.tableLevelSection.style.display = 'none';
+                el.setupSection.style.display = 'none';
                 el.playerSection.style.display = 'none';
                 el.cardSection.style.display = 'none';
                 el.finalSection.style.display = 'none';
 
-                switch (state.currentStep) {
-                    case 'table-level':
-                        el.tableLevelSection.style.display = 'block';
-                        el.statusText.textContent = '테이블과 레벨을 선택하세요.';
-                        break;
-                    case 'winner':
+                const stepActions = {
+                    'setup': () => {
+                        el.setupSection.style.display = 'block';
+                        el.statusText.textContent = '카메라, 레벨, 테이블을 선택하세요.';
+                    },
+                    'winner': () => {
                         el.playerSection.style.display = 'block';
                         el.statusText.textContent = `승자(Winner)를 선택하세요.`;
                         renderPlayerButtons();
-                        break;
-                    case 'winnerHand':
+                    },
+                    'winnerHand': () => {
                         el.cardSection.style.display = 'block';
                         el.statusText.textContent = `${state.winner}의 핸드 카드 2장을 선택하세요.`;
                         renderCardDeck();
-                        break;
-                    case 'loser':
+                    },
+                    'loser': () => {
                         el.playerSection.style.display = 'block';
                         el.statusText.textContent = `패자(Loser)를 선택하세요.`;
                         renderPlayerButtons();
-                        break;
-                    case 'loserHand':
+                    },
+                    'loserHand': () => {
                         el.cardSection.style.display = 'block';
                         el.statusText.textContent = `${state.loser}의 핸드 카드 2장을 선택하세요.`;
                         renderCardDeck();
-                        break;
-                    case 'board':
+                    },
+                    'board': () => {
                         el.cardSection.style.display = 'block';
                         el.statusText.textContent = '보드 카드(최대 5장)를 선택하세요.';
                         renderCardDeck();
-                        break;
-                    case 'final':
+                    },
+                    'final': () => {
                         el.finalSection.style.display = 'block';
                         el.statusText.textContent = '모든 정보 입력 완료! 아래 버튼을 누르세요.';
-                        break;
-                }
+                    }
+                };
+                stepActions[state.currentStep]();
             }
             
             function nextStep() {
-                const steps = ['table-level', 'winner', 'winnerHand', 'loser', 'loserHand', 'board', 'final'];
+                const steps = ['setup', 'winner', 'winnerHand', 'loser', 'loserHand', 'board', 'final'];
                 const currentIndex = steps.indexOf(state.currentStep);
                 if (currentIndex < steps.length - 1) {
                     state.currentStep = steps[currentIndex + 1];
@@ -278,9 +390,29 @@
                 }
             }
 
-            function updateLevel(change) {
-                state.level = Math.max(1, state.level + change);
-                el.levelDisplay.textContent = state.level;
+            // --- EVENT HANDLERS ---
+            function selectPrefix(prefix) {
+                state.selectedCameraPrefix = prefix;
+                renderPrefixButtons();
+            }
+            
+            function addPrefix() {
+                const newPrefix = el.newPrefixInput.value.trim();
+                if (newPrefix && !state.cameraPrefixes.includes(newPrefix)) {
+                    state.cameraPrefixes.push(newPrefix);
+                    el.newPrefixInput.value = '';
+                    renderPrefixButtons();
+                }
+            }
+
+            function selectCameraNumber(number) {
+                state.selectedCameraNumber = number;
+                renderCameraNumberButtons();
+            }
+
+            function selectLevel(level) {
+                state.level = level;
+                renderLevelButtons();
             }
 
             function selectTable(tableNum) {
@@ -321,28 +453,29 @@
                 }
             }
             
-            el.confirmCardsBtn.onclick = () => {
-                if (state.currentStep === 'board' && state.board.length >= 3) {
-                    nextStep();
-                } else if ((state.currentStep === 'winnerHand' && state.winnerHand.length === 2) || (state.currentStep === 'loserHand' && state.loserHand.length === 2)) {
-                    nextStep();
-                } else {
-                    // Simple feedback without alert
-                    el.statusText.textContent = '카드를 정확히 선택해주세요!';
-                    setTimeout(() => updateUI(), 1500);
-                }
-            };
+            function changePage(type, direction) {
+                const pageState = {
+                    camera: { current: 'currentCameraNumberPage', total: 'totalCameraNumbers', perPage: 'cameraNumbersPerPage', render: renderCameraNumberButtons },
+                    table: { current: 'currentTablePage', total: 'totalTables', perPage: 'tablesPerPage', render: renderTableButtons }
+                };
+                const config = pageState[type];
+                const totalPages = Math.ceil(state[config.total] / state[config.perPage]);
+                state[config.current] += direction;
+                if (state[config.current] < 1) state[config.current] = 1;
+                if (state[config.current] > totalPages) state[config.current] = totalPages;
+                config.render();
+            }
 
             function generateOutputString() {
                 const now = new Date();
                 const timecode = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                state.timecode = timecode;
                 const formatHand = (hand) => hand.join('');
+                const cameraID = `${state.selectedCameraPrefix}${String(state.selectedCameraNumber).padStart(3, '0')}`;
                 
                 const output = [
-                    state.cameraID,
+                    cameraID,
                     `Lv${String(state.level).padStart(2, '0')}`,
-                    state.timecode,
+                    timecode,
                     state.table,
                     state.winner,
                     `Hand(${formatHand(state.winnerHand)})`,
@@ -358,7 +491,7 @@
 
             function copyToClipboard() {
                 el.outputText.select();
-                el.outputText.setSelectionRange(0, 99999); // For mobile devices
+                el.outputText.setSelectionRange(0, 99999);
                 try {
                     document.execCommand('copy');
                     el.copyFeedback.textContent = '✅ 복사되었습니다!';
@@ -372,28 +505,28 @@
                 Object.assign(state, {
                     table: null, winner: null, winnerHand: [],
                     loser: null, loserHand: [], board: [],
-                    currentStep: 'table-level'
+                    currentStep: 'setup'
                 });
                 el.outputSection.style.display = 'none';
                 updateUI();
             }
 
             function saveSettings() {
-                state.cameraID = el.cameraIdInput.value;
-                localStorage.setItem('pokerLoggerSettings', JSON.stringify({
-                    cameraID: state.cameraID,
+                localStorage.setItem('pokerLoggerSettings_v4', JSON.stringify({
+                    cameraPrefixes: state.cameraPrefixes,
+                    selectedCameraPrefix: state.selectedCameraPrefix,
                     players: state.players
                 }));
                 alert('설정이 저장되었습니다.');
             }
             
             function loadSettings() {
-                const savedSettings = localStorage.getItem('pokerLoggerSettings');
+                const savedSettings = localStorage.getItem('pokerLoggerSettings_v4');
                 if (savedSettings) {
-                    const { cameraID, players } = JSON.parse(savedSettings);
-                    state.cameraID = cameraID || 'kai002';
+                    const { cameraPrefixes, selectedCameraPrefix, players } = JSON.parse(savedSettings);
+                    state.cameraPrefixes = cameraPrefixes || ['kai', 'cam'];
+                    state.selectedCameraPrefix = selectedCameraPrefix || 'kai';
                     state.players = players || [];
-                    el.cameraIdInput.value = state.cameraID;
                 }
             }
 
@@ -408,18 +541,30 @@
                 }
             }
 
-            el.levelUpBtn.onclick = () => updateLevel(1);
-            el.levelDownBtn.onclick = () => updateLevel(-1);
+            // --- INITIALIZATION ---
+            loadSettings();
+            
+            el.addPrefixBtn.onclick = addPrefix;
+            el.newPrefixInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPrefix(); });
+            el.addPlayerBtn.onclick = addPlayer;
+            el.newPlayerInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPlayer(); });
+            el.saveSettingsBtn.onclick = saveSettings;
+            
+            el.prevCameraPageBtn.onclick = () => changePage('camera', -1);
+            el.nextCameraPageBtn.onclick = () => changePage('camera', 1);
+            el.prevTablePageBtn.onclick = () => changePage('table', -1);
+            el.nextTablePageBtn.onclick = () => changePage('table', 1);
+
+            el.confirmCardsBtn.onclick = () => {
+                if (state.currentStep === 'board' && state.board.length >= 3) nextStep();
+            };
             el.generateBtn.onclick = generateOutputString;
             el.copyBtn.onclick = copyToClipboard;
             el.resetBtn.onclick = resetState;
-            el.saveSettingsBtn.onclick = saveSettings;
-            el.addPlayerBtn.onclick = addPlayer;
-            el.newPlayerInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') addPlayer();
-            });
 
-            loadSettings();
+            renderPrefixButtons();
+            renderCameraNumberButtons();
+            renderLevelButtons();
             renderTableButtons();
             updateUI();
         });
