@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v8</title>
+    <title>포커 핸드 로거 v10</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -42,6 +42,13 @@
             color: #111827 !important;
             font-weight: bold;
         }
+        .data-tag {
+            background-color: #374151;
+            color: #D1D5DB;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
     </style>
 </head>
 <body class="bg-gray-900 text-white p-2 sm:p-4 antialiased">
@@ -49,31 +56,28 @@
     <div id="app" class="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">New Sheet Structure</p>
+            <p class="text-gray-400">데이터 로드 개선</p>
         </header>
 
         <!-- Settings Section -->
         <div id="settings-section" class="bg-gray-800 p-4 rounded-lg mb-4">
-            <h2 class="text-xl font-bold mb-4 section-title">사전 설정</h2>
-            <div class="mb-4">
-                <label for="google-sheet-url" class="block text-sm font-medium text-gray-300 mb-2">Google Sheet URL (.csv로 웹에 게시)</label>
-                <div class="flex gap-2">
-                    <input type="url" id="google-sheet-url" placeholder="게시된 구글 시트 CSV 링크" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                    <button id="load-sheet-data" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">불러오기</button>
-                </div>
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold section-title flex-grow">데이터 정보</h2>
+                <button id="refresh-data" class="ml-4 text-2xl" title="데이터 새로고침">🔄</button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                  <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">카메라 ID 프리셋</label>
-                    <div id="prefix-buttons" class="flex flex-wrap gap-2 mb-2 min-h-[36px]"></div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">로드된 프리셋</label>
+                    <div id="loaded-prefixes-display" class="flex flex-wrap gap-2 p-2 bg-gray-700 rounded-md min-h-[40px]">
+                        <span class="text-gray-400">로딩 중...</span>
+                    </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">플레이어 목록</label>
-                    <p id="player-count" class="text-gray-400"></p>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">로드된 플레이어</label>
+                     <div id="loaded-players-display" class="scroll-container flex flex-wrap gap-2 p-2 bg-gray-700 rounded-md min-h-[40px] max-h-24 overflow-y-auto">
+                        <span class="text-gray-400">로딩 중...</span>
+                    </div>
                 </div>
-            </div>
-            <div class="mt-4">
-                 <button id="save-settings" class="w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-2 px-4 rounded-md transition-colors">현재 URL 저장</button>
             </div>
         </div>
 
@@ -89,6 +93,7 @@
                 <!-- Camera Number Selection -->
                 <div class="mb-4">
                     <h3 class="text-lg font-semibold mb-2">카메라 번호 (<span id="selected-prefix-display"></span>)</h3>
+                    <div id="prefix-buttons-interactive" class="flex flex-wrap gap-2 mb-2"></div>
                     <div id="camera-number-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
                     <div class="flex justify-between items-center mt-3">
                         <button id="prev-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button>
@@ -153,10 +158,10 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const state = {
-                googleSheetUrl: '',
+                googleSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSykASgns7boW5t97NOa_BFhNuEcZWwdueGCIfF7PNaxAS-AeXNkVd9d1PgW-ledj6byTb8pHGlSPA5/pub?output=csv',
                 // Default values
-                cameraPrefixes: ['kai', 'cam', 'eng'],
-                players: ['김갑환', '이영희', '박철수', '최민준', '정수빈', '강지우', '윤서아', '임도윤'],
+                cameraPrefixes: ['kai'],
+                players: ['Player 1'],
                 
                 selectedCameraPrefix: 'kai',
                 selectedCameraNumber: 1,
@@ -182,11 +187,9 @@
 
             const el = {
                 // Settings
-                googleSheetUrlInput: document.getElementById('google-sheet-url'),
-                loadSheetDataBtn: document.getElementById('load-sheet-data'),
-                prefixButtonsContainer: document.getElementById('prefix-buttons'),
-                playerCount: document.getElementById('player-count'),
-                saveSettingsBtn: document.getElementById('save-settings'),
+                refreshDataBtn: document.getElementById('refresh-data'),
+                loadedPrefixesDisplay: document.getElementById('loaded-prefixes-display'),
+                loadedPlayersDisplay: document.getElementById('loaded-players-display'),
                 // Workflow
                 statusText: document.getElementById('status-text'),
                 setupSection: document.getElementById('setup-selection'),
@@ -195,6 +198,7 @@
                 finalSection: document.getElementById('final-step'),
                 // Camera
                 selectedPrefixDisplay: document.getElementById('selected-prefix-display'),
+                prefixButtonsInteractive: document.getElementById('prefix-buttons-interactive'),
                 cameraNumberButtonsContainer: document.getElementById('camera-number-buttons'),
                 prevCameraPageBtn: document.getElementById('prev-camera-page'),
                 nextCameraPageBtn: document.getElementById('next-camera-page'),
@@ -224,19 +228,16 @@
 
             // --- DATA & RENDER FUNCTIONS ---
             async function loadDataFromGoogleSheet() {
-                const url = el.googleSheetUrlInput.value;
-                if (!url) {
-                    alert('Google Sheet URL을 입력해주세요.');
-                    return;
-                }
+                const url = state.googleSheetUrl;
                 try {
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error('네트워크 응답이 올바르지 않습니다.');
+                    // Add cache-busting parameter to the URL
+                    const response = await fetch(`${url}&_=${new Date().getTime()}`, { cache: 'no-store' });
+                    if (!response.ok) throw new Error(`네트워크 응답 오류: ${response.statusText}`);
                     const csvText = await response.text();
                     const lines = csvText.trim().split(/\r?\n/);
                     
                     if (lines.length < 2) {
-                        alert('시트에 데이터가 없습니다.');
+                        console.warn('시트에 데이터가 없습니다. 기본값을 사용합니다.');
                         return;
                     }
 
@@ -264,28 +265,41 @@
                         state.selectedCameraPrefix = state.cameraPrefixes[0] || '';
                     }
 
-                    renderPrefixButtons();
-                    el.playerCount.textContent = `${state.players.length}명의 플레이어가 로드되었습니다.`;
-                    alert('데이터를 성공적으로 불러왔습니다.');
-
                 } catch (error) {
                     console.error('Google Sheet 데이터 로딩 실패:', error);
-                    alert('데이터를 불러오는 데 실패했습니다. URL과 시트 공유 설정을 확인해주세요.');
+                    alert('시트 데이터를 불러오는 데 실패했습니다. 기본 설정으로 실행됩니다.');
                 }
             }
             
+            function renderLoadedData() {
+                el.loadedPrefixesDisplay.innerHTML = '';
+                state.cameraPrefixes.forEach(p => {
+                    const tag = document.createElement('span');
+                    tag.className = 'data-tag';
+                    tag.textContent = p;
+                    el.loadedPrefixesDisplay.appendChild(tag);
+                });
+
+                el.loadedPlayersDisplay.innerHTML = '';
+                state.players.forEach(p => {
+                    const tag = document.createElement('span');
+                    tag.className = 'data-tag';
+                    tag.textContent = p;
+                    el.loadedPlayersDisplay.appendChild(tag);
+                });
+            }
+
             function renderPrefixButtons() {
-                el.prefixButtonsContainer.innerHTML = '';
+                el.prefixButtonsInteractive.innerHTML = '';
                 state.cameraPrefixes.forEach(prefix => {
                     const button = document.createElement('button');
                     button.className = 'bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded-md';
                     if (prefix === state.selectedCameraPrefix) button.classList.add('btn-selected');
                     button.textContent = prefix;
                     button.onclick = () => selectPrefix(prefix);
-                    el.prefixButtonsContainer.appendChild(button);
+                    el.prefixButtonsInteractive.appendChild(button);
                 });
                 el.selectedPrefixDisplay.textContent = state.selectedCameraPrefix;
-                 el.playerCount.textContent = `${state.players.length}명의 플레이어가 로드되었습니다.`;
             }
 
             function renderPaginatedButtons(type) {
@@ -557,28 +571,16 @@
                 renderAllPaginatedButtons(); // Re-render to show selections
             }
 
-            function saveSettings() {
-                localStorage.setItem('pokerLoggerSettings_v8', JSON.stringify({
-                    googleSheetUrl: el.googleSheetUrlInput.value
-                }));
-                alert('URL이 저장되었습니다.');
-            }
-            
-            async function loadSettings() {
-                const savedSettings = localStorage.getItem('pokerLoggerSettings_v8');
-                if (savedSettings) {
-                    const { googleSheetUrl } = JSON.parse(savedSettings);
-                    if(googleSheetUrl) {
-                        el.googleSheetUrlInput.value = googleSheetUrl;
-                        await loadDataFromGoogleSheet();
-                    }
-                }
-            }
-
             // --- INITIALIZATION ---
-            el.loadSheetDataBtn.onclick = loadDataFromGoogleSheet;
-            el.saveSettingsBtn.onclick = saveSettings;
-            
+            el.refreshDataBtn.onclick = () => {
+                el.loadedPrefixesDisplay.innerHTML = '<span class="text-gray-400">갱신 중...</span>';
+                el.loadedPlayersDisplay.innerHTML = '<span class="text-gray-400">갱신 중...</span>';
+                loadDataFromGoogleSheet().finally(() => {
+                    renderLoadedData();
+                    renderPrefixButtons();
+                });
+            };
+
             el.prevCameraPageBtn.onclick = () => changePage('camera', -1);
             el.nextCameraPageBtn.onclick = () => changePage('camera', 1);
             el.prevLevelPageBtn.onclick = () => changePage('level', -1);
@@ -593,7 +595,8 @@
             el.copyBtn.onclick = copyToClipboard;
             el.resetBtn.onclick = resetState;
 
-            loadSettings().then(() => {
+            loadDataFromGoogleSheet().finally(() => {
+                renderLoadedData();
                 renderPrefixButtons();
                 renderAllPaginatedButtons();
                 updateUI();
