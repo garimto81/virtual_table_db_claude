@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v35</title>
+    <title>포커 핸드 로거 v34</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -36,7 +36,7 @@
     <div id="app" class="max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">v35: 타임코드 및 UI 개선</p>
+            <p class="text-gray-400">v34: 오류 수정 및 기능 개선</p>
         </header>
 
         <!-- Hand Info Section -->
@@ -54,6 +54,18 @@
                     <label class="block text-sm font-medium text-gray-300 mb-2">보드 카드:</label>
                     <div id="board-card-placeholders" class="flex flex-wrap gap-2"></div>
                 </div>
+                 <div>
+                    <label for="timezone-selector" class="block text-sm font-medium text-gray-300 mb-2">표준 시간대:</label>
+                    <div class="flex items-center gap-2">
+                        <select id="timezone-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                            <option value="Asia/Seoul">한국 (Asia/Seoul)</option>
+                            <option value="America/New_York">뉴욕 (America/New_York)</option>
+                            <option value="Europe/London">런던 (Europe/London)</option>
+                            <option value="UTC">UTC</option>
+                        </select>
+                        <div id="time-display" class="bg-gray-900/50 p-2 rounded-md font-mono text-lg"></div>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -67,28 +79,21 @@
         <div id="action-logger-section" class="bg-gray-800 p-4 rounded-lg mt-4">
             <h2 class="text-xl font-bold mb-4 section-title">3. 액션 기록</h2>
             <div class="space-y-4">
-                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                          <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
                          <div class="input-with-keypad">
-                            <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                            <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
+                             <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                             <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
                          </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold mb-2">기준 시간</h3>
-                        <div class="input-with-keypad">
-                            <input type="text" id="base-time-input" placeholder="HH:MM:SS" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                            <button id="set-current-time-btn" class="btn bg-gray-600 p-2 rounded-md">현재 시간</button>
+                        <h3 class="text-lg font-semibold mb-2">블라인드</h3>
+                        <div class="flex items-end gap-2">
+                             <div class="flex-1"><label class="text-sm text-gray-400">SB</label><div class="input-with-keypad"><input type="text" id="small-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
+                             <div class="flex-1"><label class="text-sm text-gray-400">BB</label><div class="input-with-keypad"><input type="text" id="big-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
+                             <div class="flex items-center pb-1"><input id="bb-ante-checkbox" type="checkbox" class="h-5 w-5 bg-gray-700 border-gray-600 rounded text-amber-500 focus:ring-amber-600"><label for="bb-ante-checkbox" class="ml-2 text-sm text-gray-300">BB Ante</label></div>
                         </div>
-                    </div>
-                </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">블라인드</h3>
-                    <div class="flex items-end gap-2">
-                         <div class="flex-1"><label class="text-lg text-gray-400">SB</label><div class="input-with-keypad"><input type="text" id="small-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
-                         <div class="flex-1"><label class="text-lg text-gray-400">BB</label><div class="input-with-keypad"><input type="text" id="big-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
-                         <div class="flex items-center pb-1"><input id="bb-ante-checkbox" type="checkbox" class="h-5 w-5 bg-gray-700 border-gray-600 rounded text-amber-500 focus:ring-amber-600"><label for="bb-ante-checkbox" class="ml-2 text-sm text-gray-300">BB Ante</label></div>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="street-logs-container"></div>
@@ -113,6 +118,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            let timeUpdater;
             const state = {
                 dataSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv', 
                 allPlayers: [],
@@ -123,13 +129,13 @@
                     smallBlind: '', bigBlind: '', hasBBAnte: false,
                     preflop: [], flop: [], turn: [], river: [],
                 },
-                baseTime: null,
-                appsScriptUrl: 'https://script.google.com/macros/s/AKfycbxM-Dbz1wX6Gbo73lxjrMdztlcRaY2oUFYaJCkZx26RgXceYiK7icdH7W407GVL365t/exec',
+                appsScriptUrl: 'https://script.google.com/macros/s/AKfycbw8MDdxwmGnfHoje71JYfA4rlo5HO1vl3IWC7aubMro_z29UeUc76WUzYPKuqKY_3Am/exec',
                 modalState: {
                     cardTarget: null,
                     actionPadStreet: null, actionPadPlayer: null, actionPadCurrentAction: null,
                     keypadTarget: null,
-                }
+                },
+                selectedTimezone: 'Asia/Seoul'
             };
 
             const SUITS = { s: '♠', h: '♥', d: '♦', c: '♣' };
@@ -141,8 +147,6 @@
                 boardCardPlaceholders: document.getElementById('board-card-placeholders'),
                 playerDetailsSection: document.getElementById('player-details-section'),
                 handNumberInput: document.getElementById('hand-number-input'),
-                baseTimeInput: document.getElementById('base-time-input'),
-                setCurrentTimeBtn: document.getElementById('set-current-time-btn'),
                 smallBlindInput: document.getElementById('small-blind-input'),
                 bigBlindInput: document.getElementById('big-blind-input'),
                 bbAnteCheckbox: document.getElementById('bb-ante-checkbox'),
@@ -153,7 +157,37 @@
                 cardSelectorModal: document.getElementById('card-selector-modal'),
                 actionPadModal: document.getElementById('action-pad-modal'),
                 keypadModal: document.getElementById('keypad-modal'),
+                timezoneSelector: document.getElementById('timezone-selector'),
+                timeDisplay: document.getElementById('time-display'),
             };
+
+            function getFormattedTimeInTimezone(date, timezone) {
+                try {
+                    const options = {
+                        timeZone: timezone,
+                        hour12: false,
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    };
+                    const formatter = new Intl.DateTimeFormat('en-US', options);
+                    const parts = formatter.formatToParts(date);
+                    const timeParts = {};
+                    parts.forEach(({type, value}) => {
+                        if(type !== 'literal') timeParts[type] = value;
+                    });
+                    return `${timeParts.hour}${timeParts.minute}${timeParts.second}`;
+                } catch (e) {
+                    console.error("Invalid timezone:", timezone);
+                    // Fallback to local time if timezone is invalid
+                    const pad = (num) => num.toString().padStart(2, '0');
+                    return `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+                }
+            }
+
+            function updateTimeDisplay() {
+                el.timeDisplay.textContent = getFormattedTimeInTimezone(new Date(), state.selectedTimezone);
+            }
 
             async function loadDataFromGoogleSheet() {
                 try {
@@ -226,7 +260,9 @@
                         if (player?.role === 'winner') playerClass = 'player-winner';
                         if (player?.role === 'loser') playerClass = 'player-loser';
                         const amountText = log.amount ? ` <span class="font-mono">${formatNumber(log.amount)}</span>` : '';
-                        return `<div class="action-log-entry"><span class="${playerClass}">${log.player}</span> ${log.action}${amountText}</div>`;
+                        const timecode = log.timestamp ? getFormattedTimeInTimezone(new Date(log.timestamp), state.selectedTimezone) : '';
+                        const timecodeHTML = timecode ? `<span class="text-xs text-gray-500 ml-2 font-mono">${timecode}</span>` : '';
+                        return `<div class="action-log-entry"><div><span class="${playerClass}">${log.player}</span> ${log.action}${amountText}</div>${timecodeHTML}</div>`;
                     }).join('');
                 });
             }
@@ -236,6 +272,10 @@
                 const suitKey = cardId.slice(-1);
                 const colorClass = (suitKey === 'h' || suitKey === 'd') ? 'text-red-400' : 'text-black';
                 return `<div class="card-display h-full w-12 ${colorClass}"><div class="font-bold text-xl">${rank}</div><div>${SUITS[suitKey]}</div></div>`;
+            }
+            
+            function formatCardForGfx(cardId) {
+                return cardId;
             }
 
             function renderAll() {
@@ -298,7 +338,7 @@
                 if (state.playersInHand.length < 1) { showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
                 state.modalState.actionPadStreet = street;
                 const playersHTML = state.playersInHand.map(p => `<button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-player-name="${p.name}">${p.name}</button>`).join('');
-                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-md"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2><div id="action-pad-players" class="grid grid-cols-2 gap-3 mb-4">${playersHTML}</div><div id="action-pad-actions" class="grid grid-cols-3 gap-3 mb-4 hidden"><button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds">Fold</button><button class="btn bg-gray-600 hover:bg-gray-500 p-3 rounded-md" data-action="Checks">Check</button><button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Calls">Call</button><button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md" data-action="BET/RAISE">BET/RAISE</button><button class="btn bg-red-800 hover:bg-red-700 p-3 rounded-md col-span-2" data-action="All-In">ALL IN</button></div><div id="action-pad-bet-sizing" class="space-y-3 hidden"><div class="input-with-keypad"><input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div><button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
+                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-md"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2><div id="action-pad-players" class="grid grid-cols-2 gap-3 mb-4">${playersHTML}</div><div id="action-pad-actions" class="grid grid-cols-3 gap-3 mb-4 hidden"><button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds">Fold</button><button class="btn bg-gray-600 hover:bg-gray-500 p-3 rounded-md" data-action="Checks">Check</button><button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Calls">Call</button><button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md col-span-2" data-action="Bets">Bet</button><button class="btn bg-emerald-500 hover:bg-emerald-600 p-3 rounded-md" data-action="Raises">Raise</button></div><div id="action-pad-bet-sizing" class="space-y-3 hidden"><div class="input-with-keypad"><input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div><button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
                 openModal(el.actionPadModal, content);
             }
             
@@ -345,12 +385,8 @@
             }
 
             function addActionToLog(action, amount = null) {
-                if (!state.baseTime) {
-                    state.baseTime = new Date();
-                }
-                const timecode = getFormattedTimecode();
                 const { actionPadStreet, actionPadPlayer } = state.modalState;
-                state.actionState[actionPadStreet].push({ player: actionPadPlayer, action, amount, timecode });
+                state.actionState[actionPadStreet].push({ player: actionPadPlayer, action, amount, timestamp: new Date().toISOString() });
                 saveActionState();
                 renderActionLogs();
                 closeModal(el.actionPadModal);
@@ -364,92 +400,154 @@
                 }
             }
             
-            function saveActionState() { localStorage.setItem('pokerActionState_v34', JSON.stringify(state.actionState)); }
+            function saveActionState() { localStorage.setItem('pokerActionState_v32', JSON.stringify(state.actionState)); }
             function loadActionState() {
-                const savedState = localStorage.getItem('pokerActionState_v34');
+                const savedState = localStorage.getItem('pokerActionState_v32');
                 if (savedState) state.actionState = { ...state.actionState, ...JSON.parse(savedState) };
             }
             
-            function getFormattedTimecode() {
-                if (!state.baseTime) return '';
-                const now = new Date();
-                const diff = now - state.baseTime;
-                const newTime = new Date(state.baseTime.getTime() + diff);
-                const h = String(newTime.getHours()).padStart(2, '0');
-                const m = String(newTime.getMinutes()).padStart(2, '0');
-                const s = String(newTime.getSeconds()).padStart(2, '0');
-                return `${h}${m}${s}`;
-            }
-
             function generateGfxLogRows() {
-                const logRows = [];
+                const finalRows = [];
+                let rowCounter = 1;
+
+                const addRow = (data) => {
+                    const paddedData = [...data];
+                    while (paddedData.length < 16) { 
+                        paddedData.push('');
+                    }
+                    finalRows.push([rowCounter, ...paddedData]);
+                    rowCounter++;
+                };
+                
+                const handStartTime = new Date();
+                let currentTime = new Date(handStartTime.getTime());
+
                 const playersWithSeats = state.playersInHand.map((p, i) => ({ ...p, seat: i + 1 }));
 
-                logRows.push(['GAME', 'PokerGFX 3.111', 'FEATURE_TABLE']);
-                logRows.push(['PAYOUTS']);
+                addRow(['GAME', 'PokerGFX 3.111', 'FEATURE_TABLE']);
+                addRow(['PAYOUTS']);
 
                 const handLine = [
-                    'HAND', unformatNumber(state.actionState.handNumber) || 'N/A', Math.floor(Date.now() / 1000), 'HOLDEM',
-                    state.actionState.hasBBAnte ? 'BB_ANTE' : 'NO_ANTE', unformatNumber(state.actionState.bigBlind) || 0,
-                    0, unformatNumber(state.actionState.smallBlind) || 0, unformatNumber(state.actionState.bigBlind) || 0,
-                    0, ...playersWithSeats.map(p => p.seat)
+                    'HAND',
+                    unformatNumber(state.actionState.handNumber) || '1',
+                    Math.floor(handStartTime.getTime() / 1000),
+                    'HOLDEM',
+                    state.actionState.hasBBAnte ? 'BB_ANTE' : 'NO_ANTE',
+                    unformatNumber(state.actionState.bigBlind) || 0,
+                    0, // Ante
+                    unformatNumber(state.actionState.smallBlind) || 0,
+                    unformatNumber(state.actionState.bigBlind) || 0,
+                    0,
+                    1, 2, 3, // Dealer, SB, BB placeholders
+                    0, 0, 1
                 ];
-                logRows.push(handLine);
+                addRow(handLine);
 
                 playersWithSeats.forEach(p => {
-                    const playerLine = ['PLAYER', p.seat, p.name, 0, unformatNumber(p.chips) || 0, unformatNumber(p.chips) || 0, p.hand.length > 0 ? p.hand.map(c => c.toLowerCase()).join(' ') : ''];
-                    logRows.push(playerLine);
+                    const playerLine = [
+                        'PLAYER',
+                        p.name,
+                        p.seat,
+                        0,
+                        unformatNumber(p.chips) || 0,
+                        unformatNumber(p.chips) || 0, 
+                        p.hand.length > 0 ? p.hand.map(formatCardForGfx).join(' ') : ''
+                    ];
+                    addRow(playerLine);
                 });
 
-                const mapActionToEvent = (actionLog) => {
+                const addActionEvent = (actionLog) => {
                     const player = playersWithSeats.find(p => p.name === actionLog.player);
-                    if (!player) return null;
+                    if (!player) return;
+
+                    const delay = 5000 + Math.random() * 10000; // 5 to 15 seconds
+                    currentTime.setTime(currentTime.getTime() + delay);
+                    const timecode = getFormattedTimeInTimezone(currentTime, state.selectedTimezone);
+
                     let actionType = actionLog.action.toUpperCase().replace('S', '');
-                    if (actionType === 'BET/RAISE') {
-                        const streetActions = state.actionState[state.modalState.actionPadStreet];
-                        const priorBet = streetActions.slice(0, streetActions.indexOf(actionLog)).some(a => a.action === 'Bets' || a.action === 'Raises');
-                        actionType = priorBet ? 'RAISE TO' : 'BET';
-                    }
-                    if(actionType === 'ALL-IN') actionType = 'ALL IN';
+                    if (actionType === 'RAISE') actionType = 'RAISE TO';
 
                     const eventLine = ['EVENT', actionType, player.seat];
-                    if (actionLog.amount) eventLine.push(unformatNumber(actionLog.amount));
-                    eventLine[5] = actionLog.timecode; // Add timecode to F column (index 5)
-                    return eventLine;
+                    eventLine.push(actionLog.amount ? unformatNumber(actionLog.amount) : '');
+                    eventLine.push(timecode);
+                    addRow(eventLine);
+                };
+                
+                const addBoardEvent = (card) => {
+                     const delay = 2000 + Math.random() * 3000; // 2 to 5 seconds for board cards
+                     currentTime.setTime(currentTime.getTime() + delay);
+                     const timecode = getFormattedTimeInTimezone(currentTime, state.selectedTimezone);
+                     addRow(['EVENT', 'BOARD', 1, formatCardForGfx(card), timecode]);
                 };
 
-                const allEvents = [];
-                state.actionState.preflop.forEach(a => allEvents.push(mapActionToEvent(a)));
-                state.board.slice(0, 3).forEach(c => allEvents.push(['EVENT', 'BOARD', 1, c.toLowerCase(), '', getFormattedTimecode()]));
-                state.actionState.flop.forEach(a => allEvents.push(mapActionToEvent(a)));
-                state.board.slice(3, 4).forEach(c => allEvents.push(['EVENT', 'BOARD', 1, c.toLowerCase(), '', getFormattedTimecode()]));
-                state.actionState.turn.forEach(a => allEvents.push(mapActionToEvent(a)));
-                state.board.slice(4, 5).forEach(c => allEvents.push(['EVENT', 'BOARD', 1, c.toLowerCase(), '', getFormattedTimecode()]));
-                state.actionState.river.forEach(a => allEvents.push(mapActionToEvent(a)));
+                state.actionState.preflop.forEach(addActionEvent);
 
-                logRows.push(...allEvents.filter(Boolean));
-                return logRows;
+                if (state.board.length >= 3) {
+                    state.board.slice(0, 3).forEach(addBoardEvent);
+                    state.actionState.flop.forEach(addActionEvent);
+                }
+
+                if (state.board.length >= 4) {
+                    addBoardEvent(state.board[3]);
+                    state.actionState.turn.forEach(addActionEvent);
+                }
+
+                if (state.board.length >= 5) {
+                    addBoardEvent(state.board[4]);
+                    state.actionState.river.forEach(addActionEvent);
+                }
+                
+                finalRows.push([rowCounter]); 
+
+                return finalRows;
             }
 
             async function sendDataToGoogleSheet() {
                 const winner = state.playersInHand.find(p => p.role === 'winner');
                 const loser = state.playersInHand.find(p => p.role === 'loser');
-                if (!winner || !loser) { showFeedback('승자와 패자를 모두 지정해야 합니다.', true); return; }
+                if (!winner || !loser) {
+                    showFeedback('승자와 패자를 모두 지정해야 합니다.', true);
+                    return;
+                }
                 
                 el.sendToSheetBtn.textContent = '전송 중...';
                 el.sendToSheetBtn.disabled = true;
+                showFeedback('시트로 데이터 전송을 시작합니다...');
 
                 const gfxLogRows = generateGfxLogRows();
+                console.log("Sending data:", gfxLogRows); // Log data for debugging
                 const payload = { rows: gfxLogRows };
 
                 try {
-                    await fetch(state.appsScriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-                    showFeedback('✅ 데이터가 시트로 전송되었습니다!');
-                    el.sendToSheetBtn.textContent = '전송 완료!';
+                    const response = await fetch(state.appsScriptUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8',
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`서버 응답 에러: ${response.status}`);
+                    }
+
+                    const result = await response.json(); 
+
+                    if (result.status === 'success') {
+                        showFeedback('✅ 데이터가 시트에 성공적으로 입력되었습니다!');
+                        el.sendToSheetBtn.textContent = '전송 완료!';
+                        setTimeout(() => {
+                            el.sendToSheetBtn.textContent = '시트에 자동 입력';
+                            el.sendToSheetBtn.disabled = false;
+                        }, 2000);
+                    } else {
+                        throw new Error(result.message || '시트 입력 중 오류 발생');
+                    }
                 } catch (error) {
-                    showFeedback('❌ 전송 실패. 인터넷 연결을 확인하세요.', true);
-                } finally {
-                    setTimeout(() => { el.sendToSheetBtn.textContent = '시트에 자동 입력'; el.sendToSheetBtn.disabled = false; }, 2000);
+                    console.error('Data submission failed:', error);
+                    showFeedback(`❌ 전송 실패: ${error.message}`, true);
+                    el.sendToSheetBtn.textContent = '시트에 자동 입력';
+                    el.sendToSheetBtn.disabled = false;
                 }
             }
 
@@ -459,8 +557,6 @@
                 state.playersInHand = [];
                 state.board = [];
                 state.actionState = { ...state.actionState, handNumber: nextHandNum.toString(), preflop: [], flop: [], turn: [], river: [] };
-                state.baseTime = null;
-                el.baseTimeInput.value = '';
                 renderAll();
                 saveActionState();
                 el.handNumberInput.value = formatNumber(state.actionState.handNumber);
@@ -480,10 +576,10 @@
                 el.resetBtn.onclick = resetApp;
                 el.sendToSheetBtn.onclick = sendDataToGoogleSheet;
                 
-                el.setCurrentTimeBtn.onclick = () => {
-                    const now = new Date();
-                    state.baseTime = now;
-                    el.baseTimeInput.value = now.toTimeString().split(' ')[0];
+                el.timezoneSelector.onchange = (e) => {
+                    state.selectedTimezone = e.target.value;
+                    updateTimeDisplay();
+                    renderActionLogs(); // Re-render logs with new timezone
                 };
 
                 el.playerSelectionButtons.addEventListener('click', e => e.target.closest('button')?.dataset.playerName && togglePlayerInHand(e.target.closest('button').dataset.playerName));
@@ -540,9 +636,11 @@
                     } else if (target.parentElement.id === 'action-pad-actions') {
                         const action = target.dataset.action;
                         state.modalState.actionPadCurrentAction = action;
-                        if (action === 'BET/RAISE') {
+                        if (action === 'Bets' || action === 'Raises') {
                             modal.querySelector('#action-pad-actions').classList.add('hidden');
                             modal.querySelector('#action-pad-bet-sizing').classList.remove('hidden');
+                            const amountInput = modal.querySelector('#action-pad-amount');
+                            amountInput.focus();
                         } else { addActionToLog(action); }
                     }
                 });
@@ -587,7 +685,7 @@
                         if (e.target.value !== formatted) {
                            e.target.value = formatted;
                         }
-                        const stateKey = e.target.id.replace('-input', '');
+                        const stateKey = e.target.id.replace('-input', '').replace('small-','small').replace('big-','big');
                         if(state.actionState.hasOwnProperty(stateKey)) {
                             state.actionState[stateKey] = unformatted;
                         }
@@ -611,6 +709,12 @@
                 el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
                 el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
                 el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
+                el.timezoneSelector.value = state.selectedTimezone;
+                
+                if(timeUpdater) clearInterval(timeUpdater);
+                timeUpdater = setInterval(updateTimeDisplay, 1000);
+                updateTimeDisplay();
+
                 showFeedback('준비 완료!', false);
             }
 
