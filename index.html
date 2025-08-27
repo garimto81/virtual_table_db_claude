@@ -115,7 +115,7 @@
     </div>
 
     <!-- Modals -->
-    <div id="card-selector-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+    <div id="card-selector-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-2 sm:p-4 z-50 hidden opacity-0"></div>
     <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
     <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
 
@@ -238,12 +238,17 @@
                         const columns = line.split(',');
                         const player = columns[1]?.trim();
                         const table = columns[2]?.trim();
+                        const chips = columns[3]?.trim(); // Column D for chips
                         if (player && table) {
                             if (!dataByTable[table]) {
                                 dataByTable[table] = [];
                             }
-                            if (!dataByTable[table].includes(player)) {
-                                dataByTable[table].push(player);
+                            const existingPlayerIndex = dataByTable[table].findIndex(p => p.name === player);
+                            if (existingPlayerIndex === -1) {
+                                dataByTable[table].push({ name: player, chips: chips || '' });
+                            } else {
+                                // Update with the latest chip count if the player appears again
+                                dataByTable[table][existingPlayerIndex].chips = chips || '';
                             }
                         }
                     });
@@ -271,9 +276,9 @@
                     return;
                 }
                 const playersForTable = state.playerDataByTable[state.selectedTable] || [];
-                el.playerSelectionButtons.innerHTML = playersForTable.map(p => {
-                    const isSelected = state.playersInHand.some(player => player.name === p);
-                    return `<button class="btn ${isSelected ? 'btn-selected' : 'bg-gray-600 hover:bg-gray-500'} px-3 py-1 rounded-md" data-player-name="${p}">${p}</button>`;
+                el.playerSelectionButtons.innerHTML = playersForTable.map(playerData => {
+                    const isSelected = state.playersInHand.some(p => p.name === playerData.name);
+                    return `<button class="btn ${isSelected ? 'btn-selected' : 'bg-gray-600 hover:bg-gray-500'} px-3 py-1 rounded-md" data-player-name="${playerData.name}">${playerData.name}</button>`;
                 }).join('');
             }
 
@@ -372,18 +377,19 @@
                 const usedCards = [...allHands, ...state.board].filter(Boolean);
                 let selectedCards = [];
                 let deckHTML = '';
+                
                 Object.keys(SUITS).forEach(suitKey => {
-                    deckHTML += '<div class="flex justify-between items-center space-x-1">';
+                    deckHTML += `<div class="flex flex-wrap justify-center gap-1 mb-1">`;
                     RANKS.forEach(rank => {
                         const cardId = `${rank}${suitKey}`;
                         const isUsed = usedCards.includes(cardId);
                         const colorClass = (suitKey === 'h' || suitKey === 'd') ? 'card-red' : 'card-black';
-                        deckHTML += `<button class="btn card-selector-btn flex-grow h-14 rounded-md ${isUsed ? 'bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-white hover:bg-amber-300'} ${colorClass}" data-card-id="${cardId}" ${isUsed ? 'disabled' : ''}>${rank}${SUITS[suitKey]}</button>`;
+                        deckHTML += `<button class="btn card-selector-btn rounded-md w-10 h-12 sm:w-12 sm:h-14 flex-shrink-0 ${isUsed ? 'bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-white hover:bg-amber-300'} ${colorClass}" data-card-id="${cardId}" ${isUsed ? 'disabled' : ''}>${rank}${SUITS[suitKey]}</button>`;
                     });
                     deckHTML += '</div>';
                 });
 
-                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-lg"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">카드 선택 (${count}장)</h2><div class="space-y-2" id="card-deck">${deckHTML}</div><button id="close-card-modal" class="btn mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
+                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-md sm:max-w-lg"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">카드 선택 (${count}장)</h2><div id="card-deck">${deckHTML}</div><button id="close-card-modal" class="btn mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
                 openModal(el.cardSelectorModal, content);
                 
                 el.cardSelectorModal.querySelector('#card-deck').onclick = e => {
@@ -423,7 +429,10 @@
                 if (playerIndex > -1) {
                     state.playersInHand.splice(playerIndex, 1);
                 } else {
-                    state.playersInHand.push({ name: playerName, hand: [], chips: '', role: null });
+                    const playersForTable = state.playerDataByTable[state.selectedTable] || [];
+                    const playerData = playersForTable.find(p => p.name === playerName);
+                    const initialChips = playerData ? playerData.chips : '';
+                    state.playersInHand.push({ name: playerName, hand: [], chips: initialChips, role: null });
                 }
                 renderPlayerSelection();
                 renderPlayerDetails();
@@ -749,8 +758,6 @@
                              if(amount) addActionToLog(state.modalState.actionPadCurrentAction, amount);
                         }
                         
-                        closeModal(el.keypadModal);
-                    } else if (btn.id === 'keypad-cancel') {
                         closeModal(el.keypadModal);
                     } else if (key === 'C') {
                         display.textContent = '';
