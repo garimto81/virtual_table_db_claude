@@ -3,718 +3,592 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v17</title>
+    <title>포커 핸드 로거 v34</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
         body { font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-        .card { font-family: 'Roboto', sans-serif; transition: all 0.2s ease-in-out; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .card.selected { transform: translateY(-5px) scale(1.08); box-shadow: 0 0 20px rgba(251, 191, 36, 0.9); border-color: #FBBF24; }
-        .card.disabled { opacity: 0.3; cursor: not-allowed; background-color: #E5E7EB; }
-        .card-red { color: #DC2626; } .card-black { color: #111827; }
         .section-title { border-bottom: 2px solid #4B5563; padding-bottom: 8px; margin-bottom: 16px; }
-        .scroll-container::-webkit-scrollbar { width: 6px; }
-        .scroll-container::-webkit-scrollbar-track { background: #4B5563; border-radius: 3px; }
-        .scroll-container::-webkit-scrollbar-thumb { background: #FBBF24; border-radius: 3px; }
+        .btn { transition: all 0.2s ease-in-out; }
+        .btn:active { transform: scale(0.95); }
         .btn-selected { background-color: #FBBF24 !important; color: #111827 !important; font-weight: bold; }
-        .player-btn.btn-selected { background-color: #FBBF24 !important; color: #111827 !important; font-weight: bold; border: 2px solid #FBBF24;}
-        .data-tag { background-color: #374151; color: #D1D5DB; padding: 4px 8px; border-radius: 4px; font-size: 0.875rem; }
-        #template-modal { transition: opacity 0.3s ease; }
+        .card-placeholder { border: 2px dashed #4B5563; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 2px; background-color: rgba(255,255,255,0.05); }
+        .card-display { font-family: 'Roboto', sans-serif; background-color: white; border-radius: 4px; padding: 2px; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .modal { transition: opacity 0.3s ease; backdrop-filter: blur(4px); }
+        .action-log-entry .player-winner { color: #FBBF24; font-weight: bold; }
+        .action-log-entry .player-loser { color: #60A5FA; font-weight: bold; }
+        .action-log-entry .player-neutral { color: #9CA3AF; font-weight: bold; }
+        .card-selector-btn { font-family: 'Roboto', sans-serif; font-size: 1.25rem; font-weight: bold; }
+        .card-selector-btn.card-red { color: #DC2626; }
+        .card-selector-btn.card-black { color: #111827; }
+        .card-selector-btn.selected { border: 3px solid #FBBF24; transform: scale(0.95); }
+        .keypad-btn:active { background-color: #FBBF24; color: #111827; }
+        .player-card { border: 2px solid #374151; }
+        .player-card.is-winner { border-color: #FBBF24; box-shadow: 0 0 10px #FBBF24; }
+        .player-card.is-loser { border-color: #60A5FA; box-shadow: 0 0 10px #60A5FA; }
+        .input-with-keypad { display: flex; align-items: center; gap: 4px; }
+        .input-with-keypad input { height: 42px; flex-grow: 1; min-width: 50px; }
+        .keypad-icon-btn { flex-shrink: 0; height: 42px; width: 48px; }
     </style>
 </head>
 <body class="bg-gray-900 text-white p-2 sm:p-4 antialiased">
 
-    <div id="app" class="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto">
+    <div id="app" class="max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">UI 개선 & 출력 포맷 고정</p>
+            <p class="text-gray-400">v34: 오류 수정 및 기능 개선</p>
         </header>
 
-        <!-- Settings Section -->
-        <div id="settings-section" class="bg-gray-800 p-4 rounded-lg mb-4">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold section-title flex-grow">데이터 정보</h2>
-                <button id="edit-templates-btn" class="ml-2 text-2xl" title="템플릿 편집">📝</button>
-                <button id="refresh-data" class="ml-4 text-2xl" title="데이터 새로고침">🔄</button>
-            </div>
-            <div class="mt-4">
-                <label class="block text-sm font-medium text-gray-300 mb-2">작업 순서 템플릿</label>
-                <div id="template-buttons" class="flex flex-wrap gap-2"></div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        <!-- Hand Info Section -->
+        <div class="bg-gray-800 p-4 rounded-lg mb-4">
+            <h2 class="text-xl font-bold section-title flex justify-between items-center">
+                <span>1. 핸드 정보 기록</span>
+                <button id="refresh-data" class="text-2xl" title="데이터 새로고침">🔄</button>
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">로드된 프리셋</label>
-                    <div id="loaded-prefixes-display" class="flex flex-wrap gap-2 p-2 bg-gray-700 rounded-md min-h-[40px]"></div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">참여 플레이어 선택:</label>
+                    <div id="player-selection-buttons" class="flex flex-wrap gap-2"></div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">로드된 플레이어</label>
-                     <div id="loaded-players-display" class="scroll-container flex flex-wrap gap-2 p-2 bg-gray-700 rounded-md min-h-[40px] max-h-24 overflow-y-auto"></div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">보드 카드:</label>
+                    <div id="board-card-placeholders" class="flex flex-wrap gap-2"></div>
                 </div>
             </div>
         </div>
+        
+        <!-- Player Details Section -->
+        <div class="bg-gray-800 p-4 rounded-lg mb-4">
+             <h2 class="text-xl font-bold section-title">2. 플레이어 상세 정보</h2>
+             <div id="player-details-section" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+        </div>
 
-        <!-- Logging Workflow -->
-        <div class="bg-gray-800 p-4 rounded-lg">
-            <h2 class="text-xl font-bold mb-4 section-title">정보 기록</h2>
-            <div id="status-display" class="mb-4 p-3 bg-gray-700/50 rounded-md text-center">
-                <p id="status-text" class="text-lg font-semibold text-amber-300">데이터를 로드 중입니다...</p>
-            </div>
-
-            <!-- Batch Input Section -->
-            <div id="batch-input-section" class="hidden space-y-4">
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-lg font-semibold">승자 (Winner)</h3>
-                        <div id="winner-info-display" class="text-right"></div>
+        <!-- Action Logger Section -->
+        <div id="action-logger-section" class="bg-gray-800 p-4 rounded-lg mt-4">
+            <h2 class="text-xl font-bold mb-4 section-title">3. 액션 기록</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                         <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
+                         <div class="input-with-keypad">
+                             <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                             <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
+                         </div>
                     </div>
-                    <div id="winner-player-buttons-batch" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3"></div>
-                    <div id="winner-hand-deck-batch"></div>
-                </div>
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <h3 class="text-lg font-semibold">패자 (Loser)</h3>
-                        <div id="loser-info-display" class="text-right"></div>
+                    <div>
+                        <h3 class="text-lg font-semibold mb-2">블라인드</h3>
+                        <div class="flex items-end gap-2">
+                             <div class="flex-1"><label class="text-sm text-gray-400">SB</label><div class="input-with-keypad"><input type="text" id="small-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
+                             <div class="flex-1"><label class="text-sm text-gray-400">BB</label><div class="input-with-keypad"><input type="text" id="big-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
+                             <div class="flex items-center pb-1"><input id="bb-ante-checkbox" type="checkbox" class="h-5 w-5 bg-gray-700 border-gray-600 rounded text-amber-500 focus:ring-amber-600"><label for="bb-ante-checkbox" class="ml-2 text-sm text-gray-300">BB Ante</label></div>
+                        </div>
                     </div>
-                    <div id="loser-player-buttons-batch" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-3"></div>
-                    <div id="loser-hand-deck-batch"></div>
                 </div>
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">보드 (Board)</h3>
-                    <div id="board-deck-batch"></div>
-                </div>
-                <button id="confirm-batch" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-lg">일괄 입력 완료 & 다음</button>
-            </div>
-
-            <!-- Setup Section -->
-            <div id="setup-selection" class="hidden">
-                <div class="mb-4">
-                    <h3 class="text-lg font-semibold mb-2">카메라 번호 (<span id="selected-prefix-display"></span>)</h3>
-                    <div id="prefix-buttons-interactive" class="flex flex-wrap gap-2 mb-2"></div>
-                    <div id="camera-number-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
-                    <div class="flex justify-between items-center mt-3"><button id="prev-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button><span id="camera-page-info" class="font-semibold"></span><button id="next-camera-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button></div>
-                </div>
-                <div class="mb-4">
-                    <h3 class="text-lg font-semibold mb-2">레벨</h3>
-                    <div id="level-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
-                     <div class="flex justify-between items-center mt-3"><button id="prev-level-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button><span id="level-page-info" class="font-semibold"></span><button id="next-level-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button></div>
-                </div>
-                <div class="mb-4">
-                    <h3 class="text-lg font-semibold mb-2">테이블</h3>
-                    <div id="table-buttons" class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-12 gap-2"></div>
-                    <div class="flex justify-between items-center mt-3"><button id="prev-table-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">&lt; 이전</button><span id="table-page-info" class="font-semibold"></span><button id="next-table-page" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md">다음 &gt;</button></div>
-                </div>
-                <button id="confirm-setup" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-lg">선택 완료 & 다음</button>
-            </div>
-
-            <!-- Step-by-step Player Section -->
-            <div id="player-selection" class="hidden">
-                 <div class="scroll-container max-h-64 overflow-y-auto pr-2"><div id="player-buttons" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div></div>
-            </div>
-
-            <!-- Step-by-step Card Section -->
-            <div id="card-selection" class="hidden">
-                <div id="special-card-buttons" class="flex gap-2 mb-3 justify-center"></div>
-                <div id="card-deck" class="space-y-3"></div>
-                <button id="confirm-cards" class="mt-4 w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-lg">카드 선택 완료</button>
-            </div>
-
-            <!-- Final Section -->
-            <div id="final-step" class="hidden mt-6">
-                 <button id="generate-output" class="w-full bg-red-600 hover:bg-red-700 text-white font-extrabold py-2 px-4 rounded-lg text-xl transform hover:scale-105 animate-pulse">🕒 타임스탬프 & 전송용 텍스트 생성</button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="street-logs-container"></div>
             </div>
         </div>
 
-        <!-- Output Section -->
-        <div id="output-section" class="mt-6 hidden">
-            <div class="bg-gray-900 border-2 border-dashed border-amber-400 p-4 rounded-lg">
-                <h2 class="text-xl font-bold mb-2 text-amber-400">생성된 정보</h2>
-                <textarea id="output-text" class="w-full text-lg break-all bg-gray-700 p-3 rounded-md text-white" rows="4" readonly></textarea>
-                <button id="copy-output" class="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-gray-900 font-bold py-2 px-4 rounded-md text-lg">클립보드에 복사</button>
-                <p id="copy-feedback" class="text-green-400 text-center mt-2 h-5 font-semibold"></p>
-                <button id="reset-all" class="mt-2 w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-md">새 핸드 기록하기</button>
+        <!-- Finalize & Output Section -->
+        <div class="bg-gray-800 p-4 rounded-lg mt-4">
+            <h2 class="text-xl font-bold mb-4 section-title">4. 전송 및 초기화</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                 <button id="send-to-sheet-btn" class="w-full btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md text-lg">시트에 자동 입력</button>
+                 <button id="reset-all" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-md text-lg">새 핸드 기록</button>
             </div>
+             <p id="feedback-message" class="text-center mt-2 h-5 font-semibold"></p>
         </div>
     </div>
 
-    <!-- Template Editor Modal -->
-    <div id="template-modal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 hidden opacity-0">
-        <div class="bg-gray-800 rounded-lg p-6 w-full max-w-lg max-h-[90vh] flex flex-col">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold text-amber-400">템플릿 편집기</h2>
-                <button id="close-template-modal" class="text-2xl">&times;</button>
-            </div>
-            <div class="flex-grow overflow-y-auto pr-2 scroll-container">
-                <!-- Create New Template -->
-                <div class="mb-6">
-                    <h3 class="text-lg font-semibold mb-2">새 템플릿 만들기 (로컬 저장)</h3>
-                    <input type="text" id="new-template-name" placeholder="템플릿 이름" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 mb-2">
-                    <div class="p-2 bg-gray-900 rounded-md min-h-[40px] mb-2 text-center" id="new-template-sequence-display">순서를 추가하세요</div>
-                    <div class="flex flex-wrap gap-2 mb-2" id="template-step-buttons"></div>
-                    <div class="flex gap-2">
-                        <button id="save-template-btn" class="flex-grow bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md">저장</button>
-                        <button id="clear-template-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">초기화</button>
-                    </div>
-                </div>
-                <!-- Existing Templates -->
-                <div>
-                    <h3 class="text-lg font-semibold mb-2">저장된 템플릿 (로컬 & 시트)</h3>
-                    <div id="existing-templates-list" class="space-y-2"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <!-- Modals -->
+    <div id="card-selector-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+    <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+    <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const state = {
                 dataSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv', 
-                templateSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1243817276&single=true&output=csv', 
-                templates: {
-                    '기본': ['batch', 'setup', 'final'],
+                allPlayers: [],
+                playersInHand: [],
+                board: [],
+                actionState: {
+                    handNumber: '', 
+                    smallBlind: '', bigBlind: '', hasBBAnte: false,
+                    preflop: [], flop: [], turn: [], river: [],
                 },
-                newTemplateSequence: [],
-                availableSteps: { 'batch': '일괄입력', 'setup': '환경설정', 'winner': '승자', 'winnerHand': '승자핸드', 'loser': '패자', 'loserHand': '패자핸드', 'board': '보드' },
-                activeTemplate: '기본',
-                cameraPrefixes: ['kai'], players: ['Player 1'],
-                selectedCameraPrefix: 'kai', selectedCameraNumber: 1, totalCameraNumbers: 100, cameraNumbersPerPage: 12, currentCameraNumberPage: 1,
-                level: 1, totalLevels: 100, levelsPerPage: 12, currentLevelPage: 1,
-                table: null, totalTables: 100, tablesPerPage: 12, currentTablePage: 1,
-                winner: null, winnerHand: [], loser: null, loserHand: [], board: [],
-                currentStep: null,
+                appsScriptUrl: 'https://script.google.com/macros/s/AKfycbx6zAGwaRuJHiMe2w0p13eYpS61LYOwS6pDPq159UYEjjT0-dZWMEqsQu4_EkU1_986/exec',
+                modalState: {
+                    cardTarget: null,
+                    actionPadStreet: null, actionPadPlayer: null, actionPadCurrentAction: null,
+                    keypadTarget: null,
+                }
             };
 
             const SUITS = { s: '♠', h: '♥', d: '♦', c: '♣' };
             const RANKS = ['A', 'K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2'];
 
             const el = {
-                // Settings
                 refreshDataBtn: document.getElementById('refresh-data'),
-                editTemplatesBtn: document.getElementById('edit-templates-btn'),
-                templateButtons: document.getElementById('template-buttons'),
-                loadedPrefixesDisplay: document.getElementById('loaded-prefixes-display'),
-                loadedPlayersDisplay: document.getElementById('loaded-players-display'),
-                // Template Modal
-                templateModal: document.getElementById('template-modal'),
-                closeTemplateModalBtn: document.getElementById('close-template-modal'),
-                newTemplateNameInput: document.getElementById('new-template-name'),
-                newTemplateSequenceDisplay: document.getElementById('new-template-sequence-display'),
-                templateStepButtons: document.getElementById('template-step-buttons'),
-                saveTemplateBtn: document.getElementById('save-template-btn'),
-                clearTemplateBtn: document.getElementById('clear-template-btn'),
-                existingTemplatesList: document.getElementById('existing-templates-list'),
-                // Workflow Sections
-                statusText: document.getElementById('status-text'),
-                batchSection: document.getElementById('batch-input-section'),
-                setupSection: document.getElementById('setup-selection'),
-                playerSection: document.getElementById('player-selection'),
-                cardSection: document.getElementById('card-selection'),
-                finalSection: document.getElementById('final-step'),
-                // Batch Input Elements
-                winnerInfoDisplay: document.getElementById('winner-info-display'),
-                winnerPlayerButtonsBatch: document.getElementById('winner-player-buttons-batch'),
-                winnerHandDeckBatch: document.getElementById('winner-hand-deck-batch'),
-                loserInfoDisplay: document.getElementById('loser-info-display'),
-                loserPlayerButtonsBatch: document.getElementById('loser-player-buttons-batch'),
-                loserHandDeckBatch: document.getElementById('loser-hand-deck-batch'),
-                boardDeckBatch: document.getElementById('board-deck-batch'),
-                confirmBatchBtn: document.getElementById('confirm-batch'),
-                // Step-by-step Card Elements
-                specialCardButtonsContainer: document.getElementById('special-card-buttons'),
-                cardDeckContainer: document.getElementById('card-deck'),
-                confirmCardsBtn: document.getElementById('confirm-cards'),
-                // Setup Elements
-                selectedPrefixDisplay: document.getElementById('selected-prefix-display'),
-                prefixButtonsInteractive: document.getElementById('prefix-buttons-interactive'),
-                cameraNumberButtonsContainer: document.getElementById('camera-number-buttons'),
-                prevCameraPageBtn: document.getElementById('prev-camera-page'),
-                nextCameraPageBtn: document.getElementById('next-camera-page'),
-                cameraPageInfo: document.getElementById('camera-page-info'),
-                levelButtonsContainer: document.getElementById('level-buttons'),
-                prevLevelPageBtn: document.getElementById('prev-level-page'),
-                nextLevelPageBtn: document.getElementById('next-level-page'),
-                levelPageInfo: document.getElementById('level-page-info'),
-                tableButtonsContainer: document.getElementById('table-buttons'),
-                prevTablePageBtn: document.getElementById('prev-table-page'),
-                nextTablePageBtn: document.getElementById('next-table-page'),
-                tablePageInfo: document.getElementById('table-page-info'),
-                confirmSetupBtn: document.getElementById('confirm-setup'),
-                playerButtonsContainer: document.getElementById('player-buttons'),
-                // Output
-                generateBtn: document.getElementById('generate-output'),
-                outputSection: document.getElementById('output-section'),
-                outputText: document.getElementById('output-text'),
-                copyBtn: document.getElementById('copy-output'),
-                copyFeedback: document.getElementById('copy-feedback'),
+                playerSelectionButtons: document.getElementById('player-selection-buttons'),
+                boardCardPlaceholders: document.getElementById('board-card-placeholders'),
+                playerDetailsSection: document.getElementById('player-details-section'),
+                handNumberInput: document.getElementById('hand-number-input'),
+                smallBlindInput: document.getElementById('small-blind-input'),
+                bigBlindInput: document.getElementById('big-blind-input'),
+                bbAnteCheckbox: document.getElementById('bb-ante-checkbox'),
+                streetLogsContainer: document.getElementById('street-logs-container'),
+                sendToSheetBtn: document.getElementById('send-to-sheet-btn'),
                 resetBtn: document.getElementById('reset-all'),
+                feedbackMessage: document.getElementById('feedback-message'),
+                cardSelectorModal: document.getElementById('card-selector-modal'),
+                actionPadModal: document.getElementById('action-pad-modal'),
+                keypadModal: document.getElementById('keypad-modal'),
             };
-            
-            const stepToSectionMap = { batch: el.batchSection, setup: el.setupSection, winner: el.playerSection, loser: el.playerSection, winnerHand: el.cardSection, loserHand: el.cardSection, board: el.cardSection, final: el.finalSection };
 
-            // --- DATA & RENDER FUNCTIONS ---
             async function loadDataFromGoogleSheet() {
-                // Fetch players and prefixes
-                if (state.dataSheetUrl) {
-                    try {
-                        const response = await fetch(`${state.dataSheetUrl}&_=${new Date().getTime()}`, { cache: 'no-store' });
-                        if (!response.ok) throw new Error(`Data Sheet 네트워크 응답 오류: Status ${response.status}`);
-                        const csvText = await response.text();
-                        const lines = csvText.trim().split(/\r?\n/);
-                        if (lines.length >= 2) {
-                            const headers = lines[0].split(',').map(h => h.trim());
-                            const prefixIndex = headers.indexOf('prefix');
-                            const playerIndex = headers.indexOf('player');
-                            const newPrefixes = [], newPlayers = [];
-                            for (let i = 1; i < lines.length; i++) {
-                                const values = lines[i].split(',');
-                                if (prefixIndex !== -1 && values[prefixIndex] && values[prefixIndex].trim()) newPrefixes.push(values[prefixIndex].trim());
-                                if (playerIndex !== -1 && values[playerIndex] && values[playerIndex].trim()) newPlayers.push(values[playerIndex].trim());
-                            }
-                            state.cameraPrefixes = newPrefixes.length > 0 ? [...new Set(newPrefixes)] : ['kai'];
-                            state.players = newPlayers.length > 0 ? [...new Set(newPlayers)] : ['Player 1'];
-                            if (!state.cameraPrefixes.includes(state.selectedCameraPrefix)) state.selectedCameraPrefix = state.cameraPrefixes[0] || '';
-                        }
-                    } catch (error) { console.error('Google Sheet 데이터 로딩 실패:', error); showFeedback('플레이어/프리셋 시트 로딩 실패.'); }
-                }
+                try {
+                    const response = await fetch(`${state.dataSheetUrl}&_=${new Date().getTime()}`, { cache: 'no-store' });
+                    if (!response.ok) throw new Error(`Network response was not ok`);
+                    const csvText = await response.text();
+                    const lines = csvText.trim().split(/\r?\n/).slice(1);
+                    const players = lines.map(line => line.split(',')[1]?.trim()).filter(Boolean);
+                    state.allPlayers = [...new Set(players)];
+                } catch (error) { console.error('Failed to load player data:', error); showFeedback('플레이어 데이터 로딩 실패.', true); }
+            }
 
-                // Fetch templates
-                if (state.templateSheetUrl) {
-                    try {
-                        const response = await fetch(`${state.templateSheetUrl}&_=${new Date().getTime()}`, { cache: 'no-store' });
-                        if (!response.ok) throw new Error(`Template Sheet 네트워크 응답 오류: Status ${response.status}`);
-                        const csvText = await response.text();
-                        const lines = csvText.trim().split(/\r?\n/);
-                        if (lines.length >= 2) {
-                            const headers = lines[0].split(',').map(h => h.trim());
-                            const nameIndex = headers.indexOf('template_name');
-                            const sequenceIndex = headers.indexOf('sequence');
-                            const sheetTemplates = {};
-                            for (let i = 1; i < lines.length; i++) {
-                                const values = lines[i].split(',');
-                                const name = values[nameIndex]?.trim();
-                                const sequenceStr = values[sequenceIndex]?.trim();
-                                if (name && sequenceStr) {
-                                    const sequence = sequenceStr.split('/').map(s => s.trim()).filter(s => state.availableSteps[s]);
-                                    if(sequence.length > 0) { sheetTemplates[name] = [...sequence, 'final']; }
-                                }
-                            }
-                            state.templates = { ...state.templates, ...sheetTemplates };
-                        }
-                    } catch (error) { console.error('Google Sheet 템플릿 로딩 실패:', error); showFeedback('템플릿 시트 로딩 실패.'); }
-                }
+            function renderPlayerSelection() {
+                el.playerSelectionButtons.innerHTML = state.allPlayers.map(p => {
+                    const isSelected = state.playersInHand.some(player => player.name === p);
+                    return `<button class="btn ${isSelected ? 'btn-selected' : 'bg-gray-600 hover:bg-gray-500'} px-3 py-1 rounded-md" data-player-name="${p}">${p}</button>`;
+                }).join('');
             }
-            
-            function renderLoadedData() {
-                el.loadedPrefixesDisplay.innerHTML = '';
-                state.cameraPrefixes.forEach(p => { const tag = document.createElement('span'); tag.className = 'data-tag'; tag.textContent = p; el.loadedPrefixesDisplay.appendChild(tag); });
-                el.loadedPlayersDisplay.innerHTML = '';
-                state.players.forEach(p => { const tag = document.createElement('span'); tag.className = 'data-tag'; tag.textContent = p; el.loadedPlayersDisplay.appendChild(tag); });
+
+            function renderPlayerDetails() {
+                el.playerDetailsSection.innerHTML = state.playersInHand.map(p => {
+                    let roleClass = '';
+                    if (p.role === 'winner') roleClass = 'is-winner';
+                    if (p.role === 'loser') roleClass = 'is-loser';
+                    
+                    return `<div class="player-card bg-gray-700 p-3 rounded-lg ${roleClass}" data-player-name="${p.name}">
+                        <h3 class="text-lg font-bold mb-2">${p.name}</h3>
+                        <div class="input-with-keypad mb-2">
+                           <input type="text" class="number-input player-chip-input w-full bg-gray-600 border border-gray-500 rounded-md p-1" placeholder="시작 칩" value="${formatNumber(p.chips)}">
+                           <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
+                        </div>
+                        <div class="card-placeholder h-16 flex justify-center items-center gap-2 mb-2" data-player-name="${p.name}" data-count="2">
+                            ${p.hand.length > 0 ? p.hand.map(formatCardDisplay).join('') : '<span class="text-gray-400 text-2xl">+</span>'}
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <button class="btn ${p.role === 'winner' ? 'btn-selected' : 'bg-amber-600 hover:bg-amber-500'} p-1 rounded-md set-role-btn" data-role="winner">승자</button>
+                            <button class="btn ${p.role === 'loser' ? 'btn-selected' : 'bg-blue-600 hover:bg-blue-500'} p-1 rounded-md set-role-btn" data-role="loser">패자</button>
+                        </div>
+                    </div>`;
+                }).join('');
             }
-            
-            function renderTemplateButtons() {
-                el.templateButtons.innerHTML = '';
-                Object.keys(state.templates).forEach(name => {
-                    const button = document.createElement('button');
-                    button.className = 'bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded-md';
-                    if (name === state.activeTemplate) button.classList.add('btn-selected');
-                    button.textContent = name;
-                    button.onclick = () => selectTemplate(name);
-                    el.templateButtons.appendChild(button);
+
+            function renderBoard() {
+                const flopHTML = `<div class="card-placeholder h-16 flex-grow" data-target="board" data-index="0" data-count="3">${[0, 1, 2].map(i => state.board[i] ? formatCardDisplay(state.board[i]) : '<span class="text-gray-400 text-2xl">+</span>').join('')}</div>`;
+                const turnHTML = `<div class="card-placeholder h-16 w-12" data-target="board" data-index="3" data-count="1">${state.board[3] ? formatCardDisplay(state.board[3]) : '<span class="text-gray-400 text-2xl">+</span>'}</div>`;
+                const riverHTML = `<div class="card-placeholder h-16 w-12" data-target="board" data-index="4" data-count="1">${state.board[4] ? formatCardDisplay(state.board[4]) : '<span class="text-gray-400 text-2xl">+</span>'}</div>`;
+                el.boardCardPlaceholders.innerHTML = flopHTML + turnHTML + riverHTML;
+            }
+
+            function renderActionStreets() {
+                el.streetLogsContainer.innerHTML = ['preflop', 'flop', 'turn', 'river'].map(street => `
+                    <div class="street-container">
+                        <h3 class="text-lg font-semibold mb-2">${street.charAt(0).toUpperCase() + street.slice(1)}</h3>
+                        <div id="${street}-log" class="action-log-display bg-gray-900/50 p-3 rounded-md min-h-[80px] mb-2"></div>
+                        <div class="flex gap-2">
+                            <button class="add-action-btn btn flex-grow bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md" data-street="${street}">액션 추가</button>
+                            <button class="undo-action-btn btn bg-gray-600 hover:bg-gray-500 py-2 px-3 rounded-md" data-street="${street}">↩</button>
+                        </div>
+                    </div>`).join('');
+                renderActionLogs();
+            }
+
+            function renderActionLogs() {
+                ['preflop', 'flop', 'turn', 'river'].forEach(street => {
+                    const logContainer = document.getElementById(`${street}-log`);
+                    if (!logContainer) return;
+                    logContainer.innerHTML = state.actionState[street].map(log => {
+                        const player = state.playersInHand.find(p => p.name === log.player);
+                        let playerClass = 'player-neutral';
+                        if (player?.role === 'winner') playerClass = 'player-winner';
+                        if (player?.role === 'loser') playerClass = 'player-loser';
+                        const amountText = log.amount ? ` <span class="font-mono">${formatNumber(log.amount)}</span>` : '';
+                        return `<div class="action-log-entry"><span class="${playerClass}">${log.player}</span> ${log.action}${amountText}</div>`;
+                    }).join('');
                 });
             }
 
-            function renderPrefixButtons() {
-                el.prefixButtonsInteractive.innerHTML = '';
-                state.cameraPrefixes.forEach(prefix => {
-                    const button = document.createElement('button');
-                    button.className = 'bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded-md';
-                    if (prefix === state.selectedCameraPrefix) button.classList.add('btn-selected');
-                    button.textContent = prefix;
-                    button.onclick = () => selectPrefix(prefix);
-                    el.prefixButtonsInteractive.appendChild(button);
-                });
-                el.selectedPrefixDisplay.textContent = state.selectedCameraPrefix;
+            function formatCardDisplay(cardId) {
+                const rank = cardId.slice(0, -1);
+                const suitKey = cardId.slice(-1);
+                const colorClass = (suitKey === 'h' || suitKey === 'd') ? 'text-red-400' : 'text-black';
+                return `<div class="card-display h-full w-12 ${colorClass}"><div class="font-bold text-xl">${rank}</div><div>${SUITS[suitKey]}</div></div>`;
             }
 
-            function renderPaginatedButtons(type) {
-                const configs = {
-                    camera: { container: el.cameraNumberButtonsContainer, pageInfo: el.cameraPageInfo, prevBtn: el.prevCameraPageBtn, nextBtn: el.nextCameraPageBtn, stateKey: 'currentCameraNumberPage', totalKey: 'totalCameraNumbers', perPageKey: 'cameraNumbersPerPage', selectedKey: 'selectedCameraNumber', prefix: '', suffix: '', onClick: selectCameraNumber },
-                    level: { container: el.levelButtonsContainer, pageInfo: el.levelPageInfo, prevBtn: el.prevLevelPageBtn, nextBtn: el.nextLevelPageBtn, stateKey: 'currentLevelPage', totalKey: 'totalLevels', perPageKey: 'levelsPerPage', selectedKey: 'level', prefix: 'Lv ', suffix: '', onClick: selectLevel },
-                    table: { container: el.tableButtonsContainer, pageInfo: el.tablePageInfo, prevBtn: el.prevTablePageBtn, nextBtn: el.nextTablePageBtn, stateKey: 'currentTablePage', totalKey: 'totalTables', perPageKey: 'tablesPerPage', selectedKey: 'table', prefix: 'T', suffix: '', pad: 2, onClick: selectTable }
-                };
-                const config = configs[type];
-                config.container.innerHTML = '';
-                const currentPage = state[config.stateKey], perPage = state[config.perPageKey], total = state[config.totalKey];
-                const start = (currentPage - 1) * perPage + 1;
-                const end = Math.min(start + perPage - 1, total);
-                for (let i = start; i <= end; i++) {
-                    const button = document.createElement('button');
-                    button.className = 'bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-2 rounded-md';
-                    const textValue = config.pad ? String(i).padStart(config.pad, '0') : i;
-                    const fullText = `${config.prefix}${textValue}${config.suffix}`;
-                    if (fullText === state[config.selectedKey] || i === state[config.selectedKey]) button.classList.add('btn-selected');
-                    button.textContent = fullText;
-                    button.onclick = () => config.onClick(type === 'table' ? fullText : i);
-                    config.container.appendChild(button);
-                }
-                const totalPages = Math.ceil(total / perPage);
-                config.pageInfo.textContent = `페이지 ${currentPage} / ${totalPages}`;
-                config.prevBtn.disabled = currentPage === 1;
-                config.nextBtn.disabled = currentPage === totalPages;
+            function renderAll() {
+                renderPlayerSelection();
+                renderPlayerDetails();
+                renderBoard();
+                renderActionStreets();
             }
 
-            function renderAllPaginatedButtons() { renderPaginatedButtons('camera'); renderPaginatedButtons('level'); renderPaginatedButtons('table'); }
-
-            function renderPlayerButtons(targetContainer, clickHandler, selectedPlayer, disabledPlayer) {
-                targetContainer.innerHTML = '';
-                state.players.forEach(player => {
-                    const button = document.createElement('button');
-                    button.className = 'player-btn bg-gray-700 hover:bg-amber-500 hover:text-gray-900 font-bold py-3 px-2 rounded-md text-md';
-                    button.textContent = player;
-                    button.onclick = () => clickHandler(player);
-                    if (player === selectedPlayer) button.classList.add('btn-selected');
-                    if (player === disabledPlayer) { button.disabled = true; button.className += ' opacity-50 cursor-not-allowed'; }
-                    targetContainer.appendChild(button);
-                });
+            function openModal(modalElement, content) {
+                modalElement.innerHTML = content;
+                modalElement.classList.remove('hidden');
+                setTimeout(() => modalElement.classList.remove('opacity-0'), 10);
             }
 
-            function renderCardDeck(target, container) {
-                container.innerHTML = '';
-                const showUnknown = target !== 'board';
-                
-                if(showUnknown) {
-                    const specialButtonsContainer = document.createElement('div');
-                    specialButtonsContainer.className = 'flex gap-2 mb-3 justify-center';
-                    container.appendChild(specialButtonsContainer);
-                    for (let i = 1; i <= 2; i++) {
-                        const unknownCardBtn = document.createElement('button');
-                        unknownCardBtn.className = 'card bg-gray-600 border-2 border-gray-400 rounded-md cursor-pointer h-14 w-20 flex justify-center items-center font-bold text-2xl text-white';
-                        unknownCardBtn.textContent = '?';
-                        unknownCardBtn.onclick = () => selectCard('?', String(i), target);
-                        if (state[target].includes(`?${i}`)) unknownCardBtn.classList.add('selected');
-                        specialButtonsContainer.appendChild(unknownCardBtn);
-                    }
-                }
+            function closeModal(modalElement) {
+                modalElement.classList.add('opacity-0');
+                setTimeout(() => modalElement.classList.add('hidden'), 300);
+            }
 
-                const deckContainer = document.createElement('div');
-                deckContainer.className = 'space-y-3';
-                container.appendChild(deckContainer);
-
+            function openCardSelector() {
+                const { target, index, count, player } = state.modalState.cardTarget;
+                const allHands = state.playersInHand.flatMap(p => p.hand);
+                const usedCards = [...allHands, ...state.board].filter(Boolean);
+                let selectedCards = [];
+                let deckHTML = '';
                 Object.keys(SUITS).forEach(suitKey => {
-                    const suitRow = document.createElement('div');
-                    suitRow.className = 'flex justify-between items-center space-x-1';
+                    deckHTML += '<div class="flex justify-between items-center space-x-1">';
                     RANKS.forEach(rank => {
                         const cardId = `${rank}${suitKey}`;
-                        const isUsed = state.winnerHand.includes(cardId) || state.loserHand.includes(cardId) || state.board.includes(cardId);
-                        const card = document.createElement('button');
-                        card.className = `card bg-white border-2 border-gray-300 rounded-md cursor-pointer flex-grow h-14 flex flex-col justify-center items-center font-bold text-lg`;
-                        if (suitKey === 'h' || suitKey === 'd') card.classList.add('card-red'); else card.classList.add('card-black');
-                        card.innerHTML = `<span>${rank}</span><span>${SUITS[suitKey]}</span>`;
-                        if (isUsed && !state[target].includes(cardId)) {
-                            card.classList.add('disabled'); card.disabled = true;
-                        } else {
-                            card.onclick = () => selectCard(rank, suitKey, target);
-                        }
-                        if (state[target].includes(cardId)) card.classList.add('selected');
-                        suitRow.appendChild(card);
+                        const isUsed = usedCards.includes(cardId);
+                        const colorClass = (suitKey === 'h' || suitKey === 'd') ? 'card-red' : 'card-black';
+                        deckHTML += `<button class="btn card-selector-btn flex-grow h-14 rounded-md ${isUsed ? 'bg-gray-600 text-gray-500 cursor-not-allowed' : 'bg-white hover:bg-amber-300'} ${colorClass}" data-card-id="${cardId}" ${isUsed ? 'disabled' : ''}>${rank}${SUITS[suitKey]}</button>`;
                     });
-                    deckContainer.appendChild(suitRow);
-                });
-            }
-
-            function renderSelectedInfoDisplay(type, container) {
-                container.innerHTML = '';
-                const player = state[type];
-                const hand = state[`${type}Hand`];
-
-                const playerTag = document.createElement('span');
-                playerTag.className = 'data-tag bg-amber-500 text-gray-900 font-bold';
-                playerTag.textContent = player;
-                container.appendChild(playerTag);
-
-                hand.forEach(cardId => {
-                    const cardTag = document.createElement('span');
-                    cardTag.className = 'data-tag';
-                    cardTag.textContent = cardId;
-                    container.appendChild(cardTag);
+                    deckHTML += '</div>';
                 });
 
-                const changeBtn = document.createElement('button');
-                changeBtn.className = 'ml-2 bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded-md text-xs';
-                changeBtn.textContent = '변경';
-                changeBtn.onclick = () => {
-                    state[type] = null;
-                    state[`${type}Hand`] = [];
-                    updateUI();
-                };
-                container.appendChild(changeBtn);
-            }
-            
-            function updateUI() {
-                Object.values(stepToSectionMap).forEach(section => section.style.display = 'none');
-                const currentSection = stepToSectionMap[state.currentStep];
-                if (currentSection) currentSection.style.display = 'block';
-
-                const stepActions = {
-                    'batch': () => {
-                        el.statusText.textContent = '핸드 정보를 일괄 입력하세요.';
-                        
-                        if (state.winner) {
-                            renderSelectedInfoDisplay('winner', el.winnerInfoDisplay);
-                            el.winnerPlayerButtonsBatch.style.display = 'none';
-                            if (state.winnerHand.length === 2) { el.winnerHandDeckBatch.style.display = 'none'; }
-                            else { el.winnerHandDeckBatch.style.display = 'block'; renderCardDeck('winnerHand', el.winnerHandDeckBatch); }
-                        } else {
-                            el.winnerInfoDisplay.innerHTML = '';
-                            el.winnerPlayerButtonsBatch.style.display = 'grid';
-                            el.winnerHandDeckBatch.style.display = 'none';
-                            renderPlayerButtons(el.winnerPlayerButtonsBatch, (player) => { state.winner = player; updateUI(); }, state.winner, state.loser);
-                        }
-
-                        if (state.loser) {
-                            renderSelectedInfoDisplay('loser', el.loserInfoDisplay);
-                            el.loserPlayerButtonsBatch.style.display = 'none';
-                            if (state.loserHand.length === 2) { el.loserHandDeckBatch.style.display = 'none'; }
-                            else { el.loserHandDeckBatch.style.display = 'block'; renderCardDeck('loserHand', el.loserHandDeckBatch); }
-                        } else {
-                            el.loserInfoDisplay.innerHTML = '';
-                            el.loserPlayerButtonsBatch.style.display = 'grid';
-                            el.loserHandDeckBatch.style.display = 'none';
-                            renderPlayerButtons(el.loserPlayerButtonsBatch, (player) => { state.loser = player; updateUI(); }, state.loser, state.winner);
-                        }
-
-                        renderCardDeck('board', el.boardDeckBatch);
-                    },
-                    'setup': () => el.statusText.textContent = '카메라, 레벨, 테이블을 선택하세요.',
-                    'winner': () => { el.statusText.textContent = `승자(Winner)를 선택하세요.`; renderPlayerButtons(el.playerButtonsContainer, selectPlayer, null, state.loser); },
-                    'loser': () => { el.statusText.textContent = `패자(Loser)를 선택하세요.`; renderPlayerButtons(el.playerButtonsContainer, selectPlayer, null, state.winner); },
-                    'winnerHand': () => { el.statusText.textContent = `${state.winner}의 핸드 카드 2장을 선택하세요.`; renderCardDeck('winnerHand', el.cardSection); },
-                    'loserHand': () => { el.statusText.textContent = `${state.loser}의 핸드 카드 2장을 선택하세요.`; renderCardDeck('loserHand', el.cardSection); },
-                    'board': () => { el.statusText.textContent = '보드 카드(최대 5장)를 선택하세요.'; renderCardDeck('board', el.cardSection); },
-                    'final': () => el.statusText.textContent = '모든 정보 입력 완료! 아래 버튼을 누르세요.'
-                };
-                if (stepActions[state.currentStep]) stepActions[state.currentStep]();
-            }
-            
-            function nextStep() {
-                const workflow = state.templates[state.activeTemplate];
-                const currentIndex = workflow.indexOf(state.currentStep);
-                if (currentIndex < workflow.length - 1) { state.currentStep = workflow[currentIndex + 1]; updateUI(); }
-            }
-
-            function selectTemplate(name) { state.activeTemplate = name; saveSettings(); renderTemplateButtons(); resetState(); }
-            function selectPrefix(prefix) { state.selectedCameraPrefix = prefix; renderPrefixButtons(); }
-            function selectCameraNumber(number) { state.selectedCameraNumber = number; renderPaginatedButtons('camera'); }
-            function selectLevel(level) { state.level = level; renderPaginatedButtons('level'); }
-            function selectTable(tableNum) { state.table = tableNum; renderPaginatedButtons('table'); }
-
-            function selectPlayer(name) {
-                if (state.currentStep === 'winner') state.winner = name;
-                else if (state.currentStep === 'loser') state.loser = name;
-                nextStep();
-            }
-
-            function selectCard(rank, suit, target) {
-                const cardId = (rank === '?') ? `?${suit}` : `${rank}${suit}`;
-                const isBatchMode = state.currentStep === 'batch';
-                const targetHand = isBatchMode ? state[target] : state[state.currentStep];
+                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-lg"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">카드 선택 (${count}장)</h2><div class="space-y-2" id="card-deck">${deckHTML}</div><button id="close-card-modal" class="btn mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
+                openModal(el.cardSelectorModal, content);
                 
-                let limit = 5; // default for board
-                if ((isBatchMode && (target === 'winnerHand' || target === 'loserHand')) || (!isBatchMode && (state.currentStep === 'winnerHand' || state.currentStep === 'loserHand'))) {
-                    limit = 2;
-                }
+                el.cardSelectorModal.querySelector('#card-deck').onclick = e => {
+                    const btn = e.target.closest('.card-selector-btn');
+                    if(!btn) return;
+                    const cardId = btn.dataset.cardId;
+                    const selectedIndex = selectedCards.indexOf(cardId);
+                    if (selectedIndex > -1) {
+                        selectedCards.splice(selectedIndex, 1);
+                        btn.classList.remove('selected');
+                    } else if (selectedCards.length < count) {
+                        selectedCards.push(cardId);
+                        btn.classList.add('selected');
+                    }
+                    if (selectedCards.length === count) {
+                        assignCard(selectedCards);
+                    }
+                };
+            }
+            
+            function openActionPad(street) {
+                if (state.playersInHand.length < 1) { showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
+                state.modalState.actionPadStreet = street;
+                const playersHTML = state.playersInHand.map(p => `<button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-player-name="${p.name}">${p.name}</button>`).join('');
+                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-md"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2><div id="action-pad-players" class="grid grid-cols-2 gap-3 mb-4">${playersHTML}</div><div id="action-pad-actions" class="grid grid-cols-3 gap-3 mb-4 hidden"><button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds">Fold</button><button class="btn bg-gray-600 hover:bg-gray-500 p-3 rounded-md" data-action="Checks">Check</button><button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Calls">Call</button><button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md col-span-2" data-action="Bets">Bet</button><button class="btn bg-emerald-500 hover:bg-emerald-600 p-3 rounded-md" data-action="Raises">Raise</button></div><div id="action-pad-bet-sizing" class="space-y-3 hidden"><div class="input-with-keypad"><input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div><button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
+                openModal(el.actionPadModal, content);
+            }
+            
+            function openKeypad(targetInput) {
+                state.modalState.keypadTarget = targetInput;
+                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-xs"><div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded-md mb-4 h-12">${targetInput.value}</div><div class="grid grid-cols-4 gap-2 text-xl font-bold">${['1','2','3','C','4','5','6','←','7','8','9','0','00','000'].map(k => `<button class="keypad-btn btn bg-gray-700 hover:bg-gray-600 rounded-md p-3">${k}</button>`).join('')}</div><div class="grid grid-cols-2 gap-2 mt-2"><button id="keypad-cancel" class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md">취소</button><button id="keypad-confirm" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md">확인</button></div></div>`;
+                openModal(el.keypadModal, content);
+            }
 
-                const cardIndex = targetHand.indexOf(cardId);
-                if (cardIndex > -1) {
-                    targetHand.splice(cardIndex, 1);
-                } else if (targetHand.length < limit) {
-                    targetHand.push(cardId);
-                }
-
-                if (isBatchMode) {
-                    updateUI();
+            function togglePlayerInHand(playerName) {
+                const playerIndex = state.playersInHand.findIndex(p => p.name === playerName);
+                if (playerIndex > -1) {
+                    state.playersInHand.splice(playerIndex, 1);
                 } else {
-                    renderCardDeck(state.currentStep, el.cardSection);
-                    if (targetHand.length === limit) {
-                        setTimeout(nextStep, 300);
+                    state.playersInHand.push({ name: playerName, hand: [], chips: '', role: null });
+                }
+                renderAll();
+            }
+
+            function setPlayerRole(playerName, role) {
+                const targetPlayer = state.playersInHand.find(p => p.name === playerName);
+                if (!targetPlayer) return;
+                state.playersInHand.forEach(p => {
+                    if (p.role === role) p.role = null;
+                });
+                targetPlayer.role = role;
+                renderPlayerDetails();
+                renderActionLogs();
+            }
+
+            function assignCard(cards) {
+                const { target, player, index } = state.modalState.cardTarget;
+                if(target === 'board') {
+                    cards.forEach((card, i) => state.board[index + i] = card);
+                    renderBoard();
+                } else {
+                    const targetPlayer = state.playersInHand.find(p => p.name === player);
+                    if(targetPlayer) {
+                        targetPlayer.hand = cards;
+                        renderPlayerDetails();
                     }
+                }
+                closeModal(el.cardSelectorModal);
+            }
+
+            function addActionToLog(action, amount = null) {
+                const { actionPadStreet, actionPadPlayer } = state.modalState;
+                state.actionState[actionPadStreet].push({ player: actionPadPlayer, action, amount });
+                saveActionState();
+                renderActionLogs();
+                closeModal(el.actionPadModal);
+            }
+
+            function undoLastAction(street) {
+                if (state.actionState[street].length > 0) {
+                    state.actionState[street].pop();
+                    saveActionState();
+                    renderActionLogs();
                 }
             }
             
-            function changePage(type, direction) {
-                const pageState = { camera: { current: 'currentCameraNumberPage' }, level: { current: 'currentLevelPage' }, table: { current: 'currentTablePage' } };
-                state[pageState[type].current] += direction;
-                renderPaginatedButtons(type);
+            function saveActionState() { localStorage.setItem('pokerActionState_v32', JSON.stringify(state.actionState)); }
+            function loadActionState() {
+                const savedState = localStorage.getItem('pokerActionState_v32');
+                if (savedState) state.actionState = { ...state.actionState, ...JSON.parse(savedState) };
             }
+            
+            function generateGfxLogRows() {
+                const logRows = [];
+                const playersWithSeats = state.playersInHand.map((p, i) => ({ ...p, seat: i + 1 }));
 
-            function formatBoard(board) {
-                if (!board || board.length === 0) return '';
-                const flop = board.slice(0, 3).sort().join('');
-                const turn = board.slice(3, 4).join('');
-                const river = board.slice(4, 5).join('');
-                return [flop, turn, river].filter(p => p).join('_');
-            }
+                logRows.push(['GAME', 'PokerGFX 3.111', 'FEATURE_TABLE']);
+                logRows.push(['PAYOUTS']);
 
-            function generateOutputString() {
-                const now = new Date();
-                const timecode = `${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-                const formatHand = (hand) => hand.sort().join('');
-                const cameraID = `${state.selectedCameraPrefix}${String(state.selectedCameraNumber).padStart(3, '0')}`;
-                
-                const outputParts = [
-                    cameraID,
-                    `Lv${String(state.level).padStart(2, '0')}`,
-                    timecode,
-                    state.table,
-                    state.winner,
-                    formatHand(state.winnerHand),
-                    state.loser,
-                    formatHand(state.loserHand),
-                    formatBoard(state.board)
+                const handLine = [
+                    'HAND',
+                    unformatNumber(state.actionState.handNumber) || 'N/A',
+                    Date.now(),
+                    'HOLDEM',
+                    state.actionState.hasBBAnte ? 'BB_ANTE' : 'NO_ANTE',
+                    unformatNumber(state.actionState.bigBlind) || 0,
+                    0, // Ante amount, assuming 0 for now
+                    unformatNumber(state.actionState.smallBlind) || 0,
+                    unformatNumber(state.actionState.bigBlind) || 0,
+                    0,
+                    ...playersWithSeats.map(p => p.seat)
                 ];
-                
-                el.outputText.value = outputParts.filter(p => p).join('_');
-                el.outputSection.style.display = 'block';
-                el.outputSection.scrollIntoView({ behavior: 'smooth' });
-            }
+                logRows.push(handLine);
 
-            function copyToClipboard() {
-                el.outputText.select();
-                el.outputText.setSelectionRange(0, 99999);
-                try { document.execCommand('copy'); el.copyFeedback.textContent = '✅ 복사되었습니다!'; } 
-                catch (err) { el.copyFeedback.textContent = '❌ 복사에 실패했습니다.'; }
-                setTimeout(() => { el.copyFeedback.textContent = ''; }, 2000);
-            }
-
-            function resetState() {
-                state.winner = null; state.winnerHand = []; state.loser = null; state.loserHand = []; state.board = [];
-                if (!state.templates[state.activeTemplate]) {
-                    state.activeTemplate = '기본';
-                    saveSettings();
-                }
-                state.currentStep = state.templates[state.activeTemplate][0];
-                el.outputSection.style.display = 'none';
-                updateUI();
-                renderAllPaginatedButtons();
-            }
-            
-            function saveSettings() {
-                const localTemplates = {};
-                Object.keys(state.templates).forEach(name => {
-                    if (name !== '기본') { localTemplates[name] = state.templates[name]; }
+                playersWithSeats.forEach(p => {
+                    const playerLine = [
+                        'PLAYER',
+                        p.seat,
+                        p.name,
+                        0, // Position?
+                        unformatNumber(p.chips) || 0,
+                        unformatNumber(p.chips) || 0, // End chips placeholder
+                        p.hand.length > 0 ? p.hand.map(c => c.toLowerCase()).join(' ') : ''
+                    ];
+                    logRows.push(playerLine);
                 });
-                localStorage.setItem('pokerLoggerSettings_v17', JSON.stringify({ templates: localTemplates, activeTemplate: state.activeTemplate }));
-            }
-            
-            function loadSettings() {
-                const saved = localStorage.getItem('pokerLoggerSettings_v17');
-                if (saved) {
-                    const { templates, activeTemplate } = JSON.parse(saved);
-                    if (templates) state.templates = {...state.templates, ...templates};
-                    if (activeTemplate && state.templates[activeTemplate]) state.activeTemplate = activeTemplate;
-                }
-            }
 
-            function showFeedback(message, isError = true) {
-                const feedbackEl = document.createElement('div');
-                feedbackEl.textContent = message;
-                feedbackEl.className = `fixed top-5 left-1/2 -translate-x-1/2 ${isError ? 'bg-red-600' : 'bg-green-600'} text-white px-4 py-2 rounded-md shadow-lg z-50`;
-                document.body.appendChild(feedbackEl);
-                setTimeout(() => feedbackEl.remove(), 3000);
-            }
-            
-            function openTemplateEditor() { renderTemplateEditor(); el.templateModal.classList.remove('hidden'); setTimeout(() => el.templateModal.classList.remove('opacity-0'), 10); }
-            function closeTemplateEditor() { el.templateModal.classList.add('opacity-0'); setTimeout(() => el.templateModal.classList.add('hidden'), 300); }
-            function renderTemplateEditor() {
-                el.templateStepButtons.innerHTML = '';
-                Object.entries(state.availableSteps).forEach(([key, name]) => {
-                    const button = document.createElement('button');
-                    button.className = 'bg-gray-600 hover:bg-gray-500 px-3 py-1 rounded-md';
-                    button.textContent = name;
-                    button.onclick = () => addStepToTemplate(key);
-                    el.templateStepButtons.appendChild(button);
-                });
-                renderNewTemplateSequence();
-                renderExistingTemplates();
-            }
-            function addStepToTemplate(step) { state.newTemplateSequence.push(step); renderNewTemplateSequence(); }
-            function renderNewTemplateSequence() {
-                el.newTemplateSequenceDisplay.innerHTML = state.newTemplateSequence.map(s => `<span class="data-tag">${state.availableSteps[s]}</span>`).join(' <span class="text-gray-500">&rarr;</span> ');
-                if (state.newTemplateSequence.length === 0) el.newTemplateSequenceDisplay.textContent = '순서를 추가하세요';
-            }
-            function clearNewTemplate() { state.newTemplateSequence = []; el.newTemplateNameInput.value = ''; renderNewTemplateSequence(); }
-            function saveNewTemplate() {
-                const name = el.newTemplateNameInput.value.trim();
-                if (!name) { showFeedback('템플릿 이름을 입력하세요.'); return; }
-                if (state.templates[name]) { showFeedback('이미 존재하는 이름입니다.'); return; }
-                if (state.newTemplateSequence.length === 0) { showFeedback('작업 순서를 추가하세요.'); return; }
-                
-                state.templates[name] = [...state.newTemplateSequence, 'final'];
-                saveSettings();
-                renderTemplateButtons();
-                renderExistingTemplates();
-                clearNewTemplate();
-                showFeedback('템플릿이 로컬에 저장되었습니다!', false);
-            }
-            function deleteTemplate(name) {
-                if (name === '기본') { showFeedback("'기본' 템플릿은 삭제할 수 없습니다."); return; }
-                const confirmModal = document.createElement('div');
-                confirmModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-                confirmModal.innerHTML = `<div class="bg-gray-800 p-6 rounded-lg shadow-xl text-center"><p class="mb-4">정말로 '${name}' 템플릿을 삭제하시겠습니까?<br><small class="text-gray-400">(시트에서 불러온 템플릿은 새로고침 시 복구됩니다)</small></p><div class="flex justify-center gap-4"><button id="confirm-delete-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md">삭제</button><button id="cancel-delete-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">취소</button></div></div>`;
-                document.body.appendChild(confirmModal);
-                document.getElementById('confirm-delete-btn').onclick = () => {
-                    delete state.templates[name];
-                    if (state.activeTemplate === name) state.activeTemplate = '기본';
-                    saveSettings();
-                    renderTemplateButtons();
-                    renderExistingTemplates();
-                    confirmModal.remove();
-                };
-                document.getElementById('cancel-delete-btn').onclick = () => confirmModal.remove();
-            }
-            function renderExistingTemplates() {
-                el.existingTemplatesList.innerHTML = '';
-                Object.keys(state.templates).forEach(name => {
-                    const div = document.createElement('div');
-                    div.className = 'flex items-center justify-between bg-gray-700 p-2 rounded-md';
-                    const sequence = state.templates[name].slice(0, -1).map(s => state.availableSteps[s]).join(' → ');
-                    div.innerHTML = `<div><p class="font-bold">${name}</p><p class="text-sm text-gray-400">${sequence}</p></div>`;
-                    if (name !== '기본') {
-                        const deleteBtn = document.createElement('button');
-                        deleteBtn.className = 'text-red-500 hover:text-red-400 font-bold px-2';
-                        deleteBtn.textContent = '삭제';
-                        deleteBtn.onclick = () => deleteTemplate(name);
-                        div.appendChild(deleteBtn);
+                const mapActionToEvent = (actionLog) => {
+                    const player = playersWithSeats.find(p => p.name === actionLog.player);
+                    if (!player) return null;
+                    const eventLine = ['EVENT', actionLog.action.toUpperCase().replace('S', '')];
+                    eventLine.push(player.seat);
+                    if (actionLog.amount) {
+                        eventLine.push(unformatNumber(actionLog.amount));
                     }
-                    el.existingTemplatesList.appendChild(div);
+                    return eventLine;
+                };
+
+                state.actionState.preflop.forEach(a => logRows.push(mapActionToEvent(a)));
+                state.board.slice(0, 3).forEach(c => logRows.push(['EVENT', 'BOARD', 1, c.toLowerCase()]));
+                state.actionState.flop.forEach(a => logRows.push(mapActionToEvent(a)));
+                state.board.slice(3, 4).forEach(c => logRows.push(['EVENT', 'BOARD', 1, c.toLowerCase()]));
+                state.actionState.turn.forEach(a => logRows.push(mapActionToEvent(a)));
+                state.board.slice(4, 5).forEach(c => logRows.push(['EVENT', 'BOARD', 1, c.toLowerCase()]));
+                state.actionState.river.forEach(a => logRows.push(mapActionToEvent(a)));
+
+                return logRows.filter(Boolean);
+            }
+
+            async function sendDataToGoogleSheet() {
+                const winner = state.playersInHand.find(p => p.role === 'winner');
+                const loser = state.playersInHand.find(p => p.role === 'loser');
+                if (!winner || !loser) { showFeedback('승자와 패자를 모두 지정해야 합니다.', true); return; }
+                
+                el.sendToSheetBtn.textContent = '전송 중...';
+                el.sendToSheetBtn.disabled = true;
+
+                const gfxLogRows = generateGfxLogRows();
+                const payload = { rows: gfxLogRows };
+
+                try {
+                    await fetch(state.appsScriptUrl, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+                    showFeedback('✅ 데이터가 시트로 전송되었습니다!');
+                    el.sendToSheetBtn.textContent = '전송 완료!';
+                } catch (error) {
+                    showFeedback('❌ 전송 실패. 인터넷 연결을 확인하세요.', true);
+                } finally {
+                    setTimeout(() => { el.sendToSheetBtn.textContent = '시트에 자동 입력'; el.sendToSheetBtn.disabled = false; }, 2000);
+                }
+            }
+
+            function resetApp() {
+                const currentHandNum = parseInt(unformatNumber(state.actionState.handNumber), 10);
+                const nextHandNum = isNaN(currentHandNum) ? '' : currentHandNum + 1;
+                state.playersInHand = [];
+                state.board = [];
+                state.actionState = { ...state.actionState, handNumber: nextHandNum.toString(), preflop: [], flop: [], turn: [], river: [] };
+                renderAll();
+                saveActionState();
+                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
+            }
+
+            function showFeedback(message, isError = false) {
+                el.feedbackMessage.textContent = message;
+                el.feedbackMessage.className = `text-center mt-2 h-5 font-semibold ${isError ? 'text-red-400' : 'text-green-400'}`;
+                setTimeout(() => el.feedbackMessage.textContent = '', 3000);
+            }
+            
+            const formatNumber = (val) => val ? new Intl.NumberFormat('en-US').format(unformatNumber(val)) : '';
+            const unformatNumber = (val) => val.toString().replace(/,/g, '');
+
+            function setupEventListeners() {
+                el.refreshDataBtn.onclick = initializeApp;
+                el.resetBtn.onclick = resetApp;
+                el.sendToSheetBtn.onclick = sendDataToGoogleSheet;
+                
+                el.playerSelectionButtons.addEventListener('click', e => e.target.closest('button')?.dataset.playerName && togglePlayerInHand(e.target.closest('button').dataset.playerName));
+                
+                el.playerDetailsSection.addEventListener('click', e => {
+                    const placeholder = e.target.closest('.card-placeholder');
+                    const roleBtn = e.target.closest('.set-role-btn');
+                    if (placeholder) {
+                        state.modalState.cardTarget = { target: 'playerHand', player: placeholder.dataset.playerName, count: parseInt(placeholder.dataset.count) };
+                        openCardSelector();
+                    }
+                    if (roleBtn) {
+                        const playerName = roleBtn.closest('.player-card').dataset.playerName;
+                        setPlayerRole(playerName, roleBtn.dataset.role);
+                    }
                 });
+                
+                el.playerDetailsSection.addEventListener('input', e => {
+                    if (e.target.classList.contains('player-chip-input')) {
+                        const player = state.playersInHand.find(p => p.name === e.target.closest('.player-card').dataset.playerName);
+                        if(player) player.chips = unformatNumber(e.target.value);
+                        e.target.value = formatNumber(e.target.value);
+                    }
+                });
+
+                el.boardCardPlaceholders.addEventListener('click', e => {
+                    const placeholder = e.target.closest('.card-placeholder');
+                    if (placeholder) {
+                        state.modalState.cardTarget = { target: 'board', index: parseInt(placeholder.dataset.index), count: parseInt(placeholder.dataset.count) };
+                        openCardSelector();
+                    }
+                });
+
+                el.cardSelectorModal.addEventListener('click', e => {
+                    if (e.target.id === 'close-card-modal') closeModal(el.cardSelectorModal);
+                });
+                
+                el.streetLogsContainer.addEventListener('click', e => {
+                    const addBtn = e.target.closest('.add-action-btn');
+                    const undoBtn = e.target.closest('.undo-action-btn');
+                    if(addBtn) openActionPad(addBtn.dataset.street);
+                    if(undoBtn) undoLastAction(undoBtn.dataset.street);
+                });
+
+                el.actionPadModal.addEventListener('click', e => {
+                    const target = e.target.closest('button');
+                    if (!target) return;
+                    if (target.id === 'close-action-pad') { closeModal(el.actionPadModal); return; }
+                    const modal = el.actionPadModal;
+                    if (target.parentElement.id === 'action-pad-players') {
+                        state.modalState.actionPadPlayer = target.dataset.playerName;
+                        modal.querySelector('#action-pad-players').classList.add('hidden');
+                        modal.querySelector('#action-pad-actions').classList.remove('hidden');
+                    } else if (target.parentElement.id === 'action-pad-actions') {
+                        const action = target.dataset.action;
+                        state.modalState.actionPadCurrentAction = action;
+                        if (action === 'Bets' || action === 'Raises') {
+                            modal.querySelector('#action-pad-actions').classList.add('hidden');
+                            modal.querySelector('#action-pad-bet-sizing').classList.remove('hidden');
+                            const amountInput = modal.querySelector('#action-pad-amount');
+                            amountInput.focus();
+                        } else { addActionToLog(action); }
+                    }
+                });
+                
+                document.body.addEventListener('click', e => {
+                    if(e.target.classList.contains('keypad-icon-btn')) {
+                        openKeypad(e.target.previousElementSibling);
+                    }
+                });
+
+                el.keypadModal.addEventListener('click', e => {
+                    const btn = e.target.closest('button');
+                    if(!btn) return;
+                    const display = el.keypadModal.querySelector('#keypad-display');
+                    const key = btn.textContent;
+
+                    if (btn.id === 'keypad-confirm') {
+                        state.modalState.keypadTarget.value = display.textContent;
+                        state.modalState.keypadTarget.dispatchEvent(new Event('input', { bubbles: true }));
+                        
+                        if(state.modalState.keypadTarget.id === 'action-pad-amount') {
+                             const amount = unformatNumber(display.textContent);
+                             if(amount) addActionToLog(state.modalState.actionPadCurrentAction, amount);
+                        }
+                        
+                        closeModal(el.keypadModal);
+                    } else if (btn.id === 'keypad-cancel') {
+                        closeModal(el.keypadModal);
+                    } else if (key === 'C') {
+                        display.textContent = '';
+                    } else if (key === '←') {
+                        display.textContent = formatNumber(unformatNumber(display.textContent).slice(0, -1));
+                    } else {
+                        display.textContent = formatNumber(unformatNumber(display.textContent) + key);
+                    }
+                });
+
+                document.querySelectorAll('.number-input').forEach(input => {
+                    input.addEventListener('input', e => {
+                        const unformatted = unformatNumber(e.target.value);
+                        const formatted = formatNumber(unformatted);
+                        if (e.target.value !== formatted) {
+                           e.target.value = formatted;
+                        }
+                        const stateKey = e.target.id.replace('-input', '').replace('small-','small').replace('big-','big');
+                        if(state.actionState.hasOwnProperty(stateKey)) {
+                            state.actionState[stateKey] = unformatted;
+                        }
+                        saveActionState();
+                    });
+                });
+                
+                el.bbAnteCheckbox.onchange = (e) => {
+                    state.actionState.hasBBAnte = e.target.checked;
+                    saveActionState();
+                };
             }
 
-            // --- INITIALIZATION ---
             async function initializeApp() {
-                loadSettings();
+                showFeedback('데이터 로딩 중...');
+                loadActionState();
                 await loadDataFromGoogleSheet();
-                renderLoadedData();
-                renderTemplateButtons();
-                renderPrefixButtons();
-                renderAllPaginatedButtons();
-                resetState();
+                renderAll();
+                setupEventListeners();
+                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
+                el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
+                el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
+                el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
+                showFeedback('준비 완료!', false);
             }
-
-            el.refreshDataBtn.onclick = () => { el.statusText.textContent = '데이터 새로고침 중...'; initializeApp(); };
-            el.editTemplatesBtn.onclick = openTemplateEditor;
-            el.closeTemplateModalBtn.onclick = closeTemplateEditor;
-            el.saveTemplateBtn.onclick = saveNewTemplate;
-            el.clearTemplateBtn.onclick = clearNewTemplate;
-            el.confirmSetupBtn.onclick = () => { if(state.table) nextStep(); else showFeedback('테이블을 선택해주세요.'); };
-            el.confirmBatchBtn.onclick = nextStep;
-            el.prevCameraPageBtn.onclick = () => changePage('camera', -1); el.nextCameraPageBtn.onclick = () => changePage('camera', 1);
-            el.prevLevelPageBtn.onclick = () => changePage('level', -1); el.nextLevelPageBtn.onclick = () => changePage('level', 1);
-            el.prevTablePageBtn.onclick = () => changePage('table', -1); el.nextTablePageBtn.onclick = () => changePage('table', 1);
-            el.confirmCardsBtn.onclick = () => { if (state.currentStep === 'board') nextStep(); };
-            el.generateBtn.onclick = generateOutputString;
-            el.copyBtn.onclick = copyToClipboard;
-            el.resetBtn.onclick = resetState;
 
             initializeApp();
         });
