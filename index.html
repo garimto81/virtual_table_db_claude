@@ -47,8 +47,14 @@
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                    <label for="table-selector" class="block text-sm font-medium text-gray-300 mb-2">테이블 선택:</label>
+                    <select id="table-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                        <option value="">-- 테이블을 선택하세요 --</option>
+                    </select>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">참여 플레이어 선택:</label>
-                    <div id="player-selection-buttons" class="flex flex-wrap gap-2"></div>
+                    <div id="player-selection-buttons" class="flex flex-wrap gap-2 min-h-[40px] items-center"></div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">보드 카드:</label>
@@ -118,7 +124,9 @@
             let timeUpdater;
             const state = {
                 dataSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv', 
-                allPlayers: [],
+                playerDataByTable: {},
+                allTables: [],
+                selectedTable: null,
                 playersInHand: [],
                 board: [],
                 actionState: {
@@ -140,6 +148,7 @@
 
             const el = {
                 refreshDataBtn: document.getElementById('refresh-data'),
+                tableSelector: document.getElementById('table-selector'),
                 playerSelectionButtons: document.getElementById('player-selection-buttons'),
                 boardCardPlaceholders: document.getElementById('board-card-placeholders'),
                 playerDetailsSection: document.getElementById('player-details-section'),
@@ -223,13 +232,46 @@
                     if (!response.ok) throw new Error(`Network response was not ok`);
                     const csvText = await response.text();
                     const lines = csvText.trim().split(/\r?\n/).slice(1);
-                    const players = lines.map(line => line.split(',')[1]?.trim()).filter(Boolean);
-                    state.allPlayers = [...new Set(players)];
+                    
+                    const dataByTable = {};
+                    lines.forEach(line => {
+                        const columns = line.split(',');
+                        const player = columns[1]?.trim();
+                        const table = columns[2]?.trim();
+                        if (player && table) {
+                            if (!dataByTable[table]) {
+                                dataByTable[table] = [];
+                            }
+                            if (!dataByTable[table].includes(player)) {
+                                dataByTable[table].push(player);
+                            }
+                        }
+                    });
+
+                    state.playerDataByTable = dataByTable;
+                    state.allTables = Object.keys(dataByTable).sort();
+
                 } catch (error) { console.error('Failed to load player data:', error); showFeedback('플레이어 데이터 로딩 실패.', true); }
+            }
+            
+            function renderTableSelection() {
+                const selector = el.tableSelector;
+                selector.innerHTML = '<option value="">-- 테이블을 선택하세요 --</option>';
+                state.allTables.forEach(tableName => {
+                    const option = document.createElement('option');
+                    option.value = tableName;
+                    option.textContent = tableName;
+                    selector.appendChild(option);
+                });
             }
 
             function renderPlayerSelection() {
-                el.playerSelectionButtons.innerHTML = state.allPlayers.map(p => {
+                if (!state.selectedTable) {
+                    el.playerSelectionButtons.innerHTML = '<p class="text-gray-400">테이블을 먼저 선택해주세요.</p>';
+                    return;
+                }
+                const playersForTable = state.playerDataByTable[state.selectedTable] || [];
+                el.playerSelectionButtons.innerHTML = playersForTable.map(p => {
                     const isSelected = state.playersInHand.some(player => player.name === p);
                     return `<button class="btn ${isSelected ? 'btn-selected' : 'bg-gray-600 hover:bg-gray-500'} px-3 py-1 rounded-md" data-player-name="${p}">${p}</button>`;
                 }).join('');
@@ -383,7 +425,8 @@
                 } else {
                     state.playersInHand.push({ name: playerName, hand: [], chips: '', role: null });
                 }
-                renderAll();
+                renderPlayerSelection();
+                renderPlayerDetails();
             }
 
             function setPlayerRole(playerName, role) {
@@ -601,11 +644,21 @@
             const formatNumber = (val) => val ? new Intl.NumberFormat('en-US').format(unformatNumber(val)) : '';
             const unformatNumber = (val) => val.toString().replace(/,/g, '');
 
+            const toCamelCase = (str) => str.replace(/-([a-z])/g, g => g[1].toUpperCase());
+
             function setupEventListeners() {
                 el.refreshDataBtn.onclick = initializeApp;
                 el.resetBtn.onclick = resetApp;
                 el.sendToSheetBtn.onclick = sendDataToGoogleSheet;
                 
+                el.tableSelector.onchange = (e) => {
+                    state.selectedTable = e.target.value;
+                    state.playersInHand = []; 
+                    renderPlayerSelection();
+                    renderPlayerDetails();
+                    renderActionLogs();
+                };
+
                 el.timezoneSelector.onchange = (e) => {
                     state.selectedTimezone = e.target.value;
                     updateTimeDisplay();
@@ -715,7 +768,9 @@
                         if (e.target.value !== formatted) {
                            e.target.value = formatted;
                         }
-                        const stateKey = e.target.id.replace('-input', '').replace('small-','small').replace('big-','big');
+                        let stateKey = e.target.id.replace('-input', '');
+                        stateKey = toCamelCase(stateKey);
+
                         if(state.actionState.hasOwnProperty(stateKey)) {
                             state.actionState[stateKey] = unformatted;
                         }
@@ -734,6 +789,7 @@
                 populateTimezones();
                 loadActionState();
                 await loadDataFromGoogleSheet();
+                renderTableSelection();
                 renderAll();
                 setupEventListeners();
                 el.handNumberInput.value = formatNumber(state.actionState.handNumber);
