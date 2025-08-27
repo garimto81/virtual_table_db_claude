@@ -85,9 +85,10 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                          <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
-                         <div class="input-with-keypad">
-                             <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                             <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
+                         <div class="flex items-center gap-1">
+                             <button id="hand-nav-prev" class="btn bg-gray-600 p-2 rounded-md">◀</button>
+                             <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-center">
+                             <button id="hand-nav-next" class="btn bg-gray-600 p-2 rounded-md">▶</button>
                          </div>
                     </div>
                     <div>
@@ -126,6 +127,7 @@
                 dataSheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv', 
                 playerDataByTable: {},
                 allTables: [],
+                allHandNumbers: [],
                 selectedTable: null,
                 playersInHand: [],
                 board: [],
@@ -154,6 +156,8 @@
                 boardCardPlaceholders: document.getElementById('board-card-placeholders'),
                 playerDetailsSection: document.getElementById('player-details-section'),
                 handNumberInput: document.getElementById('hand-number-input'),
+                handNavPrev: document.getElementById('hand-nav-prev'),
+                handNavNext: document.getElementById('hand-nav-next'),
                 smallBlindInput: document.getElementById('small-blind-input'),
                 bigBlindInput: document.getElementById('big-blind-input'),
                 bbAnteCheckbox: document.getElementById('bb-ante-checkbox'),
@@ -229,34 +233,15 @@
 
             async function loadDataFromGoogleSheet() {
                 try {
-                    const response = await fetch(`${state.dataSheetUrl}&_=${new Date().getTime()}`, { cache: 'no-store' });
+                    const response = await fetch(`${state.appsScriptUrl}?action=getInitialData`);
                     if (!response.ok) throw new Error(`Network response was not ok`);
-                    const csvText = await response.text();
-                    const lines = csvText.trim().split(/\r?\n/).slice(1);
+                    const data = await response.json();
                     
-                    const dataByTable = {};
-                    lines.forEach(line => {
-                        const columns = line.split(',');
-                        const player = columns[1]?.trim();
-                        const table = columns[2]?.trim();
-                        const chips = columns[3]?.trim(); // Column D for chips
-                        if (player && table) {
-                            if (!dataByTable[table]) {
-                                dataByTable[table] = [];
-                            }
-                            const existingPlayerIndex = dataByTable[table].findIndex(p => p.name === player);
-                            if (existingPlayerIndex === -1) {
-                                dataByTable[table].push({ name: player, chips: chips || '' });
-                            } else {
-                                dataByTable[table][existingPlayerIndex].chips = chips || '';
-                            }
-                        }
-                    });
+                    state.playerDataByTable = data.playerData;
+                    state.allTables = Object.keys(data.playerData).sort();
+                    state.allHandNumbers = data.handNumbers.map(n => parseInt(n, 10)).sort((a, b) => a - b);
 
-                    state.playerDataByTable = dataByTable;
-                    state.allTables = Object.keys(dataByTable).sort();
-
-                } catch (error) { console.error('Failed to load player data:', error); showFeedback('플레이어 데이터 로딩 실패.', true); }
+                } catch (error) { console.error('Failed to load initial data:', error); showFeedback('초기 데이터 로딩 실패.', true); }
             }
             
             function renderTableSelection() {
@@ -453,22 +438,6 @@
                         <button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md col-span-2" data-action="Bet/Raises">Bet/Raise</button>
                         <button class="btn bg-red-800 hover:bg-red-700 p-3 rounded-md font-bold" data-action="All In">ALL IN</button>
                     </div>
-
-                    <div id="action-pad-bet-type" class="grid grid-cols-2 gap-3 mb-4 hidden">
-                        <button class="btn bg-teal-600 hover:bg-teal-700 p-3 rounded-md" data-bet-type="manual">수동 입력</button>
-                        <button class="btn bg-cyan-600 hover:bg-cyan-700 p-3 rounded-md" data-bet-type="buttons">버튼식 입력</button>
-                    </div>
-
-                    <div id="action-pad-button-sizing" class="grid grid-cols-3 gap-3 mb-4 hidden">
-                        <!-- Buttons will be populated dynamically -->
-                    </div>
-
-                    <div id="action-pad-bet-sizing" class="space-y-3 hidden">
-                        <div class="input-with-keypad">
-                            <input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg">
-                            <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
-                        </div>
-                    </div>
                     <button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button>
                 </div>`;
                 openModal(el.actionPadModal, content);
@@ -478,7 +447,36 @@
                 state.modalState.keypadTarget = targetInput;
                 state.modalState.keypadPurpose = purpose;
                 state.modalState.currentPotValue = currentPot;
-                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-xs"><div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded-md mb-4 h-12">${targetInput ? targetInput.value : ''}</div><div class="grid grid-cols-4 gap-2 text-xl font-bold">${['1','2','3','C','4','5','6','←','7','8','9','0','00','000'].map(k => `<button class="keypad-btn btn bg-gray-700 hover:bg-gray-600 rounded-md p-3">${k}</button>`).join('')}</div><div class="grid grid-cols-2 gap-2 mt-2"><button id="keypad-cancel" class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md">취소</button><button id="keypad-confirm" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md">확인</button></div></div>`;
+                
+                let potButtonsHTML = '';
+                if (purpose === 'bet') {
+                    const pot = calculatePotSize();
+                    potButtonsHTML = `
+                        <button class="keypad-btn btn bg-sky-700 p-2 rounded-md" data-amount="${Math.round(pot * 0.5)}">1/2 Pot</button>
+                        <button class="keypad-btn btn bg-sky-700 p-2 rounded-md" data-amount="${Math.round(pot * 0.75)}">3/4 Pot</button>
+                        <button class="keypad-btn btn bg-sky-700 p-2 rounded-md" data-amount="${pot}">Pot</button>
+                        <button class="keypad-btn btn bg-gray-700 p-2 rounded-md">←</button>
+                    `;
+                } else {
+                     potButtonsHTML = `
+                        <button class="keypad-btn btn bg-gray-700 p-2 rounded-md">C</button>
+                        <button class="keypad-btn btn bg-gray-700 p-2 rounded-md col-span-2">000</button>
+                        <button class="keypad-btn btn bg-gray-700 p-2 rounded-md">←</button>
+                    `;
+                }
+
+
+                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-xs">
+                    <div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded-md mb-4 h-12">${targetInput ? targetInput.value : ''}</div>
+                    <div class="grid grid-cols-4 gap-2 text-xl font-bold">
+                        ${['1','2','3','4','5','6','7','8','9','0','00'].map(k => `<button class="keypad-btn btn bg-gray-700 hover:bg-gray-600 rounded-md p-3">${k}</button>`).join('')}
+                    </div>
+                     <div class="grid grid-cols-4 gap-2 text-xl font-bold mt-2">${potButtonsHTML}</div>
+                    <div class="grid grid-cols-2 gap-2 mt-2">
+                        <button id="keypad-cancel" class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md">취소</button>
+                        <button id="keypad-confirm" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md">확인</button>
+                    </div>
+                </div>`;
                 openModal(el.keypadModal, content);
             }
 
@@ -836,7 +834,7 @@
                             state.modalState.actionPadCurrentAction = hasBetOrRaise ? 'Raises' : 'Bets';
                             
                             modal.querySelector('#action-pad-actions').classList.add('hidden');
-                            modal.querySelector('#action-pad-bet-type').classList.remove('hidden');
+                            openKeypad(null, 'bet');
 
                         } else if (action === 'All In') {
                             const playerName = state.modalState.actionPadPlayer;
@@ -859,23 +857,6 @@
                         else { 
                             addActionToLog(action); 
                         }
-                    } else if (target.parentElement.id === 'action-pad-bet-type') {
-                        const betType = target.dataset.betType;
-                        modal.querySelector('#action-pad-bet-type').classList.add('hidden');
-
-                        if (betType === 'manual') {
-                            modal.querySelector('#action-pad-bet-sizing').classList.remove('hidden');
-                            openKeypad(modal.querySelector('#action-pad-amount'), 'bet');
-                        } else if (betType === 'buttons') {
-                            const pot = calculatePotSize();
-                            const buttonSizingDiv = modal.querySelector('#action-pad-button-sizing');
-                            buttonSizingDiv.innerHTML = `
-                                <button class="btn bg-sky-600 p-3 rounded-md" data-amount="${Math.round(pot * 0.5)}">1/2 Pot</button>
-                                <button class="btn bg-sky-600 p-3 rounded-md" data-amount="${Math.round(pot * 0.75)}">3/4 Pot</button>
-                                <button class="btn bg-sky-600 p-3 rounded-md" data-amount="${pot}">Pot</button>
-                            `;
-                            buttonSizingDiv.classList.remove('hidden');
-                        }
                     } else if (target.parentElement.id === 'action-pad-button-sizing') {
                         const amount = target.dataset.amount;
                         if (amount) {
@@ -895,19 +876,20 @@
                     if(!btn) return;
                     const display = el.keypadModal.querySelector('#keypad-display');
                     const key = btn.textContent;
+                    const amount = btn.dataset.amount;
+
+                    if (amount) {
+                        display.textContent = formatNumber(amount);
+                        return;
+                    }
 
                     if (btn.id === 'keypad-confirm') {
-                        const amount = unformatNumber(display.textContent);
+                        const finalAmount = unformatNumber(display.textContent);
                         if (state.modalState.keypadPurpose === 'bet') {
-                            state.modalState.keypadTarget.value = display.textContent;
-                            state.modalState.keypadTarget.dispatchEvent(new Event('input', { bubbles: true }));
-                            
-                            if(state.modalState.keypadTarget.id === 'action-pad-amount') {
-                                 if(amount) addActionToLog(state.modalState.actionPadCurrentAction, amount);
-                            }
+                            if(finalAmount) addActionToLog(state.modalState.actionPadCurrentAction, finalAmount);
                         } else if (state.modalState.keypadPurpose === 'pot') {
                             const currentPot = parseInt(state.modalState.currentPotValue, 10);
-                            const newPot = parseInt(amount, 10);
+                            const newPot = parseInt(finalAmount, 10);
                             const correction = newPot - currentPot;
                             if (correction !== 0) {
                                 state.actionState[state.modalState.actionPadStreet].push({
@@ -920,6 +902,8 @@
                             }
                         }
                         
+                        closeModal(el.keypadModal);
+                    } else if (btn.id === 'keypad-cancel') {
                         closeModal(el.keypadModal);
                     } else if (key === 'C') {
                         display.textContent = '';
@@ -959,6 +943,10 @@
                 loadActionState();
                 await loadDataFromGoogleSheet();
                 renderTableSelection();
+                
+                const lastHand = state.allHandNumbers.length > 0 ? Math.max(...state.allHandNumbers) : 0;
+                state.actionState.handNumber = (lastHand + 1).toString();
+
                 renderAll();
                 setupEventListeners();
                 el.handNumberInput.value = formatNumber(state.actionState.handNumber);
