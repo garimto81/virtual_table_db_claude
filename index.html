@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v34</title>
+    <title>포커 핸드 로거 v35</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -36,7 +36,7 @@
     <div id="app" class="max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">v34: 오류 수정 및 기능 개선</p>
+            <p class="text-gray-400">v35: 타임코드 및 UI 개선</p>
         </header>
 
         <!-- Hand Info Section -->
@@ -67,7 +67,7 @@
         <div id="action-logger-section" class="bg-gray-800 p-4 rounded-lg mt-4">
             <h2 class="text-xl font-bold mb-4 section-title">3. 액션 기록</h2>
             <div class="space-y-4">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                          <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
                          <div class="input-with-keypad">
@@ -76,12 +76,19 @@
                          </div>
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold mb-2">블라인드</h3>
-                        <div class="flex items-end gap-2">
-                             <div class="flex-1"><label class="text-sm text-gray-400">SB</label><div class="input-with-keypad"><input type="text" id="small-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
-                             <div class="flex-1"><label class="text-sm text-gray-400">BB</label><div class="input-with-keypad"><input type="text" id="big-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
-                             <div class="flex items-center pb-1"><input id="bb-ante-checkbox" type="checkbox" class="h-5 w-5 bg-gray-700 border-gray-600 rounded text-amber-500 focus:ring-amber-600"><label for="bb-ante-checkbox" class="ml-2 text-sm text-gray-300">BB Ante</label></div>
+                        <h3 class="text-lg font-semibold mb-2">기준 시간</h3>
+                        <div class="input-with-keypad">
+                            <input type="text" id="base-time-input" placeholder="HH:MM:SS" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                            <button id="set-current-time-btn" class="btn bg-gray-600 p-2 rounded-md">현재 시간</button>
                         </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2">블라인드</h3>
+                    <div class="flex items-end gap-2">
+                         <div class="flex-1"><label class="text-lg text-gray-400">SB</label><div class="input-with-keypad"><input type="text" id="small-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
+                         <div class="flex-1"><label class="text-lg text-gray-400">BB</label><div class="input-with-keypad"><input type="text" id="big-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
+                         <div class="flex items-center pb-1"><input id="bb-ante-checkbox" type="checkbox" class="h-5 w-5 bg-gray-700 border-gray-600 rounded text-amber-500 focus:ring-amber-600"><label for="bb-ante-checkbox" class="ml-2 text-sm text-gray-300">BB Ante</label></div>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="street-logs-container"></div>
@@ -116,6 +123,7 @@
                     smallBlind: '', bigBlind: '', hasBBAnte: false,
                     preflop: [], flop: [], turn: [], river: [],
                 },
+                baseTime: null,
                 appsScriptUrl: 'https://script.google.com/macros/s/AKfycbxM-Dbz1wX6Gbo73lxjrMdztlcRaY2oUFYaJCkZx26RgXceYiK7icdH7W407GVL365t/exec',
                 modalState: {
                     cardTarget: null,
@@ -133,6 +141,8 @@
                 boardCardPlaceholders: document.getElementById('board-card-placeholders'),
                 playerDetailsSection: document.getElementById('player-details-section'),
                 handNumberInput: document.getElementById('hand-number-input'),
+                baseTimeInput: document.getElementById('base-time-input'),
+                setCurrentTimeBtn: document.getElementById('set-current-time-btn'),
                 smallBlindInput: document.getElementById('small-blind-input'),
                 bigBlindInput: document.getElementById('big-blind-input'),
                 bbAnteCheckbox: document.getElementById('bb-ante-checkbox'),
@@ -288,7 +298,7 @@
                 if (state.playersInHand.length < 1) { showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
                 state.modalState.actionPadStreet = street;
                 const playersHTML = state.playersInHand.map(p => `<button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-player-name="${p.name}">${p.name}</button>`).join('');
-                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-md"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2><div id="action-pad-players" class="grid grid-cols-2 gap-3 mb-4">${playersHTML}</div><div id="action-pad-actions" class="grid grid-cols-3 gap-3 mb-4 hidden"><button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds">Fold</button><button class="btn bg-gray-600 hover:bg-gray-500 p-3 rounded-md" data-action="Checks">Check</button><button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Calls">Call</button><button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md col-span-2" data-action="Bets">Bet</button><button class="btn bg-emerald-500 hover:bg-emerald-600 p-3 rounded-md" data-action="Raises">Raise</button></div><div id="action-pad-bet-sizing" class="space-y-3 hidden"><div class="input-with-keypad"><input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div><button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
+                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-md"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2><div id="action-pad-players" class="grid grid-cols-2 gap-3 mb-4">${playersHTML}</div><div id="action-pad-actions" class="grid grid-cols-3 gap-3 mb-4 hidden"><button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds">Fold</button><button class="btn bg-gray-600 hover:bg-gray-500 p-3 rounded-md" data-action="Checks">Check</button><button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Calls">Call</button><button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md" data-action="BET/RAISE">BET/RAISE</button><button class="btn bg-red-800 hover:bg-red-700 p-3 rounded-md col-span-2" data-action="All-In">ALL IN</button></div><div id="action-pad-bet-sizing" class="space-y-3 hidden"><div class="input-with-keypad"><input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div><button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
                 openModal(el.actionPadModal, content);
             }
             
@@ -335,8 +345,12 @@
             }
 
             function addActionToLog(action, amount = null) {
+                if (!state.baseTime) {
+                    state.baseTime = new Date();
+                }
+                const timecode = getFormattedTimecode();
                 const { actionPadStreet, actionPadPlayer } = state.modalState;
-                state.actionState[actionPadStreet].push({ player: actionPadPlayer, action, amount });
+                state.actionState[actionPadStreet].push({ player: actionPadPlayer, action, amount, timecode });
                 saveActionState();
                 renderActionLogs();
                 closeModal(el.actionPadModal);
@@ -350,12 +364,23 @@
                 }
             }
             
-            function saveActionState() { localStorage.setItem('pokerActionState_v32', JSON.stringify(state.actionState)); }
+            function saveActionState() { localStorage.setItem('pokerActionState_v34', JSON.stringify(state.actionState)); }
             function loadActionState() {
-                const savedState = localStorage.getItem('pokerActionState_v32');
+                const savedState = localStorage.getItem('pokerActionState_v34');
                 if (savedState) state.actionState = { ...state.actionState, ...JSON.parse(savedState) };
             }
             
+            function getFormattedTimecode() {
+                if (!state.baseTime) return '';
+                const now = new Date();
+                const diff = now - state.baseTime;
+                const newTime = new Date(state.baseTime.getTime() + diff);
+                const h = String(newTime.getHours()).padStart(2, '0');
+                const m = String(newTime.getMinutes()).padStart(2, '0');
+                const s = String(newTime.getSeconds()).padStart(2, '0');
+                return `${h}${m}${s}`;
+            }
+
             function generateGfxLogRows() {
                 const logRows = [];
                 const playersWithSeats = state.playersInHand.map((p, i) => ({ ...p, seat: i + 1 }));
@@ -364,53 +389,46 @@
                 logRows.push(['PAYOUTS']);
 
                 const handLine = [
-                    'HAND',
-                    unformatNumber(state.actionState.handNumber) || 'N/A',
-                    Date.now(),
-                    'HOLDEM',
-                    state.actionState.hasBBAnte ? 'BB_ANTE' : 'NO_ANTE',
-                    unformatNumber(state.actionState.bigBlind) || 0,
-                    0, // Ante amount, assuming 0 for now
-                    unformatNumber(state.actionState.smallBlind) || 0,
-                    unformatNumber(state.actionState.bigBlind) || 0,
-                    0,
-                    ...playersWithSeats.map(p => p.seat)
+                    'HAND', unformatNumber(state.actionState.handNumber) || 'N/A', Math.floor(Date.now() / 1000), 'HOLDEM',
+                    state.actionState.hasBBAnte ? 'BB_ANTE' : 'NO_ANTE', unformatNumber(state.actionState.bigBlind) || 0,
+                    0, unformatNumber(state.actionState.smallBlind) || 0, unformatNumber(state.actionState.bigBlind) || 0,
+                    0, ...playersWithSeats.map(p => p.seat)
                 ];
                 logRows.push(handLine);
 
                 playersWithSeats.forEach(p => {
-                    const playerLine = [
-                        'PLAYER',
-                        p.seat,
-                        p.name,
-                        0, // Position?
-                        unformatNumber(p.chips) || 0,
-                        unformatNumber(p.chips) || 0, // End chips placeholder
-                        p.hand.length > 0 ? p.hand.map(c => c.toLowerCase()).join(' ') : ''
-                    ];
+                    const playerLine = ['PLAYER', p.seat, p.name, 0, unformatNumber(p.chips) || 0, unformatNumber(p.chips) || 0, p.hand.length > 0 ? p.hand.map(c => c.toLowerCase()).join(' ') : ''];
                     logRows.push(playerLine);
                 });
 
                 const mapActionToEvent = (actionLog) => {
                     const player = playersWithSeats.find(p => p.name === actionLog.player);
                     if (!player) return null;
-                    const eventLine = ['EVENT', actionLog.action.toUpperCase().replace('S', '')];
-                    eventLine.push(player.seat);
-                    if (actionLog.amount) {
-                        eventLine.push(unformatNumber(actionLog.amount));
+                    let actionType = actionLog.action.toUpperCase().replace('S', '');
+                    if (actionType === 'BET/RAISE') {
+                        const streetActions = state.actionState[state.modalState.actionPadStreet];
+                        const priorBet = streetActions.slice(0, streetActions.indexOf(actionLog)).some(a => a.action === 'Bets' || a.action === 'Raises');
+                        actionType = priorBet ? 'RAISE TO' : 'BET';
                     }
+                    if(actionType === 'ALL-IN') actionType = 'ALL IN';
+
+                    const eventLine = ['EVENT', actionType, player.seat];
+                    if (actionLog.amount) eventLine.push(unformatNumber(actionLog.amount));
+                    eventLine[5] = actionLog.timecode; // Add timecode to F column (index 5)
                     return eventLine;
                 };
 
-                state.actionState.preflop.forEach(a => logRows.push(mapActionToEvent(a)));
-                state.board.slice(0, 3).forEach(c => logRows.push(['EVENT', 'BOARD', 1, c.toLowerCase()]));
-                state.actionState.flop.forEach(a => logRows.push(mapActionToEvent(a)));
-                state.board.slice(3, 4).forEach(c => logRows.push(['EVENT', 'BOARD', 1, c.toLowerCase()]));
-                state.actionState.turn.forEach(a => logRows.push(mapActionToEvent(a)));
-                state.board.slice(4, 5).forEach(c => logRows.push(['EVENT', 'BOARD', 1, c.toLowerCase()]));
-                state.actionState.river.forEach(a => logRows.push(mapActionToEvent(a)));
+                const allEvents = [];
+                state.actionState.preflop.forEach(a => allEvents.push(mapActionToEvent(a)));
+                state.board.slice(0, 3).forEach(c => allEvents.push(['EVENT', 'BOARD', 1, c.toLowerCase(), '', getFormattedTimecode()]));
+                state.actionState.flop.forEach(a => allEvents.push(mapActionToEvent(a)));
+                state.board.slice(3, 4).forEach(c => allEvents.push(['EVENT', 'BOARD', 1, c.toLowerCase(), '', getFormattedTimecode()]));
+                state.actionState.turn.forEach(a => allEvents.push(mapActionToEvent(a)));
+                state.board.slice(4, 5).forEach(c => allEvents.push(['EVENT', 'BOARD', 1, c.toLowerCase(), '', getFormattedTimecode()]));
+                state.actionState.river.forEach(a => allEvents.push(mapActionToEvent(a)));
 
-                return logRows.filter(Boolean);
+                logRows.push(...allEvents.filter(Boolean));
+                return logRows;
             }
 
             async function sendDataToGoogleSheet() {
@@ -441,6 +459,8 @@
                 state.playersInHand = [];
                 state.board = [];
                 state.actionState = { ...state.actionState, handNumber: nextHandNum.toString(), preflop: [], flop: [], turn: [], river: [] };
+                state.baseTime = null;
+                el.baseTimeInput.value = '';
                 renderAll();
                 saveActionState();
                 el.handNumberInput.value = formatNumber(state.actionState.handNumber);
@@ -460,6 +480,12 @@
                 el.resetBtn.onclick = resetApp;
                 el.sendToSheetBtn.onclick = sendDataToGoogleSheet;
                 
+                el.setCurrentTimeBtn.onclick = () => {
+                    const now = new Date();
+                    state.baseTime = now;
+                    el.baseTimeInput.value = now.toTimeString().split(' ')[0];
+                };
+
                 el.playerSelectionButtons.addEventListener('click', e => e.target.closest('button')?.dataset.playerName && togglePlayerInHand(e.target.closest('button').dataset.playerName));
                 
                 el.playerDetailsSection.addEventListener('click', e => {
@@ -514,11 +540,9 @@
                     } else if (target.parentElement.id === 'action-pad-actions') {
                         const action = target.dataset.action;
                         state.modalState.actionPadCurrentAction = action;
-                        if (action === 'Bets' || action === 'Raises') {
+                        if (action === 'BET/RAISE') {
                             modal.querySelector('#action-pad-actions').classList.add('hidden');
                             modal.querySelector('#action-pad-bet-sizing').classList.remove('hidden');
-                            const amountInput = modal.querySelector('#action-pad-amount');
-                            amountInput.focus();
                         } else { addActionToLog(action); }
                     }
                 });
