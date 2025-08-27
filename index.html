@@ -71,8 +71,8 @@
                     <div>
                          <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
                          <div class="input-with-keypad">
-                             <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                             <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
+                            <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
+                            <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
                          </div>
                     </div>
                     <div>
@@ -116,7 +116,7 @@
                     smallBlind: '', bigBlind: '', hasBBAnte: false,
                     preflop: [], flop: [], turn: [], river: [],
                 },
-                appsScriptUrl: 'https://script.google.com/macros/s/AKfycbx6zAGwaRuJHiMe2w0p13eYpS61LYOwS6pDPq159UYEjjT0-dZWMEqsQu4_EkU1_986/exec',
+                appsScriptUrl: 'https://script.google.com/macros/s/AKfycbxM-Dbz1wX6Gbo73lxjrMdztlcRaY2oUFYaJCkZx26RgXceYiK7icdH7W407GVL365t/exec',
                 modalState: {
                     cardTarget: null,
                     actionPadStreet: null, actionPadPlayer: null, actionPadCurrentAction: null,
@@ -563,7 +563,7 @@
                         if (e.target.value !== formatted) {
                            e.target.value = formatted;
                         }
-                        const stateKey = e.target.id.replace('-input', '').replace('small-','small').replace('big-','big');
+                        const stateKey = e.target.id.replace('-input', '');
                         if(state.actionState.hasOwnProperty(stateKey)) {
                             state.actionState[stateKey] = unformatted;
                         }
