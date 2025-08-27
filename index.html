@@ -58,10 +58,7 @@
                     <label for="timezone-selector" class="block text-sm font-medium text-gray-300 mb-2">표준 시간대:</label>
                     <div class="flex items-center gap-2">
                         <select id="timezone-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
-                            <option value="Asia/Seoul">한국 (Asia/Seoul)</option>
-                            <option value="America/New_York">뉴욕 (America/New_York)</option>
-                            <option value="Europe/London">런던 (Europe/London)</option>
-                            <option value="UTC">UTC</option>
+                            <!-- Timezones will be populated by JavaScript -->
                         </select>
                         <div id="time-display" class="bg-gray-900/50 p-2 rounded-md font-mono text-lg"></div>
                     </div>
@@ -179,9 +176,40 @@
                     return `${timeParts.hour}${timeParts.minute}${timeParts.second}`;
                 } catch (e) {
                     console.error("Invalid timezone:", timezone);
-                    // Fallback to local time if timezone is invalid
                     const pad = (num) => num.toString().padStart(2, '0');
                     return `${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+                }
+            }
+            
+            function populateTimezones() {
+                try {
+                    const timezones = Intl.supportedValuesOf('timeZone');
+                    const selector = el.timezoneSelector;
+                    selector.innerHTML = '';
+                    timezones.forEach(tz => {
+                        const option = document.createElement('option');
+                        option.value = tz;
+                        option.textContent = tz;
+                        selector.appendChild(option);
+                    });
+                    selector.value = state.selectedTimezone;
+                } catch (e) {
+                    console.error("Timezone population failed. Using default list.", e);
+                    const defaultTimezones = {
+                        "Asia/Seoul": "한국 (Asia/Seoul)",
+                        "America/New_York": "뉴욕 (America/New_York)",
+                        "Europe/London": "런던 (Europe/London)",
+                        "UTC": "UTC"
+                    };
+                    const selector = el.timezoneSelector;
+                    selector.innerHTML = '';
+                    for (const [value, text] of Object.entries(defaultTimezones)) {
+                         const option = document.createElement('option');
+                         option.value = value;
+                         option.textContent = text;
+                         selector.appendChild(option);
+                    }
+                     selector.value = state.selectedTimezone;
                 }
             }
 
@@ -460,7 +488,7 @@
                     const player = playersWithSeats.find(p => p.name === actionLog.player);
                     if (!player) return;
 
-                    const delay = 5000 + Math.random() * 10000; // 5 to 15 seconds
+                    const delay = 5000 + Math.random() * 10000;
                     currentTime.setTime(currentTime.getTime() + delay);
                     const timecode = getFormattedTimeInTimezone(currentTime, state.selectedTimezone);
 
@@ -473,27 +501,29 @@
                     addRow(eventLine);
                 };
                 
-                const addBoardEvent = (card) => {
-                     const delay = 2000 + Math.random() * 3000; // 2 to 5 seconds for board cards
+                const addBoardEvents = (cards) => {
+                     const delay = 2000 + Math.random() * 3000;
                      currentTime.setTime(currentTime.getTime() + delay);
                      const timecode = getFormattedTimeInTimezone(currentTime, state.selectedTimezone);
-                     addRow(['EVENT', 'BOARD', 1, formatCardForGfx(card), timecode]);
+                     cards.forEach(card => {
+                        addRow(['EVENT', 'BOARD', 1, formatCardForGfx(card), timecode]);
+                     });
                 };
 
                 state.actionState.preflop.forEach(addActionEvent);
 
                 if (state.board.length >= 3) {
-                    state.board.slice(0, 3).forEach(addBoardEvent);
+                    addBoardEvents(state.board.slice(0, 3));
                     state.actionState.flop.forEach(addActionEvent);
                 }
 
                 if (state.board.length >= 4) {
-                    addBoardEvent(state.board[3]);
+                    addBoardEvents([state.board[3]]);
                     state.actionState.turn.forEach(addActionEvent);
                 }
 
                 if (state.board.length >= 5) {
-                    addBoardEvent(state.board[4]);
+                    addBoardEvents([state.board[4]]);
                     state.actionState.river.forEach(addActionEvent);
                 }
                 
@@ -515,7 +545,7 @@
                 showFeedback('시트로 데이터 전송을 시작합니다...');
 
                 const gfxLogRows = generateGfxLogRows();
-                console.log("Sending data:", gfxLogRows); // Log data for debugging
+                console.log("Sending data:", gfxLogRows);
                 const payload = { rows: gfxLogRows };
 
                 try {
@@ -579,7 +609,7 @@
                 el.timezoneSelector.onchange = (e) => {
                     state.selectedTimezone = e.target.value;
                     updateTimeDisplay();
-                    renderActionLogs(); // Re-render logs with new timezone
+                    renderActionLogs(); 
                 };
 
                 el.playerSelectionButtons.addEventListener('click', e => e.target.closest('button')?.dataset.playerName && togglePlayerInHand(e.target.closest('button').dataset.playerName));
@@ -701,6 +731,7 @@
 
             async function initializeApp() {
                 showFeedback('데이터 로딩 중...');
+                populateTimezones();
                 loadActionState();
                 await loadDataFromGoogleSheet();
                 renderAll();
@@ -709,7 +740,6 @@
                 el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
                 el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
                 el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
-                el.timezoneSelector.value = state.selectedTimezone;
                 
                 if(timeUpdater) clearInterval(timeUpdater);
                 timeUpdater = setInterval(updateTimeDisplay, 1000);
