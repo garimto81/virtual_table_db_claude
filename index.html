@@ -478,7 +478,7 @@
                 state.modalState.keypadTarget = targetInput;
                 state.modalState.keypadPurpose = purpose;
                 state.modalState.currentPotValue = currentPot;
-                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-xs"><div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded-md mb-4 h-12">${targetInput.value || ''}</div><div class="grid grid-cols-4 gap-2 text-xl font-bold">${['1','2','3','C','4','5','6','←','7','8','9','0','00','000'].map(k => `<button class="keypad-btn btn bg-gray-700 hover:bg-gray-600 rounded-md p-3">${k}</button>`).join('')}</div><div class="grid grid-cols-2 gap-2 mt-2"><button id="keypad-cancel" class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md">취소</button><button id="keypad-confirm" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md">확인</button></div></div>`;
+                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-xs"><div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded-md mb-4 h-12">${targetInput ? targetInput.value : ''}</div><div class="grid grid-cols-4 gap-2 text-xl font-bold">${['1','2','3','C','4','5','6','←','7','8','9','0','00','000'].map(k => `<button class="keypad-btn btn bg-gray-700 hover:bg-gray-600 rounded-md p-3">${k}</button>`).join('')}</div><div class="grid grid-cols-2 gap-2 mt-2"><button id="keypad-cancel" class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md">취소</button><button id="keypad-confirm" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md">확인</button></div></div>`;
                 openModal(el.keypadModal, content);
             }
 
@@ -490,7 +490,7 @@
                     const playersForTable = state.playerDataByTable[state.selectedTable] || [];
                     const playerData = playersForTable.find(p => p.name === playerName);
                     const initialChips = playerData ? playerData.chips : '';
-                    state.playersInHand.push({ name: playerName, hand: [], chips: initialChips, role: null });
+                    state.playersInHand.push({ name: playerName, hand: [], chips: initialChips, initialChips: initialChips, role: null });
                 }
                 renderPlayerSelection();
                 renderPlayerDetails();
@@ -592,6 +592,7 @@
                 let currentTime = new Date(handStartTime.getTime());
 
                 const playersWithSeats = state.playersInHand.map((p, i) => ({ ...p, seat: i + 1 }));
+                const totalPot = calculatePotSize();
 
                 addRow(['GAME', 'PokerGFX 3.111', 'FEATURE_TABLE']);
                 addRow(['PAYOUTS']);
@@ -613,13 +614,17 @@
                 addRow(handLine);
 
                 playersWithSeats.forEach(p => {
+                    let finalChips = parseInt(unformatNumber(p.chips) || 0, 10);
+                    if (p.role === 'winner') {
+                        finalChips += totalPot;
+                    }
                     const playerLine = [
                         'PLAYER',
                         p.name,
                         p.seat,
                         0,
-                        unformatNumber(p.chips) || 0,
-                        unformatNumber(p.chips) || 0, 
+                        unformatNumber(p.initialChips) || 0, // Start Stack
+                        finalChips, // End Stack
                         p.hand.length > 0 ? p.hand.map(formatCardForGfx).join(' ') : ''
                     ];
                     addRow(playerLine);
@@ -627,7 +632,7 @@
 
                 const addActionEvent = (actionLog) => {
                     const player = playersWithSeats.find(p => p.name === actionLog.player);
-                    if (!player) return;
+                    if (!player && actionLog.action !== 'Pot Correction') return;
 
                     const delay = 5000 + Math.random() * 10000;
                     currentTime.setTime(currentTime.getTime() + delay);
@@ -636,7 +641,7 @@
                     let actionType = actionLog.action.toUpperCase().replace('S', '');
                     if (actionType === 'RAISE') actionType = 'RAISE TO';
 
-                    const eventLine = ['EVENT', actionType, player.seat];
+                    const eventLine = ['EVENT', actionType, player ? player.seat : ''];
                     eventLine.push(actionLog.amount ? unformatNumber(actionLog.amount) : '');
                     eventLine.push(timecode);
                     addRow(eventLine);
@@ -915,8 +920,6 @@
                             }
                         }
                         
-                        closeModal(el.keypadModal);
-                    } else if (btn.id === 'keypad-cancel') {
                         closeModal(el.keypadModal);
                     } else if (key === 'C') {
                         display.textContent = '';
