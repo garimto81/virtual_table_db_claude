@@ -139,6 +139,7 @@
                     cardTarget: null,
                     actionPadStreet: null, actionPadPlayer: null, actionPadCurrentAction: null,
                     keypadTarget: null,
+                    keypadPurpose: null, // 'bet' or 'pot'
                 },
                 selectedTimezone: 'Asia/Seoul'
             };
@@ -332,7 +333,10 @@
                     return `<div class="street-container">
                         <div class="flex justify-between items-center mb-2">
                             <h3 class="text-lg font-semibold">${street.charAt(0).toUpperCase() + street.slice(1)}</h3>
-                            <div class="text-sm text-amber-400 font-mono">Pot: ${formatNumber(cumulativePot)}</div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm text-amber-400 font-mono">Pot: ${formatNumber(cumulativePot)}</span>
+                                <button class="pot-keypad-btn btn bg-gray-600 p-1 rounded-md text-xs" data-street="${street}" data-current-pot="${cumulativePot}">⌨️</button>
+                            </div>
                         </div>
                         <div id="${street}-log" class="action-log-display bg-gray-900/50 p-3 rounded-md min-h-[80px] mb-2"></div>
                         <div class="flex gap-2">
@@ -351,12 +355,17 @@
                     logContainer.innerHTML = state.actionState[street].map(log => {
                         const player = state.playersInHand.find(p => p.name === log.player);
                         let playerClass = 'player-neutral';
-                        if (player?.role === 'winner') playerClass = 'player-winner';
-                        if (player?.role === 'loser') playerClass = 'player-loser';
+                        if (log.action === 'Pot Correction') {
+                             playerClass = 'text-yellow-400';
+                        } else if (player?.role === 'winner') {
+                             playerClass = 'player-winner';
+                        } else if (player?.role === 'loser') {
+                            playerClass = 'player-loser';
+                        }
                         const amountText = log.amount ? ` <span class="font-mono">${formatNumber(log.amount)}</span>` : '';
                         const timecode = log.timestamp ? getFormattedTimeInTimezone(new Date(log.timestamp), state.selectedTimezone) : '';
                         const timecodeHTML = timecode ? `<span class="text-xs text-gray-500 ml-2 font-mono">${timecode}</span>` : '';
-                        return `<div class="action-log-entry"><div><span class="${playerClass}">${log.player}</span> ${log.action}${amountText}</div>${timecodeHTML}</div>`;
+                        return `<div class="action-log-entry"><div><span class="${playerClass}">${log.player || ''}</span> ${log.action}${amountText}</div>${timecodeHTML}</div>`;
                     }).join('');
                 });
             }
@@ -465,9 +474,11 @@
                 openModal(el.actionPadModal, content);
             }
             
-            function openKeypad(targetInput) {
+            function openKeypad(targetInput, purpose = 'bet', currentPot = 0) {
                 state.modalState.keypadTarget = targetInput;
-                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-xs"><div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded-md mb-4 h-12">${targetInput.value}</div><div class="grid grid-cols-4 gap-2 text-xl font-bold">${['1','2','3','C','4','5','6','←','7','8','9','0','00','000'].map(k => `<button class="keypad-btn btn bg-gray-700 hover:bg-gray-600 rounded-md p-3">${k}</button>`).join('')}</div><div class="grid grid-cols-2 gap-2 mt-2"><button id="keypad-cancel" class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md">취소</button><button id="keypad-confirm" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md">확인</button></div></div>`;
+                state.modalState.keypadPurpose = purpose;
+                state.modalState.currentPotValue = currentPot;
+                const content = `<div class="bg-gray-800 rounded-lg p-4 w-full max-w-xs"><div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded-md mb-4 h-12">${targetInput.value || ''}</div><div class="grid grid-cols-4 gap-2 text-xl font-bold">${['1','2','3','C','4','5','6','←','7','8','9','0','00','000'].map(k => `<button class="keypad-btn btn bg-gray-700 hover:bg-gray-600 rounded-md p-3">${k}</button>`).join('')}</div><div class="grid grid-cols-2 gap-2 mt-2"><button id="keypad-cancel" class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md">취소</button><button id="keypad-confirm" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md">확인</button></div></div>`;
                 openModal(el.keypadModal, content);
             }
 
@@ -790,8 +801,13 @@
                 el.streetLogsContainer.addEventListener('click', e => {
                     const addBtn = e.target.closest('.add-action-btn');
                     const undoBtn = e.target.closest('.undo-action-btn');
+                    const potBtn = e.target.closest('.pot-keypad-btn');
                     if(addBtn) openActionPad(addBtn.dataset.street);
                     if(undoBtn) undoLastAction(undoBtn.dataset.street);
+                    if(potBtn) {
+                        state.modalState.actionPadStreet = potBtn.dataset.street;
+                        openKeypad(null, 'pot', potBtn.dataset.currentPot);
+                    }
                 });
 
                 el.actionPadModal.addEventListener('click', e => {
@@ -844,7 +860,7 @@
 
                         if (betType === 'manual') {
                             modal.querySelector('#action-pad-bet-sizing').classList.remove('hidden');
-                            modal.querySelector('#action-pad-amount').focus();
+                            openKeypad(modal.querySelector('#action-pad-amount'), 'bet');
                         } else if (betType === 'buttons') {
                             const pot = calculatePotSize();
                             const buttonSizingDiv = modal.querySelector('#action-pad-button-sizing');
@@ -865,7 +881,7 @@
                 
                 document.body.addEventListener('click', e => {
                     if(e.target.classList.contains('keypad-icon-btn')) {
-                        openKeypad(e.target.previousElementSibling);
+                        openKeypad(e.target.previousElementSibling, 'bet');
                     }
                 });
 
@@ -876,14 +892,31 @@
                     const key = btn.textContent;
 
                     if (btn.id === 'keypad-confirm') {
-                        state.modalState.keypadTarget.value = display.textContent;
-                        state.modalState.keypadTarget.dispatchEvent(new Event('input', { bubbles: true }));
-                        
-                        if(state.modalState.keypadTarget.id === 'action-pad-amount') {
-                             const amount = unformatNumber(display.textContent);
-                             if(amount) addActionToLog(state.modalState.actionPadCurrentAction, amount);
+                        const amount = unformatNumber(display.textContent);
+                        if (state.modalState.keypadPurpose === 'bet') {
+                            state.modalState.keypadTarget.value = display.textContent;
+                            state.modalState.keypadTarget.dispatchEvent(new Event('input', { bubbles: true }));
+                            
+                            if(state.modalState.keypadTarget.id === 'action-pad-amount') {
+                                 if(amount) addActionToLog(state.modalState.actionPadCurrentAction, amount);
+                            }
+                        } else if (state.modalState.keypadPurpose === 'pot') {
+                            const currentPot = parseInt(state.modalState.currentPotValue, 10);
+                            const newPot = parseInt(amount, 10);
+                            const correction = newPot - currentPot;
+                            if (correction !== 0) {
+                                state.actionState[state.modalState.actionPadStreet].push({
+                                    action: 'Pot Correction',
+                                    amount: correction.toString(),
+                                    timestamp: new Date().toISOString()
+                                });
+                                saveActionState();
+                                renderAll();
+                            }
                         }
                         
+                        closeModal(el.keypadModal);
+                    } else if (btn.id === 'keypad-cancel') {
                         closeModal(el.keypadModal);
                     } else if (key === 'C') {
                         display.textContent = '';
