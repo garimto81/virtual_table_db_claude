@@ -247,7 +247,6 @@
                             if (existingPlayerIndex === -1) {
                                 dataByTable[table].push({ name: player, chips: chips || '' });
                             } else {
-                                // Update with the latest chip count if the player appears again
                                 dataByTable[table][existingPlayerIndex].chips = chips || '';
                             }
                         }
@@ -414,7 +413,24 @@
                 if (state.playersInHand.length < 1) { showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
                 state.modalState.actionPadStreet = street;
                 const playersHTML = state.playersInHand.map(p => `<button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-player-name="${p.name}">${p.name}</button>`).join('');
-                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-md"><h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2><div id="action-pad-players" class="grid grid-cols-2 gap-3 mb-4">${playersHTML}</div><div id="action-pad-actions" class="grid grid-cols-3 gap-3 mb-4 hidden"><button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds">Fold</button><button class="btn bg-gray-600 hover:bg-gray-500 p-3 rounded-md" data-action="Checks">Check</button><button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Calls">Call</button><button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md col-span-2" data-action="Bets">Bet</button><button class="btn bg-emerald-500 hover:bg-emerald-600 p-3 rounded-md" data-action="Raises">Raise</button></div><div id="action-pad-bet-sizing" class="space-y-3 hidden"><div class="input-with-keypad"><input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div><button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button></div>`;
+                const content = `<div class="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+                    <h2 class="text-2xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2>
+                    <div id="action-pad-players" class="grid grid-cols-2 gap-3 mb-4">${playersHTML}</div>
+                    <div id="action-pad-actions" class="grid grid-cols-3 gap-3 mb-4 hidden">
+                        <button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds">Fold</button>
+                        <button class="btn bg-gray-600 hover:bg-gray-500 p-3 rounded-md" data-action="Checks">Check</button>
+                        <button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Calls">Call</button>
+                        <button class="btn bg-amber-500 hover:bg-amber-600 p-3 rounded-md col-span-2" data-action="Bet/Raises">Bet/Raise</button>
+                        <button class="btn bg-red-800 hover:bg-red-700 p-3 rounded-md font-bold" data-action="All In">ALL IN</button>
+                    </div>
+                    <div id="action-pad-bet-sizing" class="space-y-3 hidden">
+                        <div class="input-with-keypad">
+                            <input type="text" id="action-pad-amount" placeholder="금액 입력" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-lg">
+                            <button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button>
+                        </div>
+                    </div>
+                    <button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-md">닫기</button>
+                </div>`;
                 openModal(el.actionPadModal, content);
             }
             
@@ -727,13 +743,27 @@
                         modal.querySelector('#action-pad-actions').classList.remove('hidden');
                     } else if (target.parentElement.id === 'action-pad-actions') {
                         const action = target.dataset.action;
-                        state.modalState.actionPadCurrentAction = action;
-                        if (action === 'Bets' || action === 'Raises') {
+                        
+                        if (action === 'Bet/Raises') {
+                            const street = state.modalState.actionPadStreet;
+                            const actionsOnStreet = state.actionState[street];
+                            const hasBetOrRaise = actionsOnStreet.some(a => a.action === 'Bets' || a.action === 'Raises');
+                            state.modalState.actionPadCurrentAction = hasBetOrRaise ? 'Raises' : 'Bets';
+                            
                             modal.querySelector('#action-pad-actions').classList.add('hidden');
                             modal.querySelector('#action-pad-bet-sizing').classList.remove('hidden');
-                            const amountInput = modal.querySelector('#action-pad-amount');
-                            amountInput.focus();
-                        } else { addActionToLog(action); }
+                            modal.querySelector('#action-pad-amount').focus();
+                        } else if (action === 'All In') {
+                            const playerName = state.modalState.actionPadPlayer;
+                            const player = state.playersInHand.find(p => p.name === playerName);
+                            if (player) {
+                                addActionToLog('All In', player.chips);
+                            } else {
+                                showFeedback('플레이어 정보를 찾을 수 없습니다.', true);
+                            }
+                        } else { 
+                            addActionToLog(action); 
+                        }
                     }
                 });
                 
