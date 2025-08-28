@@ -104,9 +104,15 @@
             </div>
         </div>
 
+        <!-- Winner Selection Section -->
+        <div class="bg-gray-800 p-4 rounded-lg mt-4">
+            <h2 class="text-xl font-bold section-title">4. 승자 선택 (Split Pot 가능)</h2>
+            <div id="winner-buttons" class="flex flex-wrap gap-2"></div>
+        </div>
+
         <!-- Finalize & Output Section -->
         <div class="bg-gray-800 p-4 rounded-lg mt-4">
-            <h2 class="text-xl font-bold mb-4 section-title">4. 전송 및 초기화</h2>
+            <h2 class="text-xl font-bold mb-4 section-title">5. 전송 및 초기화</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                  <button id="send-to-sheet-btn" class="w-full btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-md text-lg">시트에 자동 입력</button>
                  <button id="reset-all" class="w-full btn bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-md text-lg">새 핸드 기록</button>
@@ -134,6 +140,7 @@
                 playerDataByTable: {},
                 allTables: [],
                 allHandNumbers: [],
+                allHandData: {},
                 selectedTable: null,
                 playersInHand: [],
                 board: [],
@@ -168,6 +175,7 @@
                 bigBlindInput: document.getElementById('big-blind-input'),
                 bbAnteCheckbox: document.getElementById('bb-ante-checkbox'),
                 streetLogsContainer: document.getElementById('street-logs-container'),
+                winnerButtons: document.getElementById('winner-buttons'),
                 sendToSheetBtn: document.getElementById('send-to-sheet-btn'),
                 resetBtn: document.getElementById('reset-all'),
                 feedbackMessage: document.getElementById('feedback-message'),
@@ -259,7 +267,8 @@
                     
                     state.playerDataByTable = data.playerData;
                     state.allTables = Object.keys(data.playerData).sort();
-                    state.allHandNumbers = data.handNumbers.map(n => parseInt(n, 10)).sort((a, b) => a - b);
+                    state.allHandData = data.handData;
+                    state.allHandNumbers = Object.keys(data.handData).map(n => parseInt(n, 10)).sort((a, b) => a - b);
                     
                     logMessage(`테이블 ${state.allTables.length}개, 핸드 ${state.allHandNumbers.length}개 로딩 완료.`);
 
@@ -299,7 +308,6 @@
                 el.playerDetailsSection.innerHTML = state.playersInHand.map(p => {
                     let roleClass = '';
                     if (p.role === 'winner') roleClass = 'is-winner';
-                    if (p.role === 'loser') roleClass = 'is-loser';
                     
                     return `<div class="player-card bg-gray-700 p-3 rounded-lg ${roleClass}" data-player-name="${p.name}">
                         <h3 class="text-lg font-bold mb-2">${p.name}</h3>
@@ -309,10 +317,6 @@
                         </div>
                         <div class="card-placeholder h-16 flex justify-center items-center gap-2 mb-2" data-player-name="${p.name}" data-count="2">
                             ${p.hand.length > 0 ? p.hand.map(formatCardDisplay).join('') : '<span class="text-gray-400 text-2xl">+</span>'}
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-xs">
-                            <button class="btn ${p.role === 'winner' ? 'btn-selected' : 'bg-amber-600 hover:bg-amber-500'} p-1 rounded-md set-role-btn" data-role="winner">승자</button>
-                            <button class="btn ${p.role === 'loser' ? 'btn-selected' : 'bg-blue-600 hover:bg-blue-500'} p-1 rounded-md set-role-btn" data-role="loser">패자</button>
                         </div>
                     </div>`;
                 }).join('');
@@ -372,8 +376,6 @@
                              playerClass = 'text-yellow-400';
                         } else if (player?.role === 'winner') {
                              playerClass = 'player-winner';
-                        } else if (player?.role === 'loser') {
-                            playerClass = 'player-loser';
                         }
                         const amountText = log.amount ? ` <span class="font-mono">${formatNumber(log.amount)}</span>` : '';
                         const timecode = log.timestamp ? getFormattedTimeInTimezone(new Date(log.timestamp), state.selectedTimezone) : '';
@@ -381,6 +383,13 @@
                         return `<div class="action-log-entry"><div><span class="${playerClass}">${log.player || ''}</span> ${log.action}${amountText}</div>${timecodeHTML}</div>`;
                     }).join('');
                 });
+            }
+            
+            function renderWinnerSelection() {
+                el.winnerButtons.innerHTML = state.playersInHand.map(p => {
+                    const isSelected = p.role === 'winner';
+                    return `<button class="btn ${isSelected ? 'btn-selected' : 'bg-gray-600 hover:bg-gray-500'} px-3 py-1 rounded-md set-winner-btn" data-player-name="${p.name}">${p.name}</button>`;
+                }).join('');
             }
 
             function formatCardDisplay(cardId) {
@@ -399,6 +408,7 @@
                 renderPlayerDetails();
                 renderBoard();
                 renderActionStreets();
+                renderWinnerSelection();
             }
 
             function openModal(modalElement, content) {
@@ -520,17 +530,20 @@
                 }
                 renderPlayerSelection();
                 renderPlayerDetails();
+                renderWinnerSelection();
             }
 
-            function setPlayerRole(playerName, role) {
+            function setPlayerRole(playerName) {
                 const targetPlayer = state.playersInHand.find(p => p.name === playerName);
                 if (!targetPlayer) return;
-                state.playersInHand.forEach(p => {
-                    if (p.role === role) p.role = null;
-                });
-                targetPlayer.role = role;
+                
+                if (targetPlayer.role === 'winner') {
+                    targetPlayer.role = null;
+                } else {
+                    targetPlayer.role = 'winner';
+                }
                 renderPlayerDetails();
-                renderActionLogs();
+                renderWinnerSelection();
             }
 
             function assignCard(cards) {
@@ -619,6 +632,8 @@
 
                 const playersWithSeats = state.playersInHand.map((p, i) => ({ ...p, seat: i + 1 }));
                 const totalPot = calculatePotSize();
+                const winners = playersWithSeats.filter(p => p.role === 'winner');
+                const potPerWinner = winners.length > 0 ? Math.floor(totalPot / winners.length) : 0;
 
                 addRow(['GAME', 'PokerGFX 3.111', 'FEATURE_TABLE']);
                 addRow(['PAYOUTS']);
@@ -642,7 +657,7 @@
                 playersWithSeats.forEach(p => {
                     let finalChips = parseInt(unformatNumber(p.chips) || 0, 10);
                     if (p.role === 'winner') {
-                        finalChips += totalPot;
+                        finalChips += potPerWinner;
                     }
                     const playerLine = [
                         'PLAYER',
@@ -705,10 +720,9 @@
             }
 
             async function sendDataToGoogleSheet() {
-                const winner = state.playersInHand.find(p => p.role === 'winner');
-                const loser = state.playersInHand.find(p => p.role === 'loser');
-                if (!winner || !loser) {
-                    showFeedback('승자와 패자를 모두 지정해야 합니다.', true);
+                const winners = state.playersInHand.filter(p => p.role === 'winner');
+                if (winners.length === 0) {
+                    showFeedback('승자를 선택해야 합니다.', true);
                     return;
                 }
                 
@@ -754,14 +768,19 @@
             }
 
             function resetApp() {
-                const currentHandNum = parseInt(unformatNumber(state.actionState.handNumber), 10);
-                const nextHandNum = isNaN(currentHandNum) ? '' : currentHandNum + 1;
+                const nextHandNum = state.allHandNumbers.length > 0 ? Math.max(...state.allHandNumbers) + 1 : 1;
                 state.playersInHand = [];
                 state.board = [];
-                state.actionState = { ...state.actionState, handNumber: nextHandNum.toString(), preflop: [], flop: [], turn: [], river: [] };
+                state.actionState = {
+                    handNumber: nextHandNum.toString(),
+                    smallBlind: state.actionState.smallBlind,
+                    bigBlind: state.actionState.bigBlind,
+                    hasBBAnte: state.actionState.hasBBAnte,
+                    preflop: [], flop: [], turn: [], river: []
+                };
                 renderAll();
                 saveActionState();
-                el.handNumberSelector.value = "new";
+                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
             }
 
             function showFeedback(message, isError = false) {
@@ -785,6 +804,7 @@
                     state.playersInHand = []; 
                     renderPlayerSelection();
                     renderPlayerDetails();
+                    renderWinnerSelection();
                     renderActionLogs();
                 };
 
@@ -798,14 +818,16 @@
                 
                 el.playerDetailsSection.addEventListener('click', e => {
                     const placeholder = e.target.closest('.card-placeholder');
-                    const roleBtn = e.target.closest('.set-role-btn');
                     if (placeholder) {
                         state.modalState.cardTarget = { target: 'playerHand', player: placeholder.dataset.playerName, count: parseInt(placeholder.dataset.count) };
                         openCardSelector();
                     }
-                    if (roleBtn) {
-                        const playerName = roleBtn.closest('.player-card').dataset.playerName;
-                        setPlayerRole(playerName, roleBtn.dataset.role);
+                });
+
+                el.winnerButtons.addEventListener('click', e => {
+                    const winnerBtn = e.target.closest('.set-winner-btn');
+                    if(winnerBtn) {
+                        setPlayerRole(winnerBtn.dataset.playerName);
                     }
                 });
                 
@@ -978,7 +1000,7 @@
 
                 renderAll();
                 setupEventListeners();
-                el.handNumberSelector.value = "new";
+                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
                 el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
                 el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
                 el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
