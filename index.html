@@ -339,6 +339,9 @@
                     if (street === 'preflop') {
                         streetPot += parseInt(unformatNumber(state.actionState.smallBlind) || 0, 10);
                         streetPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
+                        if (state.actionState.hasBBAnte) {
+                            streetPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
+                        }
                     }
                     streetActions.forEach(action => {
                         if (action.amount) {
@@ -603,6 +606,9 @@
                 let pot = 0;
                 pot += parseInt(unformatNumber(state.actionState.smallBlind) || 0, 10);
                 pot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
+                if (state.actionState.hasBBAnte) {
+                   pot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
+                }
 
                 ['preflop', 'flop', 'turn', 'river'].forEach(street => {
                     state.actionState[street].forEach(action => {
@@ -780,7 +786,7 @@
                 };
                 renderAll();
                 saveActionState();
-                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
+                el.handNumberDisplay.textContent = `새 핸드 (#${state.actionState.handNumber})`;
             }
 
             function showFeedback(message, isError = false) {
@@ -984,6 +990,7 @@
                 el.bbAnteCheckbox.onchange = (e) => {
                     state.actionState.hasBBAnte = e.target.checked;
                     saveActionState();
+                    renderAll();
                 };
             }
 
@@ -1000,7 +1007,7 @@
 
                 renderAll();
                 setupEventListeners();
-                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
+                el.handNumberDisplay.textContent = `새 핸드 (#${state.actionState.handNumber})`;
                 el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
                 el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
                 el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
