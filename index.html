@@ -43,7 +43,10 @@
         <div class="bg-gray-800 p-4 rounded-lg mb-4">
             <h2 class="text-xl font-bold section-title flex justify-between items-center">
                 <span>1. 핸드 정보 기록</span>
-                <button id="refresh-data" class="text-2xl" title="데이터 새로고침">🔄</button>
+                <div class="flex items-center gap-2">
+                    <button id="manage-players-btn" class="btn bg-gray-600 p-2 rounded-md text-sm">테이블/플레이어 관리</button>
+                    <button id="refresh-data" class="text-2xl" title="데이터 새로고침">🔄</button>
+                </div>
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -59,7 +62,7 @@
                         <option value="">-- 테이블을 선택하세요 --</option>
                     </select>
                 </div>
-                <div>
+                <div class="md:col-span-2">
                     <label class="block text-sm font-medium text-gray-300 mb-2">참여 플레이어 선택:</label>
                     <div id="player-selection-buttons" class="flex flex-wrap gap-2 min-h-[40px] items-center"></div>
                 </div>
@@ -131,6 +134,7 @@
     <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
     <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
     <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+    <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -185,6 +189,8 @@
                 loadHandModal: document.getElementById('load-hand-modal'),
                 timezoneSelector: document.getElementById('timezone-selector'),
                 timeDisplay: document.getElementById('time-display'),
+                managePlayersBtn: document.getElementById('manage-players-btn'),
+                registrationModal: document.getElementById('registration-modal'),
             };
 
             function logMessage(message, isError = false) {
