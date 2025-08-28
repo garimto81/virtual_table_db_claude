@@ -113,6 +113,12 @@
             </div>
              <p id="feedback-message" class="text-center mt-2 h-5 font-semibold"></p>
         </div>
+
+        <!-- Log Section -->
+        <div class="bg-gray-800 p-4 rounded-lg mt-4">
+            <h2 class="text-xl font-bold mb-4 section-title">로딩 로그</h2>
+            <div id="log-display" class="bg-gray-900/50 p-3 rounded-md min-h-[100px] max-h-[200px] overflow-y-auto text-sm font-mono"></div>
+        </div>
     </div>
 
     <!-- Modals -->
@@ -165,12 +171,21 @@
                 sendToSheetBtn: document.getElementById('send-to-sheet-btn'),
                 resetBtn: document.getElementById('reset-all'),
                 feedbackMessage: document.getElementById('feedback-message'),
+                logDisplay: document.getElementById('log-display'),
                 cardSelectorModal: document.getElementById('card-selector-modal'),
                 actionPadModal: document.getElementById('action-pad-modal'),
                 keypadModal: document.getElementById('keypad-modal'),
                 timezoneSelector: document.getElementById('timezone-selector'),
                 timeDisplay: document.getElementById('time-display'),
             };
+
+            function logMessage(message, isError = false) {
+                const logEntry = document.createElement('div');
+                logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+                logEntry.className = isError ? 'text-red-400' : 'text-green-400';
+                el.logDisplay.appendChild(logEntry);
+                el.logDisplay.scrollTop = el.logDisplay.scrollHeight;
+            }
 
             function getFormattedTimeInTimezone(date, timezone) {
                 try {
@@ -232,16 +247,27 @@
             }
 
             async function loadDataFromGoogleSheet() {
+                logMessage('초기 데이터 로딩 시작...');
                 try {
                     const response = await fetch(`${state.appsScriptUrl}?action=getInitialData`);
-                    if (!response.ok) throw new Error(`Network response was not ok`);
+                    logMessage('구글 시트로부터 응답 수신 중...');
+                    if (!response.ok) throw new Error(`서버 응답 오류: ${response.status}`);
+                    
                     const data = await response.json();
+                    if(data.error) throw new Error(data.error);
+
+                    logMessage('데이터 파싱 성공.');
                     
                     state.playerDataByTable = data.playerData;
                     state.allTables = Object.keys(data.playerData).sort();
                     state.allHandNumbers = data.handNumbers.map(n => parseInt(n, 10)).sort((a, b) => a - b);
+                    
+                    logMessage(`테이블 ${state.allTables.length}개, 핸드 ${state.allHandNumbers.length}개 로딩 완료.`);
 
-                } catch (error) { console.error('Failed to load initial data:', error); showFeedback('초기 데이터 로딩 실패.', true); }
+                } catch (error) { 
+                    console.error('Failed to load initial data:', error); 
+                    logMessage(`초기 데이터 로딩 실패: ${error.message}`, true);
+                }
             }
             
             function renderTableSelection() {
@@ -938,7 +964,8 @@
             }
 
             async function initializeApp() {
-                showFeedback('데이터 로딩 중...');
+                el.logDisplay.innerHTML = '';
+                logMessage('앱 초기화 시작...');
                 populateTimezones();
                 loadActionState();
                 await loadDataFromGoogleSheet();
@@ -958,7 +985,7 @@
                 timeUpdater = setInterval(updateTimeDisplay, 1000);
                 updateTimeDisplay();
 
-                showFeedback('준비 완료!', false);
+                logMessage('준비 완료!', false);
             }
 
             initializeApp();
