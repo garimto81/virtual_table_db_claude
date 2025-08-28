@@ -205,35 +205,19 @@
             }
             
             function populateTimezones() {
-                try {
-                    const timezones = Intl.supportedValuesOf('timeZone');
-                    const selector = el.timezoneSelector;
-                    selector.innerHTML = '';
-                    timezones.forEach(tz => {
-                        const option = document.createElement('option');
-                        option.value = tz;
-                        option.textContent = tz;
-                        selector.appendChild(option);
-                    });
-                    selector.value = state.selectedTimezone;
-                } catch (e) {
-                    console.error("Timezone population failed. Using default list.", e);
-                    const defaultTimezones = {
-                        "Asia/Seoul": "한국 (Asia/Seoul)",
-                        "America/New_York": "뉴욕 (America/New_York)",
-                        "Europe/London": "런던 (Europe/London)",
-                        "UTC": "UTC"
-                    };
-                    const selector = el.timezoneSelector;
-                    selector.innerHTML = '';
-                    for (const [value, text] of Object.entries(defaultTimezones)) {
-                         const option = document.createElement('option');
-                         option.value = value;
-                         option.textContent = text;
-                         selector.appendChild(option);
-                    }
-                     selector.value = state.selectedTimezone;
+                const timezones = {
+                    "Asia/Seoul": "한국 (Asia/Seoul)",
+                    "Asia/Nicosia": "키프로스 (Asia/Nicosia)"
+                };
+                const selector = el.timezoneSelector;
+                selector.innerHTML = '';
+                for (const [value, text] of Object.entries(timezones)) {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = text;
+                    selector.appendChild(option);
                 }
+                selector.value = state.selectedTimezone;
             }
 
             function updateTimeDisplay() {
