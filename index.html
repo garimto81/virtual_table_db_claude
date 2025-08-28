@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>포커 핸드 로거 v34</title>
+    <title>포커 핸드 로거 v35</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -36,7 +36,7 @@
     <div id="app" class="max-w-4xl mx-auto">
         <header class="text-center mb-4">
             <h1 class="text-3xl font-bold text-amber-400">포커 핸드 로거</h1>
-            <p class="text-gray-400">v34: 오류 수정 및 기능 개선</p>
+            <p class="text-gray-400">v35: 핸드 관리 기능 개선</p>
         </header>
 
         <!-- Hand Info Section -->
@@ -84,12 +84,8 @@
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                         <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
-                         <div class="flex items-center gap-1">
-                             <button id="hand-nav-prev" class="btn bg-gray-600 p-2 rounded-md">◀</button>
-                             <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-center">
-                             <button id="hand-nav-next" class="btn bg-gray-600 p-2 rounded-md">▶</button>
-                         </div>
+                         <h3 class="text-lg font-semibold mb-2">핸드 번호 선택</h3>
+                         <select id="hand-number-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2"></select>
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold mb-2">블라인드</h3>
@@ -161,9 +157,7 @@
                 playerSelectionButtons: document.getElementById('player-selection-buttons'),
                 boardCardPlaceholders: document.getElementById('board-card-placeholders'),
                 playerDetailsSection: document.getElementById('player-details-section'),
-                handNumberInput: document.getElementById('hand-number-input'),
-                handNavPrev: document.getElementById('hand-nav-prev'),
-                handNavNext: document.getElementById('hand-nav-next'),
+                handNumberSelector: document.getElementById('hand-number-selector'),
                 smallBlindInput: document.getElementById('small-blind-input'),
                 bigBlindInput: document.getElementById('big-blind-input'),
                 bbAnteCheckbox: document.getElementById('bb-ante-checkbox'),
@@ -777,7 +771,7 @@
                 state.actionState = { ...state.actionState, handNumber: nextHandNum.toString(), preflop: [], flop: [], turn: [], river: [] };
                 renderAll();
                 saveActionState();
-                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
+                el.handNumberSelector.value = "new";
             }
 
             function showFeedback(message, isError = false) {
@@ -994,7 +988,7 @@
 
                 renderAll();
                 setupEventListeners();
-                el.handNumberInput.value = formatNumber(state.actionState.handNumber);
+                el.handNumberSelector.value = "new";
                 el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
                 el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
                 el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
