@@ -47,6 +47,13 @@
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                     <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
+                     <div class="flex items-center gap-2">
+                         <div id="hand-number-display" class="text-xl font-bold bg-gray-700 p-2 rounded-md flex-grow text-center"></div>
+                         <button id="load-hand-btn" class="btn bg-gray-600 p-2 rounded-md">불러오기</button>
+                     </div>
+                </div>
+                <div>
                     <label for="table-selector" class="block text-sm font-medium text-gray-300 mb-2">테이블 선택:</label>
                     <select id="table-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2">
                         <option value="">-- 테이블을 선택하세요 --</option>
@@ -55,10 +62,6 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">참여 플레이어 선택:</label>
                     <div id="player-selection-buttons" class="flex flex-wrap gap-2 min-h-[40px] items-center"></div>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">보드 카드:</label>
-                    <div id="board-card-placeholders" class="flex flex-wrap gap-2"></div>
                 </div>
                  <div>
                     <label for="timezone-selector" class="block text-sm font-medium text-gray-300 mb-2">표준 시간대:</label>
@@ -84,20 +87,16 @@
             <div class="space-y-4">
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                         <h3 class="text-lg font-semibold mb-2">핸드 번호</h3>
-                         <div class="flex items-center gap-1">
-                             <button id="hand-nav-prev" class="btn bg-gray-600 p-2 rounded-md">◀</button>
-                             <input type="text" id="hand-number-input" placeholder="Hand #" class="number-input w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-center">
-                             <button id="hand-nav-next" class="btn bg-gray-600 p-2 rounded-md">▶</button>
-                         </div>
-                    </div>
-                    <div>
                         <h3 class="text-lg font-semibold mb-2">블라인드</h3>
                         <div class="flex items-end gap-2">
                              <div class="flex-1"><label class="text-sm text-gray-400">SB</label><div class="input-with-keypad"><input type="text" id="small-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
                              <div class="flex-1"><label class="text-sm text-gray-400">BB</label><div class="input-with-keypad"><input type="text" id="big-blind-input" class="number-input w-full bg-gray-700 p-2 rounded-md text-lg"><button class="keypad-icon-btn btn bg-gray-600 p-2 rounded-md">⌨️</button></div></div>
                              <div class="flex items-center pb-1"><input id="bb-ante-checkbox" type="checkbox" class="h-5 w-5 bg-gray-700 border-gray-600 rounded text-amber-500 focus:ring-amber-600"><label for="bb-ante-checkbox" class="ml-2 text-sm text-gray-300">BB Ante</label></div>
                         </div>
+                    </div>
+                     <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">보드 카드:</label>
+                        <div id="board-card-placeholders" class="flex flex-wrap gap-2"></div>
                     </div>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="street-logs-container"></div>
@@ -131,6 +130,7 @@
     <div id="card-selector-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-2 sm:p-4 z-50 hidden opacity-0"></div>
     <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
     <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+    <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -168,9 +168,8 @@
                 playerSelectionButtons: document.getElementById('player-selection-buttons'),
                 boardCardPlaceholders: document.getElementById('board-card-placeholders'),
                 playerDetailsSection: document.getElementById('player-details-section'),
-                handNumberInput: document.getElementById('hand-number-input'),
-                handNavPrev: document.getElementById('hand-nav-prev'),
-                handNavNext: document.getElementById('hand-nav-next'),
+                handNumberDisplay: document.getElementById('hand-number-display'),
+                loadHandBtn: document.getElementById('load-hand-btn'),
                 smallBlindInput: document.getElementById('small-blind-input'),
                 bigBlindInput: document.getElementById('big-blind-input'),
                 bbAnteCheckbox: document.getElementById('bb-ante-checkbox'),
@@ -183,6 +182,7 @@
                 cardSelectorModal: document.getElementById('card-selector-modal'),
                 actionPadModal: document.getElementById('action-pad-modal'),
                 keypadModal: document.getElementById('keypad-modal'),
+                loadHandModal: document.getElementById('load-hand-modal'),
                 timezoneSelector: document.getElementById('timezone-selector'),
                 timeDisplay: document.getElementById('time-display'),
             };
