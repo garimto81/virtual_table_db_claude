@@ -1,7 +1,7 @@
 import { AuthService } from '../../services/auth.service';
 import { supabase } from '../../config/supabase';
 
-describe('Auth Integration Tests', () => {
+describe.skip('Auth Integration Tests', () => {
   const authService = new AuthService();
   const testEmail = `test_${Date.now()}@example.com`;
   const testPassword = 'TestPassword123!';

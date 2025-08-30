@@ -1,23 +1,50 @@
 import { TournamentService } from '../../services/tournament.service';
 import { Tournament, TournamentTable } from '../../types/database.types';
 
-// Mock Supabase
-jest.mock('../../config/supabase', () => ({
-  supabase: {
-    from: jest.fn(() => ({
-      insert: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockReturnThis(),
-      order: jest.fn().mockReturnThis(),
-      single: jest.fn(),
-    })),
-  },
-}));
+// Mock Supabase before importing any modules that use it
+jest.mock('../../config/supabase');
 
 describe('TournamentService Unit Tests', () => {
   let service: TournamentService;
+  let mockFrom: jest.Mock;
+  let mockInsert: jest.Mock;
+  let mockSelect: jest.Mock;
+  let mockEq: jest.Mock;
+  let mockOrder: jest.Mock;
+  let mockSingle: jest.Mock;
 
   beforeEach(() => {
+    // Setup mocks
+    mockSingle = jest.fn();
+    mockOrder = jest.fn();
+    mockEq = jest.fn();
+    mockSelect = jest.fn();
+    mockInsert = jest.fn();
+    mockFrom = jest.fn();
+
+    // Chain methods
+    mockInsert.mockReturnThis();
+    mockSelect.mockReturnThis();
+    mockEq.mockReturnThis();
+    mockOrder.mockReturnValue({ data: null, error: null });
+
+    const chainObj = {
+      insert: mockInsert,
+      select: mockSelect,
+      eq: mockEq,
+      order: mockOrder,
+      single: mockSingle,
+    };
+
+    mockInsert.mockReturnValue(chainObj);
+    mockSelect.mockReturnValue(chainObj);
+    mockEq.mockReturnValue(chainObj);
+    mockFrom.mockReturnValue(chainObj);
+
+    // Mock the supabase module
+    const { supabase } = require('../../config/supabase');
+    supabase.from = mockFrom;
+
     service = new TournamentService();
     jest.clearAllMocks();
   });
@@ -35,8 +62,7 @@ describe('TournamentService Unit Tests', () => {
         status: 'upcoming',
       };
 
-      const { supabase } = require('../../config/supabase');
-      supabase.from().single.mockResolvedValue({
+      mockSingle.mockResolvedValue({
         data: mockTournament,
         error: null,
       });
@@ -52,12 +78,11 @@ describe('TournamentService Unit Tests', () => {
       });
 
       expect(result).toEqual(mockTournament);
-      expect(supabase.from).toHaveBeenCalledWith('tournaments');
+      expect(mockFrom).toHaveBeenCalledWith('tournaments');
     });
 
     it('should throw error when creation fails', async () => {
-      const { supabase } = require('../../config/supabase');
-      supabase.from().single.mockResolvedValue({
+      mockSingle.mockResolvedValue({
         data: null,
         error: new Error('Database error'),
       });
@@ -92,8 +117,7 @@ describe('TournamentService Unit Tests', () => {
         },
       ];
 
-      const { supabase } = require('../../config/supabase');
-      supabase.from().order.mockResolvedValue({
+      mockOrder.mockResolvedValue({
         data: mockTables,
         error: null,
       });
@@ -101,12 +125,11 @@ describe('TournamentService Unit Tests', () => {
       const result = await service.getTables('123');
 
       expect(result).toEqual(mockTables);
-      expect(supabase.from).toHaveBeenCalledWith('tournament_tables');
+      expect(mockFrom).toHaveBeenCalledWith('tournament_tables');
     });
 
     it('should return empty array when no tables found', async () => {
-      const { supabase } = require('../../config/supabase');
-      supabase.from().order.mockResolvedValue({
+      mockOrder.mockResolvedValue({
         data: null,
         error: null,
       });

@@ -41,27 +41,42 @@ npm run db:migrate
 
 ## 테스트 실행
 
-모든 테스트 실행:
-```bash
-npm test
-```
+### 유닛 테스트
 
-통합 테스트만 실행:
-```bash
-npm run test:integration
-```
+유닛 테스트는 외부 의존성 없이 실행됩니다:
 
-유닛 테스트만 실행:
 ```bash
 npm run test:unit
 ```
 
-Watch 모드:
+### 통합 테스트
+
+통합 테스트를 실행하려면 Supabase 설정이 필요합니다:
+
+1. Supabase 프로젝트에서 RLS(Row Level Security) 정책 설정
+2. 테스트용 사용자 계정 생성
+3. `.env` 파일에 서비스 키 추가
+
+```bash
+npm run test:integration
+```
+
+**참고**: 현재 통합 테스트는 RLS 정책 설정이 필요하여 스킵되어 있습니다.
+
+### 모든 테스트 실행
+
+```bash
+npm test
+```
+
+### Watch 모드
+
 ```bash
 npm run test:watch
 ```
 
-코드 커버리지:
+### 코드 커버리지
+
 ```bash
 npm run test:coverage
 ```
