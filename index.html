@@ -814,65 +814,78 @@
       return { rows: out, epochSec };
     }
     
-    let isSending = false;
-    
-    async function sendDataToGoogleSheet(){
-      if (isSending) return;     // ★ 중복 전송 가드
-      isSending = true;          // ★ 락
-    
-      if (state.playersInHand.filter(p=>p.role==='winner').length===0){
-        showFeedback('승자를 선택해야 합니다.', true);
-        isSending = false;       // 가드 해제
-        return;
-      }
-    
-      openLogModal(); logMessage('시트 전송 시작...');
-      el.sendToSheetBtn.textContent='전송 중...';
-      el.sendToSheetBtn.disabled=true;
-    
-      try{
-        const { rows } = generateRows_v46();
-        const indexMeta   = buildIndexMeta();
-        const typeUpdates = buildTypeUpdates();
-        const note        = buildNotePayload();
-    
-        const payload = { rows, indexMeta, typeUpdates, note };
-        const form = new URLSearchParams();
-        form.append('payload', JSON.stringify(payload));
-        
-        // CORS 우회 모드 사용 (Apps Script 설정과 일치)
-        await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          mode: 'no-cors',  // CORS 우회
-          body: form.toString(),
-        });
-        
-        // no-cors 모드에서는 응답을 읽을 수 없으므로 성공으로 가정
-        logMessage('✅ 데이터 전송 완료 (스프레드시트를 확인하세요)');
-    
-        // Index CSV 리프레시
-        try{
-          await sleep(600);
-          if(CSV_INDEX_URL.includes('http')){
-            const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
-            buildIndexFromCsv(idxRows);
-            el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
-          }
-        }catch(_){}
-    
-        showFeedback('✅ 시트 기록 완료');
-        state.noteDraft = '';   // ★ 노트 초기화
-        resetApp();
-      }catch(err){
-        console.error(err);
-        showFeedback(`❌ 전송 실패: ${err.message}`, true);
-      }finally{
-        isSending = false;      // ★ 락 해제
-        el.sendToSheetBtn.textContent='시트 전송';
-        el.sendToSheetBtn.disabled=false;
-        setTimeout(()=>closeLogModal(), 1000);
-      }
+let isSending = false;
+
+async function sendDataToGoogleSheet(){
+  if (isSending) return;     // 중복 전송 가드
+  isSending = true;
+
+  if (state.playersInHand.filter(p=>p.role==='winner').length===0){
+    showFeedback('승자를 선택해야 합니다.', true);
+    isSending = false;
+    return;
+  }
+
+  openLogModal(); logMessage('시트 전송 시작...');
+  el.sendToSheetBtn.textContent='전송 중...';
+  el.sendToSheetBtn.disabled=true;
+
+  try{
+    const { rows } = generateRows_v46();
+    const indexMeta   = buildIndexMeta();
+    const typeUpdates = buildTypeUpdates();
+    const note        = buildNotePayload();
+
+    const payload = { rows, indexMeta, typeUpdates, note };
+
+    // x-www-form-urlencoded로 전송 → 프리플라이트 없음 (CORS 우회)
+    const form = new URLSearchParams();
+    form.append('payload', JSON.stringify(payload));
+
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+      body: form.toString(),
+      // mode: 'cors'  // 생략 가능 (기본)
+    });
+
+    if(!res.ok){
+      const text = await res.text().catch(()=> '');
+      throw new Error(`서버 응답 오류: ${res.status} ${text || ''}`);
     }
+
+    const json = await res.json().catch(()=> ({}));
+
+    if(json.status !== 'success'){
+      logMessage('⚠️ Apps Script가 success를 반환하지 않았습니다. 기록은 되었을 수 있습니다.');
+    } else {
+      logMessage(`✅ 저장 완료: #${json.handNumber || indexMeta.handNumber} (rows=${json.rowsAdded})`);
+    }
+
+    // Index CSV 리프레시
+    try{
+      await sleep(600);
+      if(CSV_INDEX_URL.includes('http')){
+        const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
+        buildIndexFromCsv(idxRows);
+        el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
+      }
+    }catch(_){ /* noop */ }
+
+    showFeedback('✅ 시트 기록 완료');
+    state.noteDraft = '';
+    resetApp();
+
+  }catch(err){
+    console.error(err);
+    showFeedback(`❌ 전송 실패: ${err.message}`, true);
+  }finally{
+    isSending = false;
+    el.sendToSheetBtn.textContent='시트 전송';
+    el.sendToSheetBtn.disabled=false;
+    setTimeout(()=>closeLogModal(), 1000);
+  }
+}
 
 
     function nowIso() {
