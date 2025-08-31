@@ -837,10 +837,13 @@
         const note        = buildNotePayload();
     
         const payload = { rows, indexMeta, typeUpdates, note };
-        const res = await fetch(APPS_SCRIPT_URL, {
+        const form = new URLSearchParams();
+        form.append('payload', JSON.stringify(payload)); // 문자열로 넣기
+        
+        fetch(APPS_SCRIPT_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          body: form.toString(),
         });
     
         if(!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);
