@@ -880,6 +880,7 @@
         handNumber,
         handUpdatedAt,
         table,
+        code: 'HOLDEM', // ★ 필요 시 추가
         cam: `${state.camPreset.cam1 || ''}+${state.camPreset.cam2 || ''}`,
         cam1: state.camPreset.cam1 || '',
         cam1no: state.camNumbers.cam1no || '',
@@ -887,6 +888,7 @@
         cam2no: state.camNumbers.cam2no || ''
       };
     }
+
     function buildTypeUpdates(){
       // 이번 핸드 동안 칩이 수정된 플레이어만 추려서 Type에 updatedAt 기록
       const table = state.selectedTable || '';
@@ -939,6 +941,7 @@
 
     // ====== EVENT LISTENERS ======
     function setupEventListeners(){
+      el.loadHandBtn.onclick = openLoadHandModal;
       el.refreshDataBtn.onclick = loadInitial;
       el.resetBtn.onclick = resetApp;
       // "시트 전송" 버튼을 누르면 → 노트 모달 먼저
@@ -959,6 +962,27 @@
         // 실제 전송 호출
         sendDataToGoogleSheet();
       });
+      let isSending = false; // 파일 상단에 이미 선언되어 있으니 활용
+
+      async function sendDataToGoogleSheet(){
+        if (isSending) return;           // ★ 가드
+        isSending = true;                // ★ 락
+        try {
+          ...
+        } catch (err) {
+          ...
+        } finally {
+          isSending = false;             // ★ 해제
+          el.sendToSheetBtn.textContent='시트 전송';
+          el.sendToSheetBtn.disabled=false;
+          setTimeout(()=>closeLogModal(), 1000);
+        }
+      }
+      showFeedback('✅ 시트 기록 완료');
+      state.noteDraft = ''; // ★ 노트 초기화
+      resetApp();
+
+
 
       el.showLogBtn.onclick = openLogModal;
       el.closeLogModalBtn.onclick = closeLogModal;
