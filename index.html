@@ -817,25 +817,31 @@
     let isSending = false;
     
     async function sendDataToGoogleSheet(){
-      if(state.playersInHand.filter(p=>p.role==='winner').length===0){
-        showFeedback('승자를 선택해야 합니다.', true); return;
+      if (isSending) return;     // ★ 중복 전송 가드
+      isSending = true;          // ★ 락
+    
+      if (state.playersInHand.filter(p=>p.role==='winner').length===0){
+        showFeedback('승자를 선택해야 합니다.', true);
+        isSending = false;       // 가드 해제
+        return;
       }
+    
       openLogModal(); logMessage('시트 전송 시작...');
-      el.sendToSheetBtn.textContent='전송 중...'; el.sendToSheetBtn.disabled=true;
+      el.sendToSheetBtn.textContent='전송 중...';
+      el.sendToSheetBtn.disabled=true;
     
       try{
         const { rows } = generateRows_v46();
         const indexMeta   = buildIndexMeta();
         const typeUpdates = buildTypeUpdates();
         const note        = buildNotePayload();
-        
+    
         const payload = { rows, indexMeta, typeUpdates, note };
         const res = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
-
     
         if(!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);
         const json = await res.json();
@@ -846,7 +852,7 @@
           logMessage(`✅ 저장 완료: #${json.handNumber} (rows=${json.rowsAdded})`);
         }
     
-        // 저장 후 Index CSV 리프레시(캐시버스터)
+        // Index CSV 리프레시
         try{
           await sleep(600);
           if(CSV_INDEX_URL.includes('http')){
@@ -854,19 +860,22 @@
             buildIndexFromCsv(idxRows);
             el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
           }
-        }catch(_){/* 무시 */}
+        }catch(_){}
     
         showFeedback('✅ 시트 기록 완료');
+        state.noteDraft = '';   // ★ 노트 초기화
         resetApp();
       }catch(err){
         console.error(err);
         showFeedback(`❌ 전송 실패: ${err.message}`, true);
       }finally{
+        isSending = false;      // ★ 락 해제
         el.sendToSheetBtn.textContent='시트 전송';
         el.sendToSheetBtn.disabled=false;
         setTimeout(()=>closeLogModal(), 1000);
       }
     }
+
 
     function nowIso() {
       // 서버에서 timezone 변환하므로 UTC ISO로 보냄
