@@ -139,7 +139,7 @@
     let timeUpdater;
     const state = {
       noteDraft: '',          // 노트 임시 보관
-      camNumbers: { cam1no:'', cam2no:'' } // 파일 넘버 입력이 있다면 여기에 저장
+      camNumbers: { cam1no:'', cam2no:'' }, // 파일 넘버 입력이 있다면 여기에 저장
 
       playerDataByTable: {},     // { [table]: [{name, chips, notable}] }
       camPreset: { cam1:'', cam2:'' }, // Type!A2/A3
@@ -448,14 +448,26 @@
       closeModal(el.cardSelectorModal);
     }
     function addActionToLog(action, amount=null){
-      const { actionPadStreet, actionPadPlayer }=state.modalState;
-      if(amount){
-        const p=state.playersInHand.find(pp=>pp.name===actionPadPlayer);
-        if(p){ const cur=parseInt(unformatNumber(p.chips)||0,10); p.chips=(cur-parseInt(unformatNumber(amount),10)).toString(); }
+      const { actionPadStreet, actionPadPlayer } = state.modalState;
+      if (amount){
+        const p = state.playersInHand.find(pp => pp.name === actionPadPlayer);
+        if (p){
+          const cur = parseInt(unformatNumber(p.chips) || 0, 10);
+          p.chips = (cur - parseInt(unformatNumber(amount), 10)).toString();
+          p.chipsUpdatedAt = new Date().toISOString(); // ★ 프로그램적 변경도 타임스탬프 기록
+        }
       }
-      state.actionState[actionPadStreet].push({ player:actionPadPlayer, action, amount, timestamp:new Date().toISOString() });
-      saveActionState(); renderAll(); closeModal(el.actionPadModal);
+      state.actionState[actionPadStreet].push({
+        player: actionPadPlayer,
+        action,
+        amount,
+        timestamp: new Date().toISOString()
+      });
+      saveActionState();
+      renderAll();
+      closeModal(el.actionPadModal);
     }
+
     function undoLastAction(street){
       const last=state.actionState[street].pop();
       if(last&&last.amount){
@@ -948,7 +960,6 @@
         sendDataToGoogleSheet();
       });
 
-      el.sendToSheetBtn.onclick = sendDataToGoogleSheet;
       el.showLogBtn.onclick = openLogModal;
       el.closeLogModalBtn.onclick = closeLogModal;
 
