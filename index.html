@@ -512,81 +512,105 @@
 
     // 파싱: Hand CSV → 특정 handNumber의 "가장 최근 updatedAt" 블록
     function parseHandBlock(rows, handNumber, preferDate){
-      // 빠른 1패스: HAND 시작/끝 위치 수집
+      // HAND 시작 위치 수집
       const starts=[];
       for(let r=0;r<rows.length;r++){
-        const row=rows[r]||[]; if(row[1]==='HAND'){
+        const row=rows[r]||[];
+        if(row[1]==='HAND'){
           const no=String(row[2]||'');
           if(no===String(handNumber)){
-            starts.push({r, updatedAtFromIndex:null});
+            starts.push({r});
           }
         }
       }
       if(!starts.length) return null;
-
-      // Index에서 해당 handNumber의 최신 handUpdatedAt 결정
+    
+      // Index에서 최신 updatedAt 기준 블록 범위 찾기
       let updatedAt=preferDate||null;
       if(!updatedAt){
         const candidates=state.indexRows.filter(x=>x.handNumber===String(handNumber));
         candidates.sort((a,b)=> a.handUpdatedAt<b.handUpdatedAt?1:-1);
         updatedAt=candidates[0]?.handUpdatedAt||null;
       }
-
-      // updatedAt과 같은 HAND를 찾기 (HAND.D(code)는 epoch이므로, 날짜는 Index에서만 비교)
-      // CSV에는 날짜(yyyy-MM-dd)가 따로 없으니, Index 매칭을 우선(동일 번호 다수일 때)
       let startRowIdx=-1, endRowIdx=-1;
       const idxRow=state.indexRows.find(x=>x.handNumber===String(handNumber) && x.handUpdatedAt===updatedAt);
       if(idxRow){ startRowIdx=idxRow.startRow-1; endRowIdx=idxRow.endRow-1; }
       else{
-        // 폴백: 같은 번호 중에 가장 마지막 블록
         const last=starts[starts.length-1].r;
         startRowIdx=last;
-        // 끝 찾기
         let r=last+1; while(r<rows.length && rows[r][1]!=='HAND') r++;
         endRowIdx=r-1;
       }
       if(startRowIdx<0 || endRowIdx<startRowIdx) return null;
-
+    
       const block=rows.slice(startRowIdx,endRowIdx+1);
-      // block 파싱 → {handInfo, players, events, board, ...}
-      let handInfo=null, players=[], events=[], board=[], smallBlind='', bigBlind='', hasBBAnte=false, ante=0, table='';
+    
+      // 파싱
+      let handInfo=null, players=[], board=[], smallBlind='', bigBlind='', ante=0, table='';
+      // 스트리트 분할: 블록을 **순서대로** 돌면서 BOARD를 만날 때마다 전환한다
+      const streets={preflop:[],flop:[],turn:[],river:[]};
+      let street='preflop';
+      let seenBoard=0;
+    
       for(const row of block){
         if(row[1]==='HAND'){
           handInfo=row;
-          ante=parseInt(row[6]||0,10)||0; hasBBAnte=ante>0;
-          smallBlind=row[8]||''; bigBlind=row[9]||'';
+          ante=parseInt(row[6]||0,10)||0;
+          smallBlind=row[8]||'';
+          bigBlind=row[9]||'';
           table=row[17]||'';
         }else if(row[1]==='PLAYER'){
-          const name=row[1+1]; // B=type, C=name
-          const seat=row[1+2];
-          const init=row[1+4], final=row[1+5];
-          const cards=(row[1+6]||'').trim()? String(row[1+6]).trim().split(' ') : [];
+          const name=row[2];
+          const seat=row[3];
+          const init=row[5], final=row[6];
+          const cards=(row[7]||'').trim()? String(row[7]).trim().split(' ') : [];
           players.push({name, seat, initialChips:init, finalChips:final, hand:cards});
         }else if(row[1]==='EVENT'){
           const etype=String(row[2]||'').toUpperCase();
           if(etype==='BOARD'){
-            board.push(row[4]); // card id
+            // 보드 전환 지점
+            const card=row[4];
+            if(card) board.push(card);
+            seenBoard++;
+            if(seenBoard===3) street='flop';
+            else if(seenBoard===4) street='turn';
+            else if(seenBoard===5) street='river';
           }else{
-            events.push({ t:etype, seat:row[3], amount:row[4], time:row[5] });
+            // 좌석 → 이름
+            const seat=row[3];
+            const amount=row[4];
+            const time=row[5];
+            const p=players.find(pp=>String(pp.seat)===String(seat));
+            const name=p?p.name:'';
+            streets[street].push({
+              player:name,
+              action:etype,
+              amount:amount||null,
+              timestamp:time||null
+            });
           }
         }
       }
-+      // 스트리트 분할 (보드 등장 시점에 맞춰 전환)
-+      const streets={preflop:[],flop:[],turn:[],river:[]};
-+      let street='preflop';
-+      let seenBoard=0;
-+      for(const ev of events){
-+        if(ev.t==='BOARD'){
-+          seenBoard++;
-+          if(seenBoard===3) street='flop';
-+          else if(seenBoard===4) street='turn';
-+          else if(seenBoard===5) street='river';
-+          continue; // BOARD 자체는 위에서 board[]로 이미 수집
-+        }
-+        const p=players.find(pp=>String(pp.seat)===String(ev.seat));
-+        const name=p?p.name:'';
-+        streets[street].push({ player:name, action:ev.t, amount:ev.amount||null, timestamp:ev.time||null });
-+      }
+
+  return {
+    handInfo,
+    table,
+    ante,
+    smallBlind,
+    bigBlind,
+    hasBBAnte: ante>0,
+    board,
+    actions: streets,
+    players: players.map(p=>({
+      name:p.name,
+      initialChips:p.initialChips,
+      finalChips:p.finalChips,
+      hand:p.hand,
+      role: (parseInt(p.finalChips||0,10)>parseInt(p.initialChips||0,10)) ? 'winner' : null
+    }))
+  };
+}
+
 
 
     // ====== LOADERS (initial) ======
@@ -760,8 +784,6 @@
 
       try{
         const { rows, epochSec } = generateRows_v46();
-        const index
-
 
         const indexPayload = { rows }; // v43 백엔드는 rows만 받으면 Hand/HandIndex/Note 처리
         const res = await fetch(APPS_SCRIPT_URL, {
