@@ -802,8 +802,8 @@
         // 저장 후 최신 Index CSV 갱신 시도 (웹 게시 반영이 지연될 수 있음)
         try{
           await sleep(600); // 게시 지연 완화용 짧은 대기
-+          if(CSV_INDEX_URL.includes('http')){
-+            const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
+           if(CSV_INDEX_URL.includes('http')){
+             const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
              buildIndexFromCsv(idxRows);
              el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
            }
