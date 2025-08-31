@@ -838,22 +838,17 @@
     
         const payload = { rows, indexMeta, typeUpdates, note };
         const form = new URLSearchParams();
-        form.append('payload', JSON.stringify(payload)); // 문자열로 넣기
+        form.append('payload', JSON.stringify(payload));
         
-        fetch(APPS_SCRIPT_URL, {
+        // CORS 우회 모드 사용 (Apps Script 설정과 일치)
+        await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+          mode: 'no-cors',  // CORS 우회
           body: form.toString(),
         });
-    
-        if(!res.ok) throw new Error(`서버 응답 오류: ${res.status}`);
-        const json = await res.json();
-    
-        if(json.status !== 'success'){
-          logMessage('⚠️ Apps Script가 success를 반환하지 않았습니다. 기록은 되었을 수 있습니다.');
-        } else {
-          logMessage(`✅ 저장 완료: #${json.handNumber} (rows=${json.rowsAdded})`);
-        }
+        
+        // no-cors 모드에서는 응답을 읽을 수 없으므로 성공으로 가정
+        logMessage('✅ 데이터 전송 완료 (스프레드시트를 확인하세요)');
     
         // Index CSV 리프레시
         try{
