@@ -971,28 +971,7 @@
         // 실제 전송 호출
         sendDataToGoogleSheet();
       });
-      let isSending = false; // 파일 상단에 이미 선언되어 있으니 활용
-
-      async function sendDataToGoogleSheet(){
-        if (isSending) return;           // ★ 가드
-        isSending = true;                // ★ 락
-        try {
-          ...
-        } catch (err) {
-          ...
-        } finally {
-          isSending = false;             // ★ 해제
-          el.sendToSheetBtn.textContent='시트 전송';
-          el.sendToSheetBtn.disabled=false;
-          setTimeout(()=>closeLogModal(), 1000);
-        }
-      }
-      showFeedback('✅ 시트 기록 완료');
-      state.noteDraft = ''; // ★ 노트 초기화
-      resetApp();
-
-
-
+      
       el.showLogBtn.onclick = openLogModal;
       el.closeLogModalBtn.onclick = closeLogModal;
 
