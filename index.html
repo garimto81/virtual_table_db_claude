@@ -947,14 +947,11 @@ async function sendDataToGoogleSheet(){
     function buildNotePayload(){
       const text = (state.noteDraft || '').trim();
       if(!text) return null;
+      // Apps Script는 text만 사용하므로 간단한 구조로
       return {
         text,
         handNumber: String(state.actionState.handNumber),
-        handUpdatedAt: new Date().toISOString(),
-        table: state.selectedTable || '',
-        author: '',        // 필요하면 UI 추가
-        tz: state.selectedTimezone,
-        ts: new Date().toISOString()
+        code: 'HOLDEM'  // 또는 state에서 가져오기
       };
     }
 
@@ -996,7 +993,7 @@ async function sendDataToGoogleSheet(){
     }
 
     function renderNotes(rows, filterHandNumber = null){
-      // 헤더 가정: handNumber, handUpdatedAt, table, text, author, tz, ts
+      // Apps Script Note 헤더: Code | handNumber | Note (3컬럼)
       const listEl = document.getElementById('notes-list');
       const cntEl = document.getElementById('notes-count');
       
@@ -1014,14 +1011,12 @@ async function sendDataToGoogleSheet(){
         return; 
       }
 
-      // 데이터 파싱
+      // 데이터 파싱 - Apps Script 스키마에 맞게 수정
       const header = rows[0];
       let data = rows.slice(1).map(r=>({
-        hand: r[0]||'',
-        table: r[2]||'',
-        text: r[3]||'',
-        tz: r[5]||'',
-        ts: r[6]||''
+        code: r[0]||'',      // Code
+        hand: r[1]||'',      // handNumber
+        text: r[2]||''       // Note
       }));
 
       // 특정 핸드 번호로 필터링
@@ -1034,16 +1029,15 @@ async function sendDataToGoogleSheet(){
         notesSection.style.display = 'block';
       }
 
-      // 최신순 정렬 (ts 기준)
-      data.sort((a,b)=> (a.ts<b.ts?1:-1));
+      // 최신순 정렬 (역순 인덱스 기준 - 최근 추가된 것이 먼저)
+      data.reverse();
 
       // 표시할 노트들
       const toShow = filterHandNumber ? data : data.slice(0,20);
       
       listEl.innerHTML = toShow.map(n=>{
-        const when = n.ts ? new Date(n.ts).toLocaleString('ko-KR') : '';
         return `<div class="p-2 bg-gray-900/50 rounded">
-          <div class="text-xs text-gray-400">#${n.hand} · ${n.table || '-'} · ${when}</div>
+          <div class="text-xs text-gray-400">#${n.hand} · ${n.code || 'HOLDEM'}</div>
           <div class="text-sm">${(n.text||'').replace(/</g,'&lt;')}</div>
         </div>`;
       }).join('');
