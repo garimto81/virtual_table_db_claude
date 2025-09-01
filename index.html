@@ -1295,8 +1295,6 @@ async function sendDataToGoogleSheet(){
       populateTimezones(); loadActionState();
       try{
         await loadInitial();
-        // 초기화 시에는 노트 섹션 숨김 (핸드 로드 시에만 표시)
-        document.getElementById('notes-section').style.display = 'none';
         renderTableSelection();
         if(timeUpdater) clearInterval(timeUpdater);
         timeUpdater = setInterval(updateTimeDisplay, 1000);
