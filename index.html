@@ -748,6 +748,19 @@
         el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
 
         renderAll(); saveActionState();
+        
+        // 해당 핸드의 노트만 로드
+        if(CSV_NOTE_URL.includes('http')){
+          try{
+            const noteRows = await fetchCsv(CSV_NOTE_URL + `&cb=${Date.now()}`);
+            renderNotes(noteRows, handNumber);
+          }catch(err){
+            console.error('노트 로드 실패:', err);
+            // 노트 로드 실패시 섹션 숨김
+            document.getElementById('notes-section').style.display = 'none';
+          }
+        }
+        
         closeModal(el.loadHandModal);
         showFeedback(`#${handNumber} 핸드를 불러왔습니다.`);
       }catch(err){
@@ -982,36 +995,59 @@ async function sendDataToGoogleSheet(){
       }
     }
 
-    function renderNotes(rows){
+    function renderNotes(rows, filterHandNumber = null){
       // 헤더 가정: handNumber, handUpdatedAt, table, text, author, tz, ts
       const listEl = document.getElementById('notes-list');
       const cntEl = document.getElementById('notes-count');
+      
+      // 노트 섹션 숨김/표시 처리
+      const notesSection = document.getElementById('notes-section');
+      
       if(!rows || rows.length<2){ 
-        listEl.innerHTML = '<p class="text-xs text-gray-500">노트가 없습니다.</p>'; 
-        cntEl.textContent='0'; 
+        if(filterHandNumber) {
+          // 특정 핸드를 로드했는데 노트가 없으면 섹션 숨김
+          notesSection.style.display = 'none';
+        } else {
+          listEl.innerHTML = '<p class="text-xs text-gray-500">노트가 없습니다.</p>'; 
+          cntEl.textContent='0';
+        }
         return; 
       }
 
-      // 최신순 정렬 (ts 기준)
+      // 데이터 파싱
       const header = rows[0];
-      const data = rows.slice(1).map(r=>({
+      let data = rows.slice(1).map(r=>({
         hand: r[0]||'',
         table: r[2]||'',
         text: r[3]||'',
         tz: r[5]||'',
         ts: r[6]||''
-      })).sort((a,b)=> (a.ts<b.ts?1:-1));
+      }));
 
-      // 최근 20개만
-      const top = data.slice(0,20);
-      listEl.innerHTML = top.map(n=>{
+      // 특정 핸드 번호로 필터링
+      if(filterHandNumber) {
+        data = data.filter(n => n.hand === String(filterHandNumber));
+        if(data.length === 0) {
+          notesSection.style.display = 'none';
+          return;
+        }
+        notesSection.style.display = 'block';
+      }
+
+      // 최신순 정렬 (ts 기준)
+      data.sort((a,b)=> (a.ts<b.ts?1:-1));
+
+      // 표시할 노트들
+      const toShow = filterHandNumber ? data : data.slice(0,20);
+      
+      listEl.innerHTML = toShow.map(n=>{
         const when = n.ts ? new Date(n.ts).toLocaleString('ko-KR') : '';
         return `<div class="p-2 bg-gray-900/50 rounded">
           <div class="text-xs text-gray-400">#${n.hand} · ${n.table || '-'} · ${when}</div>
           <div class="text-sm">${(n.text||'').replace(/</g,'&lt;')}</div>
         </div>`;
       }).join('');
-      cntEl.textContent = String(data.length);
+      cntEl.textContent = String(toShow.length);
     }
 
     // ====== RESET & FEEDBACK ======
@@ -1030,6 +1066,8 @@ async function sendDataToGoogleSheet(){
       };
       renderAll(); saveActionState();
       el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
+      // 새 핸드 시작 시 노트 섹션 숨김
+      document.getElementById('notes-section').style.display = 'none';
     }
     function showFeedback(msg,isErr=false){
       el.feedbackMessage.textContent = msg;
@@ -1257,7 +1295,8 @@ async function sendDataToGoogleSheet(){
       populateTimezones(); loadActionState();
       try{
         await loadInitial();
-        await loadNotes();   // 노트 로드 추가
+        // 초기화 시에는 노트 섹션 숨김 (핸드 로드 시에만 표시)
+        document.getElementById('notes-section').style.display = 'none';
         renderTableSelection();
         if(timeUpdater) clearInterval(timeUpdater);
         timeUpdater = setInterval(updateTimeDisplay, 1000);
