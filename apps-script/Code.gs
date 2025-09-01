@@ -1,9 +1,9 @@
 /****************************************************
- * Poker Hand Logger - Apps Script Backend v47
+ * Poker Hand Logger - Apps Script Backend v52
  * 
  * 스프레드시트 구조:
  * - Hand 시트: 포커 핸드 로우 데이터
- * - HandIndex 시트: 핸드 인덱스 (handNumber | startRow | endRow | updatedAt)
+ * - Index 시트: 핸드 인덱스 (확장된 14개 열 구조)
  * - Type 시트: 플레이어 정보 (A:설정, B:Player, C:Table, D:Notable, E:Chips, F:UpdatedAt)
  * - Note 시트: 핸드 노트 (A:Timestamp, B:HandNumber, C:Note)
  ****************************************************/
@@ -98,41 +98,42 @@ function _parseRequestBody(e) {
 
 // ===== 시트 헤더 관리 =====
 
-function _ensureHandIndexHeader(sheet) {
+function _ensureIndexHeader(sheet) {
   if (sheet.getLastRow() < 1) {
     // 헤더가 없으면 생성
-    sheet.getRange(1, 1, 1, 4).setValues([[
-      'handNumber', 'startRow', 'endRow', 'updatedAt'
-    ]]);
+    const headerRow = [
+      'handNumber', 'startRow', 'endRow', 'handUpdatedAt', 
+      'handEdit', 'handEditTime', 'label', 'table', 
+      'tableUpdatedAt', 'Cam', 'CamFile01name', 'CamFile01number',
+      'CamFile02name', 'CamFile02number'
+    ];
+    sheet.getRange(1, 1, 1, headerRow.length).setValues([headerRow]);
   } else {
-    // 헤더 검증 및 수정
-    const header = sheet.getRange(1, 1, 1, 4).getValues()[0] || [];
-    const expectedHeader = ['handNumber', 'startRow', 'endRow', 'updatedAt'];
-    
-    let needsUpdate = false;
-    for (let i = 0; i < 4; i++) {
-      if (String(header[i] || '') !== expectedHeader[i]) {
-        needsUpdate = true;
-        break;
-      }
-    }
-    
-    if (needsUpdate) {
-      sheet.getRange(1, 1, 1, 4).setValues([expectedHeader]);
+    // 헤더 검증 - 최소한 필수 열들이 존재하는지 확인
+    const lastCol = sheet.getLastColumn();
+    if (lastCol < 14) {
+      // 필요한 열이 부족하면 확장
+      const headerRow = [
+        'handNumber', 'startRow', 'endRow', 'handUpdatedAt', 
+        'handEdit', 'handEditTime', 'label', 'table', 
+        'tableUpdatedAt', 'Cam', 'CamFile01name', 'CamFile01number',
+        'CamFile02name', 'CamFile02number'
+      ];
+      sheet.getRange(1, 1, 1, headerRow.length).setValues([headerRow]);
     }
   }
 }
 
 function _ensureNoteHeader(sheet) {
   if (sheet.getLastRow() < 1) {
-    // 헤더가 없으면 생성 - 기존 스키마 유지
+    // 헤더가 없으면 생성
     sheet.getRange(1, 1, 1, 3).setValues([[
-      'Code', 'handNumber', 'Note'
+      'Timestamp', 'HandNumber', 'Note'
     ]]);
   } else {
     // 헤더 검증 및 수정
     const header = sheet.getRange(1, 1, 1, 3).getValues()[0] || [];
-    const expectedHeader = ['Code', 'handNumber', 'Note'];
+    const expectedHeader = ['Timestamp', 'HandNumber', 'Note'];
     
     let needsUpdate = false;
     for (let i = 0; i < 3; i++) {
@@ -165,7 +166,8 @@ function doPost(e) {
     const rowsInput = body.rows;
     const indexMeta = body.indexMeta || {};
     const typeUpdates = Array.isArray(body.typeUpdates) ? body.typeUpdates : [];
-    const noteData = body.note && String(body.note.text || '').trim() ? body.note : null;
+    // 노트는 선택적 (프론트엔드에서 노트 기능 제거됨)
+    const noteData = body.note && String(body.note?.text || '').trim() ? body.note : null;
     
     // 데이터 검증
     if (!Array.isArray(rowsInput) || !rowsInput.length) {
@@ -195,7 +197,8 @@ function doPost(e) {
     // 스프레드시트 열기
     const spreadsheet = _open();
     const handSheet = spreadsheet.getSheetByName('Hand') || spreadsheet.insertSheet('Hand');
-    const indexSheet = spreadsheet.getSheetByName('HandIndex') || spreadsheet.insertSheet('HandIndex');
+    // Index 시트를 사용 (HandIndex가 아닌 Index)
+    const indexSheet = spreadsheet.getSheetByName('Index') || spreadsheet.insertSheet('Index');
     const typeSheet = spreadsheet.getSheetByName('Type') || spreadsheet.insertSheet('Type');
     const noteSheet = spreadsheet.getSheetByName('Note') || spreadsheet.insertSheet('Note');
     
@@ -204,18 +207,50 @@ function doPost(e) {
     handSheet.getRange(startRow, 1, rows.length, rows[0].length).setValues(rows);
     const endRow = startRow + rows.length - 1;
     
-    // ===== 2) HandIndex 시트 업데이트 =====
-    _ensureHandIndexHeader(indexSheet);
+    // ===== 2) Index 시트 업데이트 =====
+    _ensureIndexHeader(indexSheet);
     
-    const updatedAt = String(indexMeta.handUpdatedAt || new Date().toISOString());
+    // handUpdatedAt은 날짜만 (YYYY-MM-DD 형식)
+    const rawDate = indexMeta.handUpdatedAt || new Date().toISOString();
+    const updatedAt = String(rawDate).split('T')[0]; // YYYY-MM-DD 형식으로 변환
+    const editTime = new Date();
+    
+    // 디버깅: 받은 데이터 로깅
+    console.log('IndexMeta received:', JSON.stringify(indexMeta));
+    console.log('HandNumber from rows:', handNumber);
+    
+    // Index 시트 열 구조에 맞게 데이터 준비
+    // A:handNumber, B:startRow, C:endRow, D:handUpdatedAt, 
+    // E:handEdit, F:handEditTime, G:label, H:table, 
+    // I:tableUpdatedAt, J:Cam, K:CamFile01name, L:CamFile01number,
+    // M:CamFile02name, N:CamFile02number
     const indexData = [
-      handNumber || String(indexMeta.handNumber || ''),
-      startRow,
-      endRow,
-      updatedAt
+      handNumber || String(indexMeta.handNumber || ''),     // A: handNumber
+      startRow,                                              // B: startRow
+      endRow,                                                // C: endRow
+      updatedAt,                                             // D: handUpdatedAt
+      '',                                                    // E: handEdit (비워둠)
+      editTime,                                              // F: handEditTime
+      indexMeta.label || '',                                // G: label
+      indexMeta.table || '',                                // H: table
+      indexMeta.tableUpdatedAt || updatedAt,                // I: tableUpdatedAt (YYYY-MM-DD)
+      indexMeta.cam || '',                                   // J: Cam
+      indexMeta.camFile01name || '',                        // K: CamFile01name
+      indexMeta.camFile01number || '',                      // L: CamFile01number
+      indexMeta.camFile02name || '',                        // M: CamFile02name
+      indexMeta.camFile02number || ''                       // N: CamFile02number
     ];
     
-    indexSheet.appendRow(indexData);
+    // 디버깅: 저장할 데이터 로깅
+    console.log('IndexData to save:', JSON.stringify(indexData));
+    
+    try {
+      indexSheet.appendRow(indexData);
+      console.log('Index row added successfully');
+    } catch (error) {
+      console.error('Failed to append Index row:', error);
+      throw error;
+    }
     
     // ===== 3) Type 시트 업데이트 (칩 정보) =====
     if (typeUpdates.length > 0) {
@@ -247,12 +282,11 @@ function doPost(e) {
     if (noteData) {
       _ensureNoteHeader(noteSheet);
       
-      // Note 시트 스키마: A:Code, B:handNumber, C:Note
-      // 프론트엔드에서 보낸 code는 epochTimestamp
-      const codeValue = noteData.code || epochTimestamp || Math.floor(Date.now() / 1000);
+      // Note 시트 스키마: A:Timestamp, B:HandNumber, C:Note
+      const timestampValue = noteData.code || epochTimestamp || Math.floor(Date.now() / 1000);
       const noteRow = [
-        String(codeValue),                                  // A열: Code (타임스탬프를 코드로 사용)
-        handNumber || String(noteData.handNumber || ''),    // B열: handNumber
+        String(timestampValue),                             // A열: Timestamp
+        handNumber || String(noteData.handNumber || ''),    // B열: HandNumber
         String(noteData.text || '')                        // C열: Note
       ];
       
@@ -268,7 +302,7 @@ function doPost(e) {
       endRow: endRow,
       updatedAt: updatedAt,
       noteAdded: !!noteData,
-      version: 'v47'
+      version: 'v52'
     });
     
   } catch (error) {
@@ -309,7 +343,7 @@ function testDataStructure() {
   const ss = _open();
   
   // 각 시트의 헤더 확인
-  const sheets = ['Hand', 'HandIndex', 'Type', 'Note'];
+  const sheets = ['Hand', 'Index', 'Type', 'Note'];
   const result = {};
   
   sheets.forEach(sheetName => {
@@ -332,4 +366,57 @@ function testDataStructure() {
   
   console.log('시트 구조:', JSON.stringify(result, null, 2));
   return result;
+}
+
+function testIndexUpdate() {
+  const ss = _open();
+  const indexSheet = ss.getSheetByName('Index');
+  
+  if (!indexSheet) {
+    console.log('Index 시트가 없습니다');
+    return;
+  }
+  
+  // 현재 Index 시트 상태 확인
+  const lastRow = indexSheet.getLastRow();
+  const lastCol = indexSheet.getLastColumn();
+  
+  console.log('Index 시트 상태:');
+  console.log('- 마지막 행:', lastRow);
+  console.log('- 마지막 열:', lastCol);
+  
+  if (lastRow > 0) {
+    const header = indexSheet.getRange(1, 1, 1, Math.min(lastCol, 14)).getValues()[0];
+    console.log('- 헤더:', header);
+    
+    if (lastRow > 1) {
+      const lastData = indexSheet.getRange(lastRow, 1, 1, Math.min(lastCol, 14)).getValues()[0];
+      console.log('- 마지막 데이터:', lastData);
+    }
+  }
+  
+  // 테스트 데이터 추가
+  const testData = [
+    'TEST_' + new Date().getTime(), // handNumber
+    999,                             // startRow
+    1099,                            // endRow
+    new Date().toISOString().split('T')[0], // handUpdatedAt
+    '',                              // handEdit
+    new Date(),                      // handEditTime
+    'TEST',                          // label
+    'Table 1',                       // table
+    new Date().toISOString().split('T')[0], // tableUpdatedAt
+    'cam1+cam2',                     // Cam
+    'cam1',                          // CamFile01name
+    '0001',                          // CamFile01number
+    'cam2',                          // CamFile02name
+    '0002'                           // CamFile02number
+  ];
+  
+  try {
+    indexSheet.appendRow(testData);
+    console.log('테스트 데이터 추가 성공');
+  } catch (error) {
+    console.error('테스트 데이터 추가 실패:', error);
+  }
 }

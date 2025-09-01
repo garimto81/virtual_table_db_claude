@@ -36,13 +36,23 @@ const APPS_SCRIPT_URL = "YOUR_WEB_APP_URL_HERE";
 포커 핸드의 모든 이벤트 데이터 저장
 - 행 번호 | 이벤트 타입 | 데이터...
 
-### HandIndex 시트
+### Index 시트
 | 열 | 필드 | 설명 |
 |---|---|---|
 | A | handNumber | 핸드 번호 |
 | B | startRow | Hand 시트 시작 행 |
 | C | endRow | Hand 시트 종료 행 |
-| D | updatedAt | 업데이트 시간 (ISO) |
+| D | handUpdatedAt | 핸드 업데이트 시간 (ISO) |
+| E | handEdit | 편집 플래그 |
+| F | handEditTime | 편집 시간 |
+| G | label | 게임 레이블 (예: HOLDEM) |
+| H | table | 테이블 이름 |
+| I | tableUpdatedAt | 테이블 업데이트 시간 |
+| J | Cam | 캠 조합 (cam1+cam2) |
+| K | CamFile01name | 첫 번째 캠 이름 |
+| L | CamFile01number | 첫 번째 캠 번호 |
+| M | CamFile02name | 두 번째 캠 이름 |
+| N | CamFile02number | 두 번째 캠 번호 |
 
 ### Type 시트
 | 열 | 필드 | 설명 |
@@ -96,13 +106,34 @@ function testDataStructure() {
 
 ## 📝 버전 히스토리
 
-### v47 (현재)
+### v52 (현재)
+- 노트 처리를 선택적으로 변경 (프론트엔드 노트 기능 제거 대응)
+- 버전 업데이트
+
+### v51
+- HandIndex 참조를 모두 Index로 통합
+- 함수명 변경: _ensureHandIndexHeader → _ensureIndexHeader
+- 주석 및 문서에서 HandIndex 용어 제거
+- Index 시트로 완전 통합
+
+### v50
+- **중요**: HandIndex 시트가 아닌 Index 시트 사용하도록 수정
+- Index 시트에 데이터가 올바르게 저장되도록 변경
+- 테스트 함수명 변경 (testIndexUpdate)
+
+### v49
+- Hand 시트 PLAYER 행 F열(시작칩), G열(종료칩) 올바르게 설정
+- HandIndex D열 날짜 형식 YYYY-MM-DD로 변경
+- tableUpdatedAt 날짜 형식 통일
+
+### v48
+- Note 시트 헤더 스키마 수정 (Timestamp, HandNumber, Note)
 - GAME 행 E열 날짜 업데이트 지원
-- Note 시트 타임스탬프 저장
 - HandIndex 업데이트 로직 개선
 - 에러 처리 강화
 
-### v46
+### v47
+- Note 시트 타임스탬프 저장
 - 초기 버전
 - 기본 CRUD 기능
 

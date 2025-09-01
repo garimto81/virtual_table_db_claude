@@ -137,7 +137,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     // ====== CONFIG (필수: 실제 URL로 교체) ======
     const CSV_HAND_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv"; // Hand 탭 CSV
-    const CSV_INDEX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv";
+    const CSV_INDEX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv"; // Index 탭 CSV (HandIndex 대신 Index 사용)
     const CSV_TYPE_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv";
     const CSV_NOTE_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1016632764&single=true&output=csv"; // 선택
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzkErhBHS39O1ogE_innOMD9qRUe-WX-qwHsAjlvB8r5xBqplLV-f7PDm8DyFKl0g8V/exec";
@@ -145,7 +145,7 @@
     // ====== STATE ======
     let timeUpdater;
     const state = {
-      noteDraft: '',          // 노트 임시 보관
+      currentStreet: 'preflop',  // 현재 진행 중인 스트리트
       camNumbers: { cam1no:'', cam2no:'' }, // 파일 넘버 입력이 있다면 여기에 저장
       lastCamNo: null,        // 마지막 입력 추적(연속 증가 기본값 제공용)
 
@@ -330,14 +330,26 @@
         logs.forEach(a=>{ if(a.amount) streetPot += parseInt(unformatNumber(a.amount),10); });
         cumulativePot += streetPot;
         const logHTML = logs.map(log=>{
+          // Pot Correction은 시스템 액션이므로 player가 없음
+          if(log.action === 'Pot Correction'){
+            const amt = log.amount ? ` <span class="font-mono text-white">${formatNumber(log.amount)}</span>` : '';
+            return `<span class="action-log-entry mr-2"><span class="text-blue-400">Pot</span> ${log.action}${amt}</span>`;
+          }
+          // 일반 플레이어 액션
           const player=state.playersInHand.find(p=>p.name===log.player);
           const cls=(player?.role==='winner')?'text-amber-400':'text-gray-300';
           const amt=log.amount?` <span class="font-mono text-white">${formatNumber(log.amount)}</span>`:'';
-          return `<span class="action-log-entry mr-2"><span class="${cls}">${log.player}</span> ${log.action}${amt}</span>`;
+          return `<span class="action-log-entry mr-2"><span class="${cls}">${log.player || 'Unknown'}</span> ${log.action}${amt}</span>`;
         }).join('');
+        const isActive = state.currentStreet === street;
+        const streetBtnClass = isActive 
+          ? 'bg-amber-500 text-black border-2 border-amber-300 shadow-lg' 
+          : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600 hover:text-white';
+        
         return `<div class="street-container bg-gray-900/50 p-1 rounded-md">
           <div class="flex justify-between items-center text-xs mb-1">
-            <strong class="text-amber-400 w-14">${street}</strong>
+            <button class="street-select-btn ${streetBtnClass} px-3 py-1 rounded-md font-bold min-w-[70px] text-center transition-all cursor-pointer" 
+                    data-street="${street}" style="${isActive ? 'box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);' : ''}">${street.toUpperCase()}</button>
             <div class="flex items-center gap-1">
               <span class="font-mono">Pot: ${formatNumber(cumulativePot)}</span>
               <button class="pot-keypad-btn btn bg-gray-600 px-1 py-0 rounded" data-street="${street}" data-current-pot="${cumulativePot}">⌨️</button>
@@ -387,6 +399,8 @@
     function openActionPad(street){
       if(state.playersInHand.length<1){ showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
       state.modalState.actionPadStreet=street;
+      // 액션 추가 시 해당 스트리트로 자동 전환
+      state.currentStreet = street;
       const playersHTML=state.playersInHand.map(p=>`<button class="btn bg-gray-700 p-2 rounded-md" data-player-name="${p.name}">${p.name}</button>`).join('');
       const html=`<div class="bg-gray-800 rounded-lg p-4 w-full max-w-md">
         <h2 class="text-xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2>
@@ -466,7 +480,10 @@
         const p = state.playersInHand.find(pp => pp.name === actionPadPlayer);
         if (p){
           const cur = parseInt(unformatNumber(p.chips) || 0, 10);
-          p.chips = (cur - parseInt(unformatNumber(amount), 10)).toString();
+          const amountToDeduct = parseInt(unformatNumber(amount), 10);
+          // 음수 방지: 칩이 0 이하로 떨어지지 않도록
+          const newChips = Math.max(0, cur - amountToDeduct);
+          p.chips = newChips.toString();
           p.chipsUpdatedAt = new Date().toISOString(); // ★ 프로그램적 변경도 타임스탬프 기록
         }
       }
@@ -500,7 +517,21 @@
       pot+=parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
       pot+=parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
       if(state.actionState.hasBBAnte) pot+=parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
-      ['preflop','flop','turn','river'].forEach(st=> state.actionState[st].forEach(a=>{ if(a.amount) pot+=parseInt(unformatNumber(a.amount),10); }));
+      
+      ['preflop','flop','turn','river'].forEach(st=> {
+        state.actionState[st].forEach(a=>{ 
+          if(a.amount) {
+            // Pot Correction은 팟을 직접 설정하는 값이므로 다르게 처리
+            if(a.action === 'Pot Correction') {
+              // Pot Correction: 입력한 값이 새로운 팟 크기가 됨
+              pot = parseInt(unformatNumber(a.amount),10);
+            } else {
+              // 일반 액션: 팟에 추가
+              pot+=parseInt(unformatNumber(a.amount),10); 
+            }
+          }
+        });
+      });
       return pot;
     }
 
@@ -542,7 +573,7 @@
     }
 
     function buildIndexFromCsv(rows){
-      // HandIndex CSV columns:
+      // Index CSV columns:
       // A handNumber | B startRow | C endRow | D handUpdatedAt | E handEdit | F handEditTime | G label | H table | I tableUpdatedAt | J Cam | K CamFile01name | L CamFile01number | M CamFile02name | N CamFile02number
       const out=[]; for(let i=1;i<rows.length;i++){
         const r=rows[i]||[];
@@ -761,6 +792,17 @@
         el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
         el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
 
+        // currentStreet 결정: 마지막으로 액션이 있는 스트리트 찾기
+        if(state.actionState.river.length > 0) {
+          state.currentStreet = 'river';
+        } else if(state.actionState.turn.length > 0) {
+          state.currentStreet = 'turn';
+        } else if(state.actionState.flop.length > 0) {
+          state.currentStreet = 'flop';
+        } else {
+          state.currentStreet = 'preflop';
+        }
+
         renderAll(); saveActionState();
         
         // 해당 핸드의 노트만 로드
@@ -800,7 +842,7 @@
       const bb = unformatNumber(state.actionState.bigBlind)||'0';
       const ante = state.actionState.hasBBAnte ? bb : '0';
       const table = state.selectedTable || '';
-      const currentDate = new Date().toISOString(); // 현재 날짜 추가
+      const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
 
       // GAME / PAYOUTS - E열(인덱스 4)에 날짜 추가
       const gameRow = ['GAME','GGProd Hand Logger','Virtual Table', currentDate];
@@ -827,8 +869,10 @@
       // PLAYERS
       const players = state.playersInHand.map((p,i)=>({...p, seat:i+1}));
       players.forEach(p=>{
+        let initialChips = parseInt(unformatNumber(p.initialChips)||0,10);
         let finalChips = parseInt(unformatNumber(p.chips)||0,10);
-        push(['PLAYER', p.name, p.seat, 0, unformatNumber(p.initialChips)||0, finalChips, p.hand?.length? p.hand.join(' ') : '']);
+        // PLAYER: B name, C seat, D 0, E 0, F 시작칩, G 종료칩, H 핸드
+        push(['PLAYER', p.name, p.seat, 0, 0, initialChips, finalChips, p.hand?.length? p.hand.join(' ') : '']);
       });
 
       // EVENTS
@@ -873,9 +917,8 @@ async function sendDataToGoogleSheet(){
     const { rows, epochSec } = generateRows_v46();
     const indexMeta   = buildIndexMeta();
     const typeUpdates = buildTypeUpdates();
-    const note        = buildNotePayload(epochSec);
-
-    const payload = { rows, indexMeta, typeUpdates, note };
+    // 노트 기능 제거
+    const payload = { rows, indexMeta, typeUpdates };
 
     // x-www-form-urlencoded로 전송 → 프리플라이트 없음 (CORS 우회)
     const form = new URLSearchParams();
@@ -933,18 +976,24 @@ async function sendDataToGoogleSheet(){
     }
     function buildIndexMeta(){
       const handNumber = String(state.actionState.handNumber);
-      const handUpdatedAt = new Date().toISOString();
+      const handUpdatedAt = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
       const table = state.selectedTable || '';
+      
+      // Index 시트의 전체 열 구조에 맞게 데이터 준비
       return {
-        handNumber,
-        handUpdatedAt,
-        table,
-        code: 'HOLDEM', // ★ 필요 시 추가
-        cam: `${state.camPreset.cam1 || ''}+${state.camPreset.cam2 || ''}`,
-        cam1: state.camPreset.cam1 || '',
-        cam1no: state.camNumbers.cam1no || '',
-        cam2: state.camPreset.cam2 || '',
-        cam2no: state.camNumbers.cam2no || ''
+        handNumber,                                           // A열
+        // startRow, endRow는 서버에서 계산                    // B,C열
+        handUpdatedAt,                                        // D열 (YYYY-MM-DD)
+        // handEdit는 비워둠                                  // E열
+        // handEditTime은 서버에서 처리                        // F열
+        label: 'HOLDEM',                                      // G열
+        table,                                                 // H열
+        tableUpdatedAt: handUpdatedAt,                        // I열 (YYYY-MM-DD)
+        cam: `${state.camPreset.cam1 || ''}+${state.camPreset.cam2 || ''}`, // J열
+        camFile01name: state.camPreset.cam1 || '',            // K열
+        camFile01number: state.camNumbers.cam1no || '',       // L열
+        camFile02name: state.camPreset.cam2 || '',            // M열
+        camFile02number: state.camNumbers.cam2no || ''        // N열
       };
     }
 
@@ -1077,6 +1126,7 @@ async function sendDataToGoogleSheet(){
         : 0;
       state.playersInHand = [];
       state.board = [];
+      state.currentStreet = 'preflop'; // 스트리트 초기화
       state.actionState = {
         handNumber: String(lastNo + 1),
         smallBlind: state.actionState.smallBlind,
@@ -1110,30 +1160,10 @@ async function sendDataToGoogleSheet(){
         const prefill = computeCamPrefill('cam2');
         openKeypad(null, { purpose:'cam', cam:'cam2', prefill });
       });
-      // "시트 전송" 버튼을 누르면 → 노트 모달 먼저
-      el.sendToSheetBtn.onclick = () => { openNoteModal(); };
+      // "시트 전송" 버튼을 누르면 → 바로 전송 (노트 기능 제거)
+      el.sendToSheetBtn.onclick = () => { sendDataToGoogleSheet(); };
       
-      // 노트 모달 버튼들
-      document.getElementById('note-modal').addEventListener('click', (e)=>{
-        // 모달 배경 클릭 시 닫기
-        if(e.target === document.getElementById('note-modal')) {
-          closeNoteModal();
-          return;
-        }
-        
-        const skipBtn = e.target.closest('#note-skip');
-        const saveBtn = e.target.closest('#note-save');
-        if(!skipBtn && !saveBtn) return;
-      
-        // draft 저장
-        const ta = document.getElementById('note-textarea');
-        state.noteDraft = ta.value || '';
-      
-        closeNoteModal();
-      
-        // 실제 전송 호출
-        sendDataToGoogleSheet();
-      });
+      // 노트 모달 관련 이벤트 제거 (노트 기능 삭제)
       
       el.showLogBtn.onclick = openLogModal;
       el.closeLogModalBtn.onclick = closeLogModal;
@@ -1209,11 +1239,17 @@ async function sendDataToGoogleSheet(){
         if(e.target.id==='close-card-modal') closeModal(el.cardSelectorModal);
       });
 
-      // 스트리트 버튼(추가/되돌리기/Pot 교정)
+      // 스트리트 버튼(추가/되돌리기/Pot 교정/스트리트 선택)
       el.streetLogsContainer.addEventListener('click', (e)=>{
+        const streetBtn = e.target.closest('.street-select-btn');
         const addBtn = e.target.closest('.add-action-btn');
         const undoBtn = e.target.closest('.undo-action-btn');
         const potBtn = e.target.closest('.pot-keypad-btn');
+        
+        if(streetBtn) {
+          state.currentStreet = streetBtn.dataset.street;
+          renderActionStreets(); // 하이라이트 업데이트
+        }
         if(addBtn) openActionPad(addBtn.dataset.street);
         if(undoBtn) undoLastAction(undoBtn.dataset.street);
         if(potBtn){
@@ -1249,9 +1285,23 @@ async function sendDataToGoogleSheet(){
             if(p) addActionToLog('All In', p.chips);
           }else if(action==='Calls'){
             const st = state.modalState.actionPadStreet;
+            const p = state.playersInHand.find(pp=>pp.name===state.modalState.actionPadPlayer);
+            
+            // 마지막 베팅/레이즈 찾기
             const lastBet = [...state.actionState[st]].reverse().find(a=>/BET|RAISE/i.test(a.action||''));
-            const callAmt = lastBet ? lastBet.amount : unformatNumber(state.actionState.bigBlind);
-            addActionToLog('Calls', callAmt);
+            const requiredAmt = lastBet ? lastBet.amount : unformatNumber(state.actionState.bigBlind);
+            
+            // 플레이어 현재 칩
+            const playerChips = p ? parseInt(unformatNumber(p.chips), 10) : 0;
+            
+            // 올인 콜 체크: 필요 금액이 플레이어 칩보다 크면 올인
+            if(playerChips > 0 && playerChips <= parseInt(unformatNumber(requiredAmt), 10)){
+              // 올인 콜 (플레이어의 모든 칩)
+              addActionToLog('All In', p.chips);
+            } else {
+              // 일반 콜
+              addActionToLog('Calls', requiredAmt);
+            }
           }else{
             addActionToLog(action);
           }
@@ -1293,10 +1343,16 @@ async function sendDataToGoogleSheet(){
           }else if(purpose==='bet'){
             if(finalAmt) addActionToLog(state.modalState.actionPadCurrentAction, finalAmt);
           }else if(purpose==='pot'){
-            const correction = (parseInt(finalAmt,10)||0) - (parseInt(currentPot,10)||0);
-            if(correction!==0){
+            // Pot correction: 입력한 값 그대로 저장 (이전 팟 크기를 빼지 않음)
+            const potSize = finalAmt; // 포맷된 값 그대로 사용
+            if(potSize){
               const st = state.modalState.actionPadStreet;
-              state.actionState[st].push({ action:'Pot Correction', amount:String(correction), timestamp:new Date().toISOString() });
+              // Pot Correction은 player 없이 저장 (시스템 액션)
+              state.actionState[st].push({ 
+                action:'Pot Correction', 
+                amount:potSize,  // 포맷된 값 그대로 저장
+                timestamp:new Date().toISOString() 
+              });
               saveActionState(); renderAll();
             }
           }else if(purpose==='input'){
