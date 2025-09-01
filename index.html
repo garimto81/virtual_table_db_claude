@@ -214,14 +214,6 @@
     function openLogModal(){ 
       el.logModal.classList.remove('hidden'); 
       setTimeout(()=>el.logModal.classList.remove('opacity-0'),10);
-      // 모달 밖 클릭 시 닫기
-      setTimeout(() => {
-        el.logModal.onclick = (e) => {
-          if (e.target === el.logModal) {
-            closeLogModal();
-          }
-        };
-      }, 100);
     }
     function closeLogModal(){ el.logModal.classList.add('opacity-0'); setTimeout(()=>el.logModal.classList.add('hidden'),300); }
     function logMessage(msg,isError=false){
@@ -390,14 +382,6 @@
         else if(selected.length<count){ selected.push(id); btn.classList.add('selected'); }
         if(selected.length===count) assignCard(selected);
       };
-      // 모달 밖 클릭 시 닫기
-      setTimeout(() => {
-        el.cardSelectorModal.onclick = (e) => {
-          if (e.target === el.cardSelectorModal) {
-            closeModal(el.cardSelectorModal);
-          }
-        };
-      }, 100);
     }
 
     function openActionPad(street){
@@ -417,14 +401,6 @@
         <button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 py-2 rounded-md">닫기</button>
       </div>`;
       openModal(el.actionPadModal, html);
-      // 모달 밖 클릭 시 닫기
-      setTimeout(() => {
-        el.actionPadModal.onclick = (e) => {
-          if (e.target === el.actionPadModal) {
-            closeModal(el.actionPadModal);
-          }
-        };
-      }, 100);
     }
 
     function openKeypad(targetInput, options={}){
@@ -446,28 +422,12 @@
         </div>
       </div>`;
       openModal(el.keypadModal, html);
-      // 모달 밖 클릭 시 닫기
-      setTimeout(() => {
-        el.keypadModal.onclick = (e) => {
-          if (e.target === el.keypadModal) {
-            closeModal(el.keypadModal);
-          }
-        };
-      }, 100);
     }
     function openNoteModal(){
       const node = document.getElementById('note-modal');
       node.classList.remove('hidden'); setTimeout(()=>node.classList.remove('opacity-0'),10);
       const ta = document.getElementById('note-textarea');
       ta.value = state.noteDraft || '';
-      // 모달 밖 클릭 시 닫기
-      setTimeout(() => {
-        node.onclick = (e) => {
-          if (e.target === node) {
-            closeNoteModal();
-          }
-        };
-      }, 100);
     }
     function closeNoteModal(){
       const node = document.getElementById('note-modal');
@@ -758,14 +718,8 @@
       </div>`;
       openModal(el.loadHandModal, html);
       
-      // 모달 밖 클릭 시 닫기
-      setTimeout(() => {
-        el.loadHandModal.onclick = (e) => {
-          if (e.target === el.loadHandModal) {
-            closeModal(el.loadHandModal);
-          }
-        };
-      }, 100);
+      // 모달 밖 클릭 시 닫기 (기존 이벤트 리스너와 충돌 방지)
+      // onclick 대신 별도의 이벤트 리스너 사용
     }
     async function ensureHandCsv(){
       if(state.handCsvCache) return state.handCsvCache;
@@ -1156,6 +1110,12 @@ async function sendDataToGoogleSheet(){
       
       // 노트 모달 버튼들
       document.getElementById('note-modal').addEventListener('click', (e)=>{
+        // 모달 배경 클릭 시 닫기
+        if(e.target === document.getElementById('note-modal')) {
+          closeNoteModal();
+          return;
+        }
+        
         const skipBtn = e.target.closest('#note-skip');
         const saveBtn = e.target.closest('#note-save');
         if(!skipBtn && !saveBtn) return;
@@ -1172,6 +1132,13 @@ async function sendDataToGoogleSheet(){
       
       el.showLogBtn.onclick = openLogModal;
       el.closeLogModalBtn.onclick = closeLogModal;
+      
+      // 로그 모달 배경 클릭 시 닫기
+      el.logModal.addEventListener('click', (e)=>{
+        if(e.target === el.logModal) {
+          closeLogModal();
+        }
+      });
 
       el.tableSelector.onchange = (e)=>{ state.selectedTable=e.target.value; state.playersInHand=[]; renderAll(); };
       el.timezoneSelector.onchange = (e)=>{ state.selectedTimezone=e.target.value; updateTimeDisplay(); renderAll(); };
@@ -1226,8 +1193,14 @@ async function sendDataToGoogleSheet(){
         openCardSelector();
       });
 
-      // 카드 선택 모달 닫기
+      // 카드 선택 모달 이벤트
       el.cardSelectorModal.addEventListener('click', (e)=>{
+        // 모달 배경 클릭 시 닫기
+        if(e.target === el.cardSelectorModal) {
+          closeModal(el.cardSelectorModal);
+          return;
+        }
+        // 닫기 버튼 클릭
         if(e.target.id==='close-card-modal') closeModal(el.cardSelectorModal);
       });
 
@@ -1246,6 +1219,12 @@ async function sendDataToGoogleSheet(){
 
       // 액션 패드 내부 버튼
       el.actionPadModal.addEventListener('click', (e)=>{
+        // 모달 배경 클릭 시 닫기
+        if(e.target === el.actionPadModal) {
+          closeModal(el.actionPadModal);
+          return;
+        }
+        
         const btn = e.target.closest('button'); if(!btn) return;
         if(btn.id==='close-action-pad'){ closeModal(el.actionPadModal); return; }
         const modal = el.actionPadModal;
@@ -1282,6 +1261,12 @@ async function sendDataToGoogleSheet(){
 
       // 키패드 입력
       el.keypadModal.addEventListener('click', (e)=>{
+        // 모달 배경 클릭 시 닫기
+        if(e.target === el.keypadModal) {
+          closeModal(el.keypadModal);
+          return;
+        }
+        
         const btn = e.target.closest('button'); if(!btn) return;
         const display = el.keypadModal.querySelector('#keypad-display');
         const key = btn.textContent;
@@ -1339,10 +1324,22 @@ async function sendDataToGoogleSheet(){
 
       // Load Hand 모달 내부 클릭
       el.loadHandModal.addEventListener('click', (e)=>{
+        // 모달 배경 클릭 시 닫기
+        if (e.target === el.loadHandModal) {
+          closeModal(el.loadHandModal);
+          return;
+        }
+        
+        // 닫기 버튼 클릭
         const closeBtn = e.target.closest('#close-load-hand-modal');
+        if(closeBtn) {
+          closeModal(el.loadHandModal);
+          return;
+        }
+        
+        // 핸드 항목 클릭
         const itemBtn = e.target.closest('.load-hand-item-btn');
-        if(closeBtn) closeModal(el.loadHandModal);
-        else if(itemBtn){
+        if(itemBtn){
           const no = itemBtn.dataset.no;
           const dt = itemBtn.dataset.date || null;
           loadHandData(no, dt);
