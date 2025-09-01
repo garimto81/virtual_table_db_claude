@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CORS Test</title>
+</head>
+<body>
+    <h1>Apps Script CORS 테스트</h1>
+    <button onclick="testGet()">GET 테스트</button>
+    <button onclick="testPost()">POST 테스트</button>
+    <button onclick="testFormPost()">Form POST 테스트</button>
+    <pre id="result"></pre>
+
+    <script>
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzRRDP0v9LT3Y1Wos_pj7dXg4IVCIC-hAmFpUFUovZBsE2h5hCulMspZsJwANLf1Kl9/exec";
+    
+    function showResult(text) {
+        document.getElementById('result').textContent = text;
+    }
+    
+    async function testGet() {
+        try {
+            showResult('GET 요청 중...');
+            const res = await fetch(APPS_SCRIPT_URL);
+            const text = await res.text();
+            showResult('GET 성공:\n' + text);
+        } catch(err) {
+            showResult('GET 실패:\n' + err.message);
+        }
+    }
+    
+    async function testPost() {
+        try {
+            showResult('POST 요청 중...');
+            const res = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({test: 'data'})
+            });
+            const text = await res.text();
+            showResult('POST 성공:\n' + text);
+        } catch(err) {
+            showResult('POST 실패:\n' + err.message);
+        }
+    }
+    
+    async function testFormPost() {
+        try {
+            showResult('Form POST 요청 중...');
+            const form = new URLSearchParams();
+            form.append('payload', JSON.stringify({
+                rows: [['test']],
+                indexMeta: {handNumber: '9999'},
+                typeUpdates: []
+            }));
+            
+            const res = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: form.toString()
+            });
+            const text = await res.text();
+            showResult('Form POST 성공:\n' + text);
+        } catch(err) {
+            showResult('Form POST 실패:\n' + err.message);
+        }
+    }
+    </script>
+</body>
+</html>

@@ -158,7 +158,20 @@ function doGet(e) {
 
 function doPost(e) {
   try {
+    // 요청 로깅
+    console.log('doPost called with:', e);
+    
     const body = _parseRequestBody(e) || {};
+    
+    // 빈 요청 체크
+    if (!body || Object.keys(body).length === 0) {
+      return _json({
+        status: 'error',
+        message: '요청 데이터가 비어있습니다',
+        received: JSON.stringify(e.parameter || {})
+      });
+    }
+    
     const rowsInput = body.rows;
     const indexMeta = body.indexMeta || {};
     const typeUpdates = Array.isArray(body.typeUpdates) ? body.typeUpdates : [];
