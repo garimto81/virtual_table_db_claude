@@ -125,14 +125,14 @@ function _ensureHandIndexHeader(sheet) {
 
 function _ensureNoteHeader(sheet) {
   if (sheet.getLastRow() < 1) {
-    // 헤더가 없으면 생성 - 실제 사용 스키마
+    // 헤더가 없으면 생성 - 기존 스키마 유지
     sheet.getRange(1, 1, 1, 3).setValues([[
-      'Timestamp', 'HandNumber', 'Note'
+      'Code', 'handNumber', 'Note'
     ]]);
   } else {
     // 헤더 검증 및 수정
     const header = sheet.getRange(1, 1, 1, 3).getValues()[0] || [];
-    const expectedHeader = ['Timestamp', 'HandNumber', 'Note'];
+    const expectedHeader = ['Code', 'handNumber', 'Note'];
     
     let needsUpdate = false;
     for (let i = 0; i < 3; i++) {
@@ -247,11 +247,13 @@ function doPost(e) {
     if (noteData) {
       _ensureNoteHeader(noteSheet);
       
-      // Note 시트 스키마: A:Timestamp, B:HandNumber, C:Note
+      // Note 시트 스키마: A:Code, B:handNumber, C:Note
+      // 프론트엔드에서 보낸 code는 epochTimestamp
+      const codeValue = noteData.code || epochTimestamp || Math.floor(Date.now() / 1000);
       const noteRow = [
-        epochTimestamp || noteData.code || Math.floor(Date.now() / 1000), // A열: 타임스탬프
-        handNumber || String(noteData.handNumber || ''),                    // B열: 핸드 번호
-        String(noteData.text || '')                                         // C열: 노트 텍스트
+        String(codeValue),                                  // A열: Code (타임스탬프를 코드로 사용)
+        handNumber || String(noteData.handNumber || ''),    // B열: handNumber
+        String(noteData.text || '')                        // C열: Note
       ];
       
       noteSheet.appendRow(noteRow);
