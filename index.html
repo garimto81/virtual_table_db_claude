@@ -328,8 +328,11 @@
         const streetBtnClass = isActive 
           ? 'bg-amber-500 text-black border-2 border-amber-300 shadow-lg' 
           : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600 hover:text-white';
+        const containerClass = isActive 
+          ? 'bg-gradient-to-r from-amber-900/40 to-yellow-900/30 border-2 border-amber-400 shadow-xl ring-2 ring-amber-500/30' 
+          : 'bg-gray-900/50 border border-gray-700';
         
-        return `<div class="street-container bg-gray-900/50 p-1 rounded-md">
+        return `<div class="street-container ${containerClass} p-2 rounded-md transition-all duration-300">
           <div class="flex justify-between items-center text-xs mb-1">
             <button class="street-select-btn ${streetBtnClass} px-3 py-1 rounded-md font-bold min-w-[70px] text-center transition-all cursor-pointer" 
                     data-street="${street}" style="${isActive ? 'box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);' : ''}">${street.toUpperCase()}</button>
