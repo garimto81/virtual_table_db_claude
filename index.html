@@ -122,7 +122,6 @@
     const CSV_HAND_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv"; // Hand 탭 CSV
     const CSV_INDEX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv"; // Index 탭 CSV (HandIndex 대신 Index 사용)
     const CSV_TYPE_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv";
-    const CSV_NOTE_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1016632764&single=true&output=csv"; // 선택
     // Apps Script URL - 재배포 후 새 URL로 교체 필요
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyeeJbrI6oxPHRnp0iNb6X3xxd-U7T0PRf4E9fli_gPSYAvz8SnZk-NqbTC5_xbplix/exec";
 
@@ -949,24 +948,32 @@ async function sendDataToGoogleSheet(){
 
     const json = await res.json().catch(()=> ({}));
 
-    if(json.status !== 'success'){
+    if(json.status === 'duplicate'){
+      logMessage(`⚠️ 핸드 #${json.handNumber}는 이미 기록되어 있습니다.`);
+      showFeedback('⚠️ 중복된 핸드입니다', true);
+      // 중복인 경우에도 핸드 번호를 증가시켜야 함
+      const currentNo = parseInt(state.actionState.handNumber, 10) || 0;
+      state.actionState.handNumber = String(currentNo + 1);
+      el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
+      resetApp();
+    } else if(json.status !== 'success'){
       logMessage('⚠️ Apps Script가 success를 반환하지 않았습니다. 기록은 되었을 수 있습니다.');
     } else {
       logMessage(`✅ 저장 완료: #${json.handNumber || indexMeta.handNumber} (rows=${json.rowsAdded})`);
+      showFeedback('✅ 시트 기록 완료');
+      
+      // Index CSV 리프레시
+      try{
+        await sleep(600);
+        if(CSV_INDEX_URL.includes('http')){
+          const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
+          buildIndexFromCsv(idxRows);
+          el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
+        }
+      }catch(_){ /* noop */ }
+      
+      resetApp();
     }
-
-    // Index CSV 리프레시
-    try{
-      await sleep(600);
-      if(CSV_INDEX_URL.includes('http')){
-        const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
-        buildIndexFromCsv(idxRows);
-        el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
-      }
-    }catch(_){ /* noop */ }
-
-    showFeedback('✅ 시트 기록 완료');
-    resetApp();
 
   }catch(err){
     console.error(err);
@@ -1076,7 +1083,17 @@ async function sendDataToGoogleSheet(){
 
 
     // ====== RESET & FEEDBACK ======
-    function resetApp(){
+    async function resetApp(){
+      // Index 데이터 다시 로드하여 최신 핸드 번호 가져오기
+      try {
+        if(CSV_INDEX_URL.includes('http')){
+          const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
+          buildIndexFromCsv(idxRows);
+        }
+      } catch(err) {
+        console.error('Index 재로드 실패:', err);
+      }
+      
       const lastNo = state.indexRows.length
         ? Math.max(...state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
         : 0;

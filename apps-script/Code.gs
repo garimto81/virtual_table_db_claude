@@ -3,9 +3,8 @@
  * 
  * 스프레드시트 구조:
  * - Hand 시트: 포커 핸드 로우 데이터
- * - Index 시트: 핸드 인덱스 (확장된 14개 열 구조)
+ * - Index 시트: 핸드 인덱스 (확장된 17개 열 구조)
  * - Type 시트: 플레이어 정보 (A:설정, B:Player, C:Table, D:Notable, E:Chips, F:UpdatedAt)
- * - Note 시트: 핸드 노트 (A:Timestamp, B:HandNumber, C:Note)
  ****************************************************/
 
 const SHEET_ID = '1J-lf8bYTLPbpdhieUNdb8ckW_uwdQ3MtSBLmyRIwH7U';
@@ -120,30 +119,6 @@ function _ensureIndexHeader(sheet) {
   }
 }
 
-function _ensureNoteHeader(sheet) {
-  if (sheet.getLastRow() < 1) {
-    // 헤더가 없으면 생성
-    sheet.getRange(1, 1, 1, 3).setValues([[
-      'Timestamp', 'HandNumber', 'Note'
-    ]]);
-  } else {
-    // 헤더 검증 및 수정
-    const header = sheet.getRange(1, 1, 1, 3).getValues()[0] || [];
-    const expectedHeader = ['Timestamp', 'HandNumber', 'Note'];
-    
-    let needsUpdate = false;
-    for (let i = 0; i < 3; i++) {
-      if (String(header[i] || '') !== expectedHeader[i]) {
-        needsUpdate = true;
-        break;
-      }
-    }
-    
-    if (needsUpdate) {
-      sheet.getRange(1, 1, 1, 3).setValues([expectedHeader]);
-    }
-  }
-}
 
 // ===== 메인 핸들러 =====
 
@@ -175,8 +150,6 @@ function doPost(e) {
     const rowsInput = body.rows;
     const indexMeta = body.indexMeta || {};
     const typeUpdates = Array.isArray(body.typeUpdates) ? body.typeUpdates : [];
-    // 노트는 선택적 (프론트엔드에서 노트 기능 제거됨)
-    const noteData = body.note && String(body.note?.text || '').trim() ? body.note : null;
     
     // 데이터 검증
     if (!Array.isArray(rowsInput) || !rowsInput.length) {
@@ -209,7 +182,6 @@ function doPost(e) {
     // Index 시트를 사용 (HandIndex가 아닌 Index)
     const indexSheet = spreadsheet.getSheetByName('Index') || spreadsheet.insertSheet('Index');
     const typeSheet = spreadsheet.getSheetByName('Type') || spreadsheet.insertSheet('Type');
-    const noteSheet = spreadsheet.getSheetByName('Note') || spreadsheet.insertSheet('Note');
     
     // ===== 1) Hand 시트에 데이터 기록 =====
     const startRow = handSheet.getLastRow() + 1;
@@ -218,6 +190,22 @@ function doPost(e) {
     
     // ===== 2) Index 시트 업데이트 =====
     _ensureIndexHeader(indexSheet);
+    
+    // 중복 체크: 이미 같은 핸드 번호가 있는지 확인
+    const existingData = indexSheet.getDataRange().getValues();
+    const handNumberColIndex = 0; // A열: handNumber
+    
+    for (let i = 1; i < existingData.length; i++) { // 헤더 제외
+      if (String(existingData[i][handNumberColIndex]) === String(handNumber)) {
+        console.log(`핸드 #${handNumber}는 이미 존재합니다. 업데이트를 건너뜁니다.`);
+        return _json({
+          status: 'duplicate',
+          message: `핸드 #${handNumber}는 이미 기록되어 있습니다`,
+          handNumber: handNumber,
+          existingRow: i + 1
+        });
+      }
+    }
     
     // handUpdatedAt은 날짜만 (YYYY-MM-DD 형식)
     const rawDate = indexMeta.handUpdatedAt || new Date().toISOString();
@@ -290,20 +278,6 @@ function doPost(e) {
       });
     }
     
-    // ===== 4) Note 시트에 노트 추가 =====
-    if (noteData) {
-      _ensureNoteHeader(noteSheet);
-      
-      // Note 시트 스키마: A:Timestamp, B:HandNumber, C:Note
-      const timestampValue = noteData.code || epochTimestamp || Math.floor(Date.now() / 1000);
-      const noteRow = [
-        String(timestampValue),                             // A열: Timestamp
-        handNumber || String(noteData.handNumber || ''),    // B열: HandNumber
-        String(noteData.text || '')                        // C열: Note
-      ];
-      
-      noteSheet.appendRow(noteRow);
-    }
     
     // 성공 응답
     return _json({
@@ -313,7 +287,6 @@ function doPost(e) {
       startRow: startRow,
       endRow: endRow,
       updatedAt: updatedAt,
-      noteAdded: !!noteData,
       version: 'v52'
     });
     
@@ -355,7 +328,7 @@ function testDataStructure() {
   const ss = _open();
   
   // 각 시트의 헤더 확인
-  const sheets = ['Hand', 'Index', 'Type', 'Note'];
+  const sheets = ['Hand', 'Index', 'Type'];
   const result = {};
   
   sheets.forEach(sheetName => {
