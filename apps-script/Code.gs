@@ -99,27 +99,23 @@ function _parseRequestBody(e) {
 // ===== 시트 헤더 관리 =====
 
 function _ensureIndexHeader(sheet) {
+  const fullHeaderRow = [
+    'handNumber', 'startRow', 'endRow', 'handUpdatedAt', 
+    'handEdit', 'handEditTime', 'label', 'table', 
+    'tableUpdatedAt', 'Cam', 'CamFile01name', 'CamFile01number',
+    'CamFile02name', 'CamFile02number',
+    'lastStreet', 'lastAction', 'workStatus'  // 새로운 열들 추가
+  ];
+  
   if (sheet.getLastRow() < 1) {
     // 헤더가 없으면 생성
-    const headerRow = [
-      'handNumber', 'startRow', 'endRow', 'handUpdatedAt', 
-      'handEdit', 'handEditTime', 'label', 'table', 
-      'tableUpdatedAt', 'Cam', 'CamFile01name', 'CamFile01number',
-      'CamFile02name', 'CamFile02number'
-    ];
-    sheet.getRange(1, 1, 1, headerRow.length).setValues([headerRow]);
+    sheet.getRange(1, 1, 1, fullHeaderRow.length).setValues([fullHeaderRow]);
   } else {
     // 헤더 검증 - 최소한 필수 열들이 존재하는지 확인
     const lastCol = sheet.getLastColumn();
-    if (lastCol < 14) {
+    if (lastCol < 17) {  // 17열로 확장 (14 + 3)
       // 필요한 열이 부족하면 확장
-      const headerRow = [
-        'handNumber', 'startRow', 'endRow', 'handUpdatedAt', 
-        'handEdit', 'handEditTime', 'label', 'table', 
-        'tableUpdatedAt', 'Cam', 'CamFile01name', 'CamFile01number',
-        'CamFile02name', 'CamFile02number'
-      ];
-      sheet.getRange(1, 1, 1, headerRow.length).setValues([headerRow]);
+      sheet.getRange(1, 1, 1, fullHeaderRow.length).setValues([fullHeaderRow]);
     }
   }
 }
@@ -223,7 +219,7 @@ function doPost(e) {
     // A:handNumber, B:startRow, C:endRow, D:handUpdatedAt, 
     // E:handEdit, F:handEditTime, G:label, H:table, 
     // I:tableUpdatedAt, J:Cam, K:CamFile01name, L:CamFile01number,
-    // M:CamFile02name, N:CamFile02number
+    // M:CamFile02name, N:CamFile02number, O:lastStreet, P:lastAction, Q:workStatus
     const indexData = [
       handNumber || String(indexMeta.handNumber || ''),     // A: handNumber
       startRow,                                              // B: startRow
@@ -238,7 +234,10 @@ function doPost(e) {
       indexMeta.camFile01name || '',                        // K: CamFile01name
       indexMeta.camFile01number || '',                      // L: CamFile01number
       indexMeta.camFile02name || '',                        // M: CamFile02name
-      indexMeta.camFile02number || ''                       // N: CamFile02number
+      indexMeta.camFile02number || '',                      // N: CamFile02number
+      indexMeta.lastStreet || 'preflop',                    // O: lastStreet
+      indexMeta.lastAction || '',                           // P: lastAction
+      indexMeta.workStatus || '진행중'                      // Q: workStatus
     ];
     
     // 디버깅: 저장할 데이터 로깅

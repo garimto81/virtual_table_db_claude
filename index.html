@@ -551,12 +551,14 @@
     function buildIndexFromCsv(rows){
       // Index CSV columns:
       // A handNumber | B startRow | C endRow | D handUpdatedAt | E handEdit | F handEditTime | G label | H table | I tableUpdatedAt | J Cam | K CamFile01name | L CamFile01number | M CamFile02name | N CamFile02number
+      // O lastStreet | P lastAction | Q workStatus (새로운 열들)
       const out=[]; for(let i=1;i<rows.length;i++){
         const r=rows[i]||[];
         const item={
           handNumber:String(r[0]||''), startRow:+(r[1]||0), endRow:+(r[2]||0),
           handUpdatedAt:String(r[3]||''), handEdit:r[4], handEditTime:r[5], label:r[6],
-          table:String(r[7]||''), tableUpdatedAt:r[8], cam:r[9], cam1:r[10], cam1no:r[11], cam2:r[12], cam2no:r[13]
+          table:String(r[7]||''), tableUpdatedAt:r[8], cam:r[9], cam1:r[10], cam1no:r[11], cam2:r[12], cam2no:r[13],
+          lastStreet:String(r[14]||''), lastAction:String(r[15]||''), workStatus:String(r[16]||'')  // 새로운 열들
         };
         if(item.handNumber) out.push(item);
       }
@@ -707,11 +709,39 @@
       });
       
       const htmlItems = items.map(it=>{
-        return `<button class="btn bg-gray-700 p-2 rounded-md w-full text-left load-hand-item-btn mb-2" data-no="${it.handNumber}" data-date="${it.handUpdatedAt}">
+        // 상태 아이콘 결정
+        const statusIcon = {
+          '완료': '✅',
+          '진행중': '🔄',
+          '검토필요': '⚠️'
+        }[it.workStatus] || '📝';
+        
+        // 스트리트 배지 색상과 스타일
+        const streetColors = {
+          'preflop': 'bg-green-500 text-white',
+          'flop': 'bg-blue-500 text-white',
+          'turn': 'bg-orange-500 text-white',
+          'river': 'bg-red-500 text-white'
+        };
+        const streetBadge = it.lastStreet ? 
+          `<span class="${streetColors[it.lastStreet] || 'bg-gray-500 text-white'} px-2 py-0.5 rounded text-xs font-bold">${it.lastStreet?.toUpperCase() || ''}</span>` : '';
+        
+        // 버튼 배경색 (상태별)
+        const btnBgClass = it.workStatus === '완료' ? 'bg-gray-800' : 
+                          it.workStatus === '검토필요' ? 'bg-yellow-900/30' : 'bg-gray-700';
+        
+        return `<button class="btn ${btnBgClass} p-2 rounded-md w-full text-left load-hand-item-btn mb-2 hover:bg-gray-600 transition-all" 
+                data-no="${it.handNumber}" data-date="${it.handUpdatedAt}">
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-bold text-white flex items-center gap-1">
+              ${statusIcon} #${it.handNumber}
+            </span>
+            ${streetBadge}
+            <span class="text-xs text-amber-400 truncate max-w-[100px]">${it.table||''}</span>
+          </div>
           <div class="flex justify-between items-center">
-            <span class="font-bold text-white">#${it.handNumber}</span>
-            <span class="text-xs text-amber-400 truncate">${it.table||''}</span>
-            <span class="text-xs text-gray-300">${it.handUpdatedAt||''}</span>
+            <span class="text-xs text-gray-400">${it.lastAction || '액션 없음'}</span>
+            <span class="text-xs text-gray-500">${it.handUpdatedAt||''}</span>
           </div>
         </button>`;
       }).join('');
@@ -768,15 +798,30 @@
         el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
         el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
 
-        // currentStreet 결정: 마지막으로 액션이 있는 스트리트 찾기
-        if(state.actionState.river.length > 0) {
-          state.currentStreet = 'river';
-        } else if(state.actionState.turn.length > 0) {
-          state.currentStreet = 'turn';
-        } else if(state.actionState.flop.length > 0) {
-          state.currentStreet = 'flop';
+        // currentStreet 결정: Index에서 저장된 값 우선, 없으면 액션으로 판단
+        const indexRow = state.indexRows.find(r => r.handNumber === String(handNumber));
+        if(indexRow && indexRow.lastStreet) {
+          state.currentStreet = indexRow.lastStreet;
+          // 작업 상태 표시
+          if(indexRow.workStatus) {
+            const statusText = {
+              '완료': '✅ 완료된 핸드',
+              '진행중': '🔄 작업 진행 중',
+              '검토필요': '⚠️ 검토 필요'
+            }[indexRow.workStatus] || indexRow.workStatus;
+            showFeedback(`#${handNumber} ${statusText}`);
+          }
         } else {
-          state.currentStreet = 'preflop';
+          // 기존 로직: 액션으로 판단
+          if(state.actionState.river.length > 0) {
+            state.currentStreet = 'river';
+          } else if(state.actionState.turn.length > 0) {
+            state.currentStreet = 'turn';
+          } else if(state.actionState.flop.length > 0) {
+            state.currentStreet = 'flop';
+          } else {
+            state.currentStreet = 'preflop';
+          }
         }
 
         renderAll(); saveActionState();
@@ -943,6 +988,31 @@ async function sendDataToGoogleSheet(){
       const handUpdatedAt = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
       const table = state.selectedTable || '';
       
+      // 마지막 액션 찾기
+      let lastActionDesc = '';
+      const streets = ['river', 'turn', 'flop', 'preflop'];
+      for(const st of streets) {
+        const actions = state.actionState[st];
+        if(actions.length > 0) {
+          const last = actions[actions.length - 1];
+          lastActionDesc = `${last.player} ${last.action} ${last.amount || ''}`.trim();
+          break;
+        }
+      }
+      
+      // 작업 상태 판단
+      function determineWorkStatus() {
+        // 승자가 선택되었으면 '완료'
+        if(state.playersInHand.some(p => p.role === 'winner')) {
+          return '완료';
+        }
+        // 리버까지 갔으면 '검토필요'
+        if(state.currentStreet === 'river' && state.actionState.river.length > 0) {
+          return '검토필요';
+        }
+        return '진행중';
+      }
+      
       // Index 시트의 전체 열 구조에 맞게 데이터 준비
       return {
         handNumber,                                           // A열
@@ -957,7 +1027,10 @@ async function sendDataToGoogleSheet(){
         camFile01name: state.camPreset.cam1 || '',            // K열
         camFile01number: state.camNumbers.cam1no || '',       // L열
         camFile02name: state.camPreset.cam2 || '',            // M열
-        camFile02number: state.camNumbers.cam2no || ''        // N열
+        camFile02number: state.camNumbers.cam2no || '',       // N열
+        lastStreet: state.currentStreet,                      // O열
+        lastAction: lastActionDesc,                           // P열
+        workStatus: determineWorkStatus()                     // Q열
       };
     }
 
