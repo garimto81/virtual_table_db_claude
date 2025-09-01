@@ -156,7 +156,7 @@ function doGet(e) {
     status: 'ok',
     method: 'GET',
     time: new Date().toISOString(),
-    version: 'v47'
+    version: 'v52'
   });
 }
 

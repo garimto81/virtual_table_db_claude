@@ -93,13 +93,6 @@
         <p id="feedback-message" class="text-center h-4 text-xs font-semibold"></p>
       </div>
 
-      <div id="notes-section" class="bg-gray-800 p-2 rounded-lg space-y-2">
-        <div class="flex justify-between items-center">
-          <h2 class="text-sm font-bold text-amber-400">노트</h2>
-          <span id="notes-count" class="text-xs text-gray-400"></span>
-        </div>
-        <div id="notes-list" class="space-y-2"></div>
-      </div>
     </main>
     <footer class="flex-shrink-0 p-1 text-center">
       <button id="show-log-btn" class="text-gray-500 hover:text-gray-300 text-xs">로그 보기</button>
@@ -121,16 +114,6 @@
       <div id="log-display" class="bg-gray-900/50 p-3 rounded-md flex-grow overflow-y-auto text-sm font-mono"></div>
     </div>
   </div>
-  <div id="note-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
-  <div class="bg-gray-800 rounded-lg p-4 w-full max-w-md">
-    <h2 class="text-xl font-bold text-amber-400 mb-2">노트 추가</h2>
-    <textarea id="note-textarea" class="w-full h-32 p-2 bg-gray-900 rounded border border-gray-700 text-sm" placeholder="이번 핸드에 대한 메모를 입력하세요(선택)"></textarea>
-    <div class="grid grid-cols-2 gap-2 mt-3">
-      <button id="note-skip" class="btn bg-gray-600 py-2 rounded">노트 없이 저장</button>
-      <button id="note-save" class="btn bg-blue-600 py-2 rounded">노트 저장 후 기록</button>
-    </div>
-  </div>
-</div>
 
 
   <script>
@@ -436,16 +419,6 @@
         </div>
       </div>`;
       openModal(el.keypadModal, html);
-    }
-    function openNoteModal(){
-      const node = document.getElementById('note-modal');
-      node.classList.remove('hidden'); setTimeout(()=>node.classList.remove('opacity-0'),10);
-      const ta = document.getElementById('note-textarea');
-      ta.value = state.noteDraft || '';
-    }
-    function closeNoteModal(){
-      const node = document.getElementById('note-modal');
-      node.classList.add('opacity-0'); setTimeout(()=>node.classList.add('hidden'),300);
     }
 
     // ====== SELECTORS & INPUTS ======
@@ -805,17 +778,6 @@
 
         renderAll(); saveActionState();
         
-        // 해당 핸드의 노트만 로드
-        if(CSV_NOTE_URL.includes('http')){
-          try{
-            const noteRows = await fetchCsv(CSV_NOTE_URL + `&cb=${Date.now()}`);
-            renderNotes(noteRows, handNumber);
-          }catch(err){
-            console.error('노트 로드 실패:', err);
-            // 노트 로드 실패시 섹션 숨김
-            document.getElementById('notes-section').style.display = 'none';
-          }
-        }
         
         closeModal(el.loadHandModal);
         showFeedback(`#${handNumber} 핸드를 불러왔습니다.`);
@@ -955,7 +917,6 @@ async function sendDataToGoogleSheet(){
     }catch(_){ /* noop */ }
 
     showFeedback('✅ 시트 기록 완료');
-    state.noteDraft = '';
     resetApp();
 
   }catch(err){
@@ -1009,17 +970,6 @@ async function sendDataToGoogleSheet(){
           updatedAt: p.chipsUpdatedAt // ISO. 앱 스크립트에서 Date로 set
         }));
     }
-    function buildNotePayload(epochSec){
-      const text = (state.noteDraft || '').trim();
-      if(!text) return null;
-      // Note 시트 스키마: A열(Code/타임코드), B열(handNumber), C열(Note)
-      // Apps Script는 code 필드를 A열에 기록
-      return {
-        text,  // C열: Note 텍스트
-        handNumber: String(state.actionState.handNumber),  // B열: handNumber
-        code: String(epochSec || Math.floor(Date.now()/1000))  // A열: HAND 행 D열의 타임코드
-      };
-    }
 
 
 
@@ -1047,77 +997,6 @@ async function sendDataToGoogleSheet(){
       return '0001';
     }
 
-    // ====== NOTES ======
-    async function loadNotes(){
-      if(!CSV_NOTE_URL.includes('http')) return;
-      try{
-        const rows = await fetchCsv(CSV_NOTE_URL + `&cb=${Date.now()}`);
-        renderNotes(rows);
-      }catch(err){
-        console.error(err);
-      }
-    }
-
-    function renderNotes(rows, filterHandNumber = null){
-      // Note 시트 구조: Code(타임코드) | handNumber | Note (3컬럼)
-      const listEl = document.getElementById('notes-list');
-      const cntEl = document.getElementById('notes-count');
-      
-      // 노트 섹션 숨김/표시 처리
-      const notesSection = document.getElementById('notes-section');
-      
-      if(!rows || rows.length<2){ 
-        if(filterHandNumber) {
-          // 특정 핸드를 로드했는데 노트가 없으면 섹션 숨김
-          notesSection.style.display = 'none';
-        } else {
-          listEl.innerHTML = '<p class="text-xs text-gray-500">노트가 없습니다.</p>'; 
-          cntEl.textContent='0';
-        }
-        return; 
-      }
-
-      // 데이터 파싱 - Note 시트 스키마에 맞게
-      // A열: 타임코드(epochSec), B열: handNumber, C열: Note
-      const header = rows[0];
-      let data = rows.slice(1)
-        .filter(r => r && r.length >= 3 && r[2]) // 노트 텍스트가 있는 행만
-        .map(r=>({
-          timestamp: r[0]||'',  // A열: 타임코드
-          hand: r[1]||'',       // B열: handNumber  
-          text: r[2]||''        // C열: Note
-        }));
-
-      // 특정 핸드 번호로 필터링
-      if(filterHandNumber) {
-        data = data.filter(n => n.hand === String(filterHandNumber));
-        if(data.length === 0) {
-          notesSection.style.display = 'none';
-          return;
-        }
-        notesSection.style.display = 'block';
-      } else {
-        // 핸드 로드가 아닌 경우 노트 섹션 숨김
-        notesSection.style.display = 'none';
-        return;
-      }
-
-      // 최신순 정렬 (역순 - 나중에 추가된 것이 먼저)
-      data.reverse();
-
-      // 표시할 노트들
-      const toShow = data;
-      
-      listEl.innerHTML = toShow.map(n=>{
-        // 타임스탬프를 날짜로 변환 (Unix timestamp인 경우)
-        const timeStr = n.timestamp ? new Date(parseInt(n.timestamp) * 1000).toLocaleString('ko-KR') : '';
-        return `<div class="p-2 bg-gray-900/50 rounded mb-2">
-          <div class="text-xs text-gray-400 mb-1">핸드 #${n.hand} · ${timeStr}</div>
-          <div class="text-sm text-white">${(n.text||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
-        </div>`;
-      }).join('');
-      cntEl.textContent = String(toShow.length);
-    }
 
     // ====== RESET & FEEDBACK ======
     function resetApp(){
@@ -1136,8 +1015,6 @@ async function sendDataToGoogleSheet(){
       };
       renderAll(); saveActionState();
       el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
-      // 새 핸드 시작 시 노트 섹션 숨김
-      document.getElementById('notes-section').style.display = 'none';
     }
     function showFeedback(msg,isErr=false){
       el.feedbackMessage.textContent = msg;
