@@ -1,9 +1,21 @@
 <!DOCTYPE html>
+<!--
+  ============================================
+  포커 핸드 로거 (Poker Hand Logger)
+  Version: 2.0.0
+  Last Modified: 2025-01-02 10:30 KST
+  
+  Change Log:
+  - v2.0.0 (2025-01-02): Smart Check/Call 버튼 및 스트리트 자동 진행 시스템 구현
+  - v1.9.0 (2024-12-30): 팟 사이즈 조정 로직 및 올인 콜 버그 수정
+  - v1.8.0 (2024-12-28): 플레이어 상태 추적 시스템 추가
+  ============================================
+-->
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 (CSV Read / Apps Script Write)</title>
+  <title>포커 핸드 로거 v2.0.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -121,7 +133,18 @@
 
 
   <script>
+  /**
+   * ============================================
+   * 포커 핸드 로거 - Main JavaScript
+   * Version: 2.0.0
+   * Last Modified: 2025-01-02 10:30 KST
+   * Author: garimto81 with Claude
+   * ============================================
+   */
+  
   document.addEventListener('DOMContentLoaded', () => {
+    console.log('포커 핸드 로거 v2.0.0 - Initialized at', new Date().toISOString());
+    
     // ====== CONFIG (필수: 실제 URL로 교체) ======
     const CSV_HAND_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv"; // Hand 탭 CSV
     const CSV_INDEX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv"; // Index 탭 CSV (HandIndex 대신 Index 사용)
