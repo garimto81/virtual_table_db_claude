@@ -33,6 +33,10 @@
           <div class="flex-1 flex items-center gap-1 bg-gray-700 p-1 rounded-md min-w-0">
             <span id="hand-number-display" class="font-bold px-1 whitespace-nowrap">#--</span>
             <button id="load-hand-btn" class="btn bg-gray-600 px-2 py-1 rounded-md text-xs">Load</button>
+            <label class="flex items-center gap-1 text-xs ml-2">
+              <input type="checkbox" id="smart-mode-toggle" checked class="h-3 w-3">
+              <span>Smart</span>
+            </label>
           </div>
           <div class="flex-1 min-w-0">
             <select id="table-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md px-2 py-1"></select>
@@ -142,6 +146,8 @@
       selectedTable: null,
       playersInHand: [],
       board: [],
+      playerStatus: {},          // { playerName: 'active' | 'folded' | 'allin' }
+      smartCheckCall: true,      // 스마트 Check/Call 버튼 사용
       actionState: {
         handNumber: '',
         smallBlind: '', bigBlind: '', hasBBAnte: false,
@@ -310,8 +316,21 @@
           streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
           if(state.actionState.hasBBAnte) streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
         }
-        logs.forEach(a=>{ if(a.amount) streetPot += parseInt(unformatNumber(a.amount),10); });
-        cumulativePot += streetPot;
+        
+        // Pot Correction이 있는지 확인
+        const potCorrection = logs.find(a => a.action === 'Pot Correction');
+        if(potCorrection) {
+          // Pot Correction이 있으면 그 값을 직접 사용
+          cumulativePot = parseInt(unformatNumber(potCorrection.amount),10);
+        } else {
+          // 일반 액션들만 더함
+          logs.forEach(a=>{ 
+            if(a.amount && a.action !== 'Pot Correction') {
+              streetPot += parseInt(unformatNumber(a.amount),10); 
+            }
+          });
+          cumulativePot += streetPot;
+        }
         const logHTML = logs.map(log=>{
           // Pot Correction은 시스템 액션이므로 player가 없음
           if(log.action === 'Pot Correction'){
@@ -387,16 +406,29 @@
       state.modalState.actionPadStreet=street;
       // 액션 추가 시 해당 스트리트로 자동 전환
       state.currentStreet = street;
-      const playersHTML=state.playersInHand.map(p=>`<button class="btn bg-gray-700 p-2 rounded-md" data-player-name="${p.name}">${p.name}</button>`).join('');
+      
+      // Folded 플레이어 제외
+      const activePlayers = state.playersInHand.filter(p => 
+        state.playerStatus[p.name] !== 'folded' && state.playerStatus[p.name] !== 'allin'
+      );
+      
+      if(activePlayers.length === 0) {
+        showFeedback('베팅 가능한 플레이어가 없습니다.', true);
+        return;
+      }
+      
+      const playersHTML=activePlayers.map(p=>`<button class="btn bg-gray-700 p-2 rounded-md" data-player-name="${p.name}">${p.name}</button>`).join('');
       const html=`<div class="bg-gray-800 rounded-lg p-4 w-full max-w-md">
         <h2 class="text-xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2>
         <div id="action-pad-players" class="grid grid-cols-3 gap-2 mb-4">${playersHTML}</div>
         <div id="action-pad-actions" class="grid grid-cols-3 gap-2 mb-4 hidden">
           <button class="btn bg-red-600 p-3 rounded-md" data-action="Folds">Fold</button>
-          <button class="btn bg-gray-600 p-3 rounded-md" data-action="Checks">Check</button>
-          <button class="btn bg-blue-600 p-3 rounded-md" data-action="Calls">Call</button>
-          <button class="btn bg-amber-500 col-span-2 p-3 rounded-md" data-action="Bet/Raises">Bet/Raise</button>
-          <button class="btn bg-red-800 font-bold p-3 rounded-md" data-action="All In">ALL IN</button>
+          <button id="smart-check-call-btn" class="btn bg-green-600 p-3 rounded-md" data-action="SmartCheckCall">
+            <span class="action-label">Check</span>
+            <span class="amount-label"></span>
+          </button>
+          <button class="btn bg-amber-500 p-3 rounded-md" data-action="Bet/Raises">Bet/Raise</button>
+          <button class="btn bg-red-800 font-bold col-span-3 p-3 rounded-md" data-action="All In">ALL IN</button>
         </div>
         <button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 py-2 rounded-md">닫기</button>
       </div>`;
@@ -452,6 +484,14 @@
     }
     function addActionToLog(action, amount=null){
       const { actionPadStreet, actionPadPlayer } = state.modalState;
+      
+      // 플레이어 상태 업데이트
+      if (action === 'Folds') {
+        state.playerStatus[actionPadPlayer] = 'folded';
+      } else if (action === 'All In') {
+        state.playerStatus[actionPadPlayer] = 'allin';
+      }
+      
       if (amount){
         const p = state.playersInHand.find(pp => pp.name === actionPadPlayer);
         if (p){
@@ -472,6 +512,9 @@
       saveActionState();
       renderAll();
       closeModal(el.actionPadModal);
+      
+      // 스트리트 완료 체크
+      checkStreetComplete(actionPadStreet);
     }
 
     function undoLastAction(street){
@@ -487,6 +530,126 @@
     function saveActionState(){ localStorage.setItem('phl_v46_state', JSON.stringify(state.actionState)); }
     function loadActionState(){ const s=localStorage.getItem('phl_v46_state'); if(s) state.actionState={...state.actionState, ...JSON.parse(s)}; }
 
+    // ====== SMART CHECK/CALL ======
+    function getSmartCheckCallAction(player, street) {
+      const actions = state.actionState[street];
+      let lastBet = null;
+      let requiredAmt = 0;
+      
+      // 현재 스트리트에서 마지막 베팅 찾기
+      for(let i = actions.length - 1; i >= 0; i--) {
+        const action = actions[i];
+        if(['Bets', 'Raises', 'All In'].includes(action.action) && action.amount) {
+          lastBet = action;
+          break;
+        }
+      }
+      
+      // 베팅이 없으면 이전 스트리트 확인 (preflop 제외)
+      if(!lastBet && street !== 'preflop') {
+        const streetOrder = ['preflop', 'flop', 'turn', 'river'];
+        const currentIdx = streetOrder.indexOf(street);
+        for(let i = currentIdx - 1; i >= 0; i--) {
+          const prevActions = state.actionState[streetOrder[i]];
+          for(let j = prevActions.length - 1; j >= 0; j--) {
+            const action = prevActions[j];
+            if(['Bets', 'Raises', 'All In'].includes(action.action) && action.amount) {
+              lastBet = action;
+              break;
+            }
+          }
+          if(lastBet) break;
+        }
+      }
+      
+      const p = state.playersInHand.find(pp => pp.name === player);
+      const playerChips = p ? parseInt(unformatNumber(p.chips), 10) : 0;
+      
+      if(!lastBet) {
+        // 베팅 없음 → CHECK
+        if(street === 'preflop') {
+          // 프리플랍에서 베팅 없으면 빅블라인드 콜
+          requiredAmt = unformatNumber(state.actionState.bigBlind);
+          if(playerChips <= parseInt(requiredAmt, 10)) {
+            return { action: 'All In', amount: p.chips, label: `All-in ${formatNumber(p.chips)}` };
+          }
+          return { action: 'Calls', amount: requiredAmt, label: `Call ${formatNumber(requiredAmt)}` };
+        }
+        return { action: 'Checks', amount: null, label: 'Check' };
+      } else {
+        // 베팅 있음 → CALL
+        requiredAmt = lastBet.amount;
+        if(playerChips <= parseInt(unformatNumber(requiredAmt), 10)) {
+          // 칩 부족 → ALL-IN
+          return { action: 'All In', amount: p.chips, label: `All-in ${formatNumber(p.chips)}` };
+        } else {
+          // 일반 CALL
+          return { action: 'Calls', amount: requiredAmt, label: `Call ${formatNumber(requiredAmt)}` };
+        }
+      }
+    }
+    
+    // ====== STREET COMPLETE CHECK ======
+    function checkStreetComplete(street) {
+      const actions = state.actionState[street];
+      const activePlayers = state.playersInHand.filter(p => 
+        state.playerStatus[p.name] !== 'folded'
+      );
+      const bettingPlayers = activePlayers.filter(p =>
+        state.playerStatus[p.name] !== 'allin'
+      );
+      
+      // 1. 핸드 종료 체크
+      if(activePlayers.length === 1) {
+        showFeedback(`${activePlayers[0].name} 승리!`);
+        return { status: 'HAND_END', winner: activePlayers[0].name };
+      }
+      
+      // 2. 올인 쇼다운 체크
+      if(bettingPlayers.length <= 1) {
+        showFeedback('올인 쇼다운! 나머지 카드를 오픈하세요.');
+        return { status: 'SHOWDOWN' };
+      }
+      
+      // 3. 스트리트 완료 체크
+      if(actions.length === 0) return { status: 'WAITING' };
+      
+      const lastAction = actions[actions.length - 1];
+      if(!['Checks', 'Calls', 'Folds'].includes(lastAction.action)) {
+        return { status: 'WAITING' };
+      }
+      
+      // 각 플레이어의 총 베팅액 계산
+      const playerBets = {};
+      actions.forEach(a => {
+        if(a.amount && a.player) {
+          playerBets[a.player] = (playerBets[a.player] || 0) + parseInt(unformatNumber(a.amount), 10);
+        }
+      });
+      
+      // 베팅 가능한 플레이어들의 베팅액 확인
+      const betAmounts = bettingPlayers.map(p => playerBets[p.name] || 0);
+      const maxBet = Math.max(...betAmounts, 0);
+      const allEqual = betAmounts.every(amt => amt === maxBet);
+      
+      if(allEqual) {
+        const nextStreet = getNextStreet(street);
+        if(nextStreet) {
+          showFeedback(`${street} 완료! ${nextStreet}로 진행`);
+          // 자동 진행 옵션이 있다면 여기서 처리
+          return { status: 'STREET_COMPLETE', nextStreet };
+        }
+      }
+      
+      return { status: 'WAITING' };
+    }
+    
+    function getNextStreet(current) {
+      const streets = ['preflop', 'flop', 'turn', 'river'];
+      const idx = streets.indexOf(current);
+      return idx >= 0 && idx < 3 ? streets[idx + 1] : null;
+    }
+    
     // ====== POT ======
     function calculatePotSize(){
       let pot=0;
@@ -1082,6 +1245,71 @@ async function sendDataToGoogleSheet(){
     }
 
 
+    // ====== SIDEPOT CALCULATION ======
+    function calculateSidePots() {
+      const contributions = {};
+      
+      // 각 스트리트별 플레이어 기여액 계산
+      ['preflop', 'flop', 'turn', 'river'].forEach(street => {
+        state.actionState[street].forEach(action => {
+          if(action.amount && action.player) {
+            contributions[action.player] = (contributions[action.player] || 0) + 
+                                          parseInt(unformatNumber(action.amount), 10);
+          }
+        });
+      });
+      
+      // 올인 플레이어 정렬 (금액 오름차순)
+      const allInPlayers = state.playersInHand
+        .filter(p => state.playerStatus[p.name] === 'allin')
+        .map(p => ({ name: p.name, amount: contributions[p.name] || 0 }))
+        .sort((a, b) => a.amount - b.amount);
+      
+      const activePlayers = state.playersInHand
+        .filter(p => state.playerStatus[p.name] !== 'folded')
+        .map(p => p.name);
+      
+      const pots = [];
+      let remainingPlayers = [...activePlayers];
+      let previousCap = 0;
+      
+      // 각 올인 레벨별 팟 생성
+      allInPlayers.forEach(allinPlayer => {
+        const cap = allinPlayer.amount;
+        const potPlayers = remainingPlayers.filter(p => contributions[p] >= cap);
+        const potAmount = (cap - previousCap) * potPlayers.length;
+        
+        if(potAmount > 0) {
+          pots.push({
+            amount: potAmount,
+            players: [...potPlayers],
+            cap: cap,
+            type: pots.length === 0 ? 'main' : `side${pots.length}`
+          });
+        }
+        
+        remainingPlayers = remainingPlayers.filter(p => p !== allinPlayer.name);
+        previousCap = cap;
+      });
+      
+      // 남은 베팅 (최고 베팅자들끼리)
+      if(remainingPlayers.length > 0) {
+        const maxBet = Math.max(...remainingPlayers.map(p => contributions[p] || 0));
+        const finalPot = (maxBet - previousCap) * remainingPlayers.length;
+        
+        if(finalPot > 0) {
+          pots.push({
+            amount: finalPot,
+            players: remainingPlayers,
+            cap: maxBet,
+            type: pots.length === 0 ? 'main' : `side${pots.length}`
+          });
+        }
+      }
+      
+      return { pots, contributions };
+    }
+    
     // ====== RESET & FEEDBACK ======
     async function resetApp(){
       // Index 데이터 다시 로드하여 최신 핸드 번호 가져오기
@@ -1099,6 +1327,7 @@ async function sendDataToGoogleSheet(){
         : 0;
       state.playersInHand = [];
       state.board = [];
+      state.playerStatus = {}; // 플레이어 상태 초기화
       state.currentStreet = 'preflop'; // 스트리트 초기화
       state.actionState = {
         handNumber: String(lastNo + 1),
@@ -1148,6 +1377,12 @@ async function sendDataToGoogleSheet(){
 
       el.tableSelector.onchange = (e)=>{ state.selectedTable=e.target.value; state.playersInHand=[]; renderAll(); };
       el.timezoneSelector.onchange = (e)=>{ state.selectedTimezone=e.target.value; updateTimeDisplay(); renderAll(); };
+      
+      // Smart Mode 토글
+      document.getElementById('smart-mode-toggle').onchange = (e) => {
+        state.smartCheckCall = e.target.checked;
+        showFeedback(state.smartCheckCall ? 'Smart Mode 활성화' : 'Smart Mode 비활성화');
+      };
 
       // 플레이어 선택/해제
       el.playerSelectionButtons.addEventListener('click', (e)=>{
@@ -1244,6 +1479,14 @@ async function sendDataToGoogleSheet(){
           state.modalState.actionPadPlayer = btn.dataset.playerName;
           modal.querySelector('#action-pad-players').classList.add('hidden');
           modal.querySelector('#action-pad-actions').classList.remove('hidden');
+          
+          // 스마트 Check/Call 버튼 업데이트
+          if(state.smartCheckCall) {
+            const smartBtn = modal.querySelector('#smart-check-call-btn');
+            const smartAction = getSmartCheckCallAction(btn.dataset.playerName, state.modalState.actionPadStreet);
+            smartBtn.querySelector('.action-label').textContent = smartAction.label;
+            smartBtn.dataset.smartAction = JSON.stringify(smartAction);
+          }
         }else if(btn.parentElement.id==='action-pad-actions'){
           const action = btn.dataset.action;
           if(action==='Bet/Raises'){
@@ -1251,6 +1494,13 @@ async function sendDataToGoogleSheet(){
             const hasBet = state.actionState[st].some(a=>/BET|RAISE/i.test(a.action||''));
             state.modalState.actionPadCurrentAction = hasBet ? 'Raises' : 'Bets';
             closeModal(el.actionPadModal); openKeypad(null, { purpose:'bet' });
+          }else if(action==='SmartCheckCall'){
+            // 스마트 Check/Call 처리
+            const smartBtn = btn;
+            const smartAction = JSON.parse(smartBtn.dataset.smartAction || '{}');
+            if(smartAction.action) {
+              addActionToLog(smartAction.action, smartAction.amount);
+            }
           }else if(action==='All In'){
             const p = state.playersInHand.find(pp=>pp.name===state.modalState.actionPadPlayer);
             if(p) addActionToLog('All In', p.chips);
@@ -1258,9 +1508,34 @@ async function sendDataToGoogleSheet(){
             const st = state.modalState.actionPadStreet;
             const p = state.playersInHand.find(pp=>pp.name===state.modalState.actionPadPlayer);
             
-            // 마지막 베팅/레이즈 찾기
-            const lastBet = [...state.actionState[st]].reverse().find(a=>/BET|RAISE/i.test(a.action||''));
-            const requiredAmt = lastBet ? lastBet.amount : unformatNumber(state.actionState.bigBlind);
+            // 현재 스트리트와 이전 스트리트에서 마지막 베팅/레이즈 찾기
+            let lastBet = null;
+            let requiredAmt = 0;
+            
+            // 현재 스트리트에서 찾기
+            lastBet = [...state.actionState[st]].reverse().find(a=>/BET|RAISE|All In/i.test(a.action||''));
+            
+            if(!lastBet && st !== 'preflop') {
+              // 현재 스트리트에 베팅이 없으면 이전 스트리트 확인
+              const streetOrder = ['preflop', 'flop', 'turn', 'river'];
+              const currentIdx = streetOrder.indexOf(st);
+              for(let i = currentIdx - 1; i >= 0; i--) {
+                lastBet = [...state.actionState[streetOrder[i]]].reverse().find(a=>/BET|RAISE|All In/i.test(a.action||''));
+                if(lastBet) break;
+              }
+            }
+            
+            // 콜 금액 결정
+            if(lastBet) {
+              requiredAmt = lastBet.amount;
+            } else if(st === 'preflop') {
+              // 프리플랍에서 아무도 베팅하지 않았으면 빅블라인드 콜
+              requiredAmt = unformatNumber(state.actionState.bigBlind);
+            } else {
+              // 포스트플랍에서 베팅이 없으면 체크해야 함
+              showFeedback('베팅이 없어 체크를 선택해주세요', true);
+              return;
+            }
             
             // 플레이어 현재 칩
             const playerChips = p ? parseInt(unformatNumber(p.chips), 10) : 0;
