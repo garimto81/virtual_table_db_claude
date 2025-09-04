@@ -590,14 +590,41 @@
       renderPlayerSelection(); renderPlayerDetails(); renderWinnerSelection();
     }
     function setPlayerRole(name){
-      // 기존 승자 해제 (한 명만 승자 가능)
-      state.playersInHand.forEach(p => {
-        if(p.name !== name) p.role = null;
-      });
+      const finalPot = calculateFinalPot();
       
-      const p=state.playersInHand.find(pp=>pp.name===name); 
+      // 기존 승자 찾기
+      const prevWinner = state.playersInHand.find(p => p.role === 'winner');
+      
+      // 기존 승자가 있으면 팟 금액 차감
+      if(prevWinner && prevWinner.name !== name) {
+        const prevChips = parseInt(unformatNumber(prevWinner.chips) || 0, 10);
+        prevWinner.chips = (prevChips - finalPot).toString();
+        prevWinner.role = null;
+      }
+      
+      // 새 승자 설정
+      const p = state.playersInHand.find(pp => pp.name === name);
       if(!p) return;
-      p.role = (p.role==='winner')? null : 'winner';
+      
+      if(p.role === 'winner') {
+        // 승자 해제
+        const currentChips = parseInt(unformatNumber(p.chips) || 0, 10);
+        p.chips = (currentChips - finalPot).toString();
+        p.role = null;
+      } else {
+        // 승자 설정
+        const currentChips = parseInt(unformatNumber(p.chips) || 0, 10);
+        p.chips = (currentChips + finalPot).toString();
+        p.role = 'winner';
+        
+        // 다른 모든 플레이어의 role 해제
+        state.playersInHand.forEach(player => {
+          if(player.name !== name) player.role = null;
+        });
+      }
+      
+      // 칩 변경 타임스탬프 기록
+      p.chipsUpdatedAt = new Date().toISOString();
       
       renderPlayerDetails(); 
       renderWinnerSelection();
@@ -659,9 +686,15 @@
         if (p){
           const cur = parseInt(unformatNumber(p.chips) || 0, 10);
           const amountToDeduct = parseInt(unformatNumber(amount), 10);
-          // 음수 방지: 칩이 0 이하로 떨어지지 않도록
-          const newChips = Math.max(0, cur - amountToDeduct);
-          p.chips = newChips.toString();
+          
+          // All In의 경우 칩을 0으로 만들기
+          if(action === 'All In') {
+            p.chips = '0';
+          } else {
+            // 일반 베팅의 경우 차감
+            const newChips = Math.max(0, cur - amountToDeduct);
+            p.chips = newChips.toString();
+          }
           p.chipsUpdatedAt = new Date().toISOString(); // ★ 프로그램적 변경도 타임스탬프 기록
         }
       }
