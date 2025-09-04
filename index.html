@@ -121,6 +121,7 @@
   <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+  <div id="camera-select-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="log-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
     <div class="bg-gray-800 rounded-lg p-4 w-full max-w-lg h-2/3 flex flex-col">
       <div class="flex justify-between items-center mb-2">
@@ -220,7 +221,51 @@
       cam1: document.getElementById('cam-btn-1'),
       cam2: document.getElementById('cam-btn-2'),
       dataStamp: document.getElementById('data-stamp'),
+      cameraSelectModal: document.getElementById('camera-select-modal'),
     };
+
+    // ====== CAMERA SELECT MODAL ======
+    function openCameraSelectModal(which) {
+      const modal = el.cameraSelectModal;
+      modal.innerHTML = `
+        <div class="bg-gray-800 rounded-lg p-4 max-w-md w-full">
+          <h3 class="text-xl font-bold mb-4">카메라 ${which === 'cam1' ? '1' : '2'} 설정</h3>
+          <div class="grid grid-cols-2 gap-2 mb-4">
+            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camAa">camAa</button>
+            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camAb">camAb</button>
+            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camBa">camBa</button>
+            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camBb">camBb</button>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button class="btn bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md" onclick="closeModal(el.cameraSelectModal)">취소</button>
+          </div>
+        </div>
+      `;
+      
+      // 카메라 프리셋 버튼 클릭 이벤트
+      modal.querySelectorAll('[data-cam-preset]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const preset = e.target.dataset.camPreset;
+          
+          // state 업데이트
+          if(which === 'cam1') {
+            state.camPreset.cam1 = preset;
+            // 카메라 번호 선택을 위한 키패드 열기
+            const prefill = computeCamPrefill('cam1');
+            closeModal(modal);
+            openKeypad(null, { purpose:'cam', cam:'cam1', prefill });
+          } else {
+            state.camPreset.cam2 = preset;
+            const prefill = computeCamPrefill('cam2');
+            closeModal(modal);
+            openKeypad(null, { purpose:'cam', cam:'cam2', prefill });
+          }
+        });
+      });
+      
+      modal.classList.remove('hidden');
+      setTimeout(() => modal.classList.remove('opacity-0'), 10);
+    }
 
     // ====== LOG MODAL ======
     function openLogModal(){ 
@@ -1726,15 +1771,13 @@ async function sendDataToGoogleSheet(){
       el.refreshDataBtn.onclick = loadInitial;
       el.resetBtn.onclick = resetApp;
       
-      // Cam 버튼 클릭
+      // Cam 버튼 클릭 - 카메라 선택 모달 열기
       el.cam1.addEventListener('click', ()=>{
-        const prefill = computeCamPrefill('cam1');
-        openKeypad(null, { purpose:'cam', cam:'cam1', prefill });
+        openCameraSelectModal('cam1');
       });
 
       el.cam2.addEventListener('click', ()=>{
-        const prefill = computeCamPrefill('cam2');
-        openKeypad(null, { purpose:'cam', cam:'cam2', prefill });
+        openCameraSelectModal('cam2');
       });
       // "시트 전송" 버튼을 누르면 → 바로 전송 (노트 기능 제거)
       el.sendToSheetBtn.onclick = () => { sendDataToGoogleSheet(); };
