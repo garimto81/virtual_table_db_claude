@@ -1246,12 +1246,7 @@
             // 카메라1 정보 업데이트
             if(indexRow.cam1) {
               state.camPreset.cam1 = indexRow.cam1;
-              const camIndex = ['camAa', 'camAb', 'camBa', 'camBb'].indexOf(indexRow.cam1);
-              if(camIndex >= 0) {
-                const btns = el.cam1Buttons.querySelectorAll('button');
-                btns.forEach(b => b.classList.remove('btn-selected'));
-                btns[camIndex]?.classList.add('btn-selected');
-              }
+              console.log(`📷 카메라1 프리셋 업데이트: ${indexRow.cam1}`);
             }
             if(indexRow.cam1no) {
               state.camNumbers.cam1no = indexRow.cam1no;
@@ -1267,12 +1262,7 @@
             // 카메라2 정보 업데이트
             if(indexRow.cam2) {
               state.camPreset.cam2 = indexRow.cam2;
-              const camIndex = ['camAa', 'camAb', 'camBa', 'camBb'].indexOf(indexRow.cam2);
-              if(camIndex >= 0) {
-                const btns = el.cam2Buttons.querySelectorAll('button');
-                btns.forEach(b => b.classList.remove('btn-selected'));
-                btns[camIndex]?.classList.add('btn-selected');
-              }
+              console.log(`📷 카메라2 프리셋 업데이트: ${indexRow.cam2}`);
             }
             if(indexRow.cam2no) {
               state.camNumbers.cam2no = indexRow.cam2no;
