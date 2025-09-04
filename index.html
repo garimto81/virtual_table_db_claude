@@ -150,7 +150,7 @@
     const CSV_INDEX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv"; // Index 탭 CSV (HandIndex 대신 Index 사용)
     const CSV_TYPE_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv";
     // Apps Script URL - 재배포 후 새 URL로 교체 필요
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyOXVl2cMZTCqCuk59KTO2Fx-huPd-A8oByD7gHwmutKOHSsDAuwgE77gDf3zkCdvI-/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzTjSJAjW6m9fJkvSu2UwGqqR0IzuWXnke5AmSyEwO0XOkjD5p7MZ4xafrcU6cgXbBK/exec";
 
     // ====== STATE ======
     let timeUpdater;
@@ -840,18 +840,26 @@
       const lastCam1No = localStorage.getItem('pokerHandLogger_lastCam1');
       const lastCam2No = localStorage.getItem('pokerHandLogger_lastCam2');
       
+      console.log(`🎞️ 카메라 버튼 초기화:`);
+      console.log(`  ${state.camPreset.cam1} 저장된 번호: ${lastCam1No || '없음'}`);
+      console.log(`  ${state.camPreset.cam2} 저장된 번호: ${lastCam2No || '없음'}`);
+      
       if(lastCam1No) {
         const nextNo = parseInt(lastCam1No, 10) + 1;
         el.cam1.textContent = `${state.camPreset.cam1}${pad4(nextNo)}`;
+        console.log(`  → ${state.camPreset.cam1} 표시: ${pad4(nextNo)}`);
       } else {
         el.cam1.textContent = `${state.camPreset.cam1}0001`;
+        console.log(`  → ${state.camPreset.cam1} 표시: 0001 (초기값)`);
       }
       
       if(lastCam2No) {
         const nextNo = parseInt(lastCam2No, 10) + 1;
         el.cam2.textContent = `${state.camPreset.cam2}${pad4(nextNo)}`;
+        console.log(`  → ${state.camPreset.cam2} 표시: ${pad4(nextNo)}`);
       } else {
         el.cam2.textContent = `${state.camPreset.cam2}0001`;
+        console.log(`  → ${state.camPreset.cam2} 표시: 0001 (초기값)`);
       }
 
       const byTable={};
@@ -1026,7 +1034,11 @@
         el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
         
         // Index에서 마지막 카메라 번호 찾기 및 localStorage 동기화
+        logMessage('📷 카메라 번호 데이터 분석 시작...');
+        
         if(state.indexRows.length > 0) {
+          logMessage(`📊 총 ${state.indexRows.length}개의 핸드 데이터 검색 중...`);
+          
           // 가장 최근 핸드 찾기 (핸드 번호 기준 내림차순)
           const sortedRows = state.indexRows.slice().sort((a,b) => {
             const numA = parseInt(a.handNumber, 10) || 0;
@@ -1036,22 +1048,41 @@
           
           // 카메라 번호가 있는 가장 최근 핸드 찾기
           let maxCam1 = 0, maxCam2 = 0;
+          let foundInHand = null;
+          
           for(const row of sortedRows) {
             const cam1Num = parseInt(row.cam1no, 10) || 0;
             const cam2Num = parseInt(row.cam2no, 10) || 0;
             
-            if(cam1Num > maxCam1) maxCam1 = cam1Num;
-            if(cam2Num > maxCam2) maxCam2 = cam2Num;
+            if(cam1Num > maxCam1) {
+              maxCam1 = cam1Num;
+              if(!foundInHand) foundInHand = row.handNumber;
+            }
+            if(cam2Num > maxCam2) {
+              maxCam2 = cam2Num;
+              if(!foundInHand) foundInHand = row.handNumber;
+            }
+          }
+          
+          if(foundInHand) {
+            logMessage(`📍 핸드 #${foundInHand}에서 카메라 번호 발견`);
           }
           
           if(maxCam1 > 0) {
             localStorage.setItem('pokerHandLogger_lastCam1', String(maxCam1));
-            logMessage(`카메라1 마지막 번호: ${maxCam1}`);
+            logMessage(`✅ ${state.camPreset.cam1} 마지막 번호: ${maxCam1} → 다음 번호: ${pad4(maxCam1 + 1)}`);
+          } else {
+            logMessage(`⚠️ ${state.camPreset.cam1} 번호 데이터 없음 → 0001부터 시작`);
           }
+          
           if(maxCam2 > 0) {
             localStorage.setItem('pokerHandLogger_lastCam2', String(maxCam2));
-            logMessage(`카메라2 마지막 번호: ${maxCam2}`);
+            logMessage(`✅ ${state.camPreset.cam2} 마지막 번호: ${maxCam2} → 다음 번호: ${pad4(maxCam2 + 1)}`);
+          } else {
+            logMessage(`⚠️ ${state.camPreset.cam2} 번호 데이터 없음 → 0001부터 시작`);
           }
+        } else {
+          logMessage('⚠️ Index 데이터가 비어있음 → 카메라 번호 0001부터 시작');
         }
         
         renderAll();
@@ -1568,6 +1599,12 @@ async function sendDataToGoogleSheet(){
       const savedCam1 = localStorage.getItem('pokerHandLogger_lastCam1') || '';
       const savedCam2 = localStorage.getItem('pokerHandLogger_lastCam2') || '';
       
+      console.log('📷 새 핸드 - 카메라 번호 자동 증가:');
+      console.log(`  localStorage cam1: ${savedCam1 || '없음'}`);
+      console.log(`  localStorage cam2: ${savedCam2 || '없음'}`);
+      console.log(`  현재 cam1: ${lastCam1 || '없음'}`);
+      console.log(`  현재 cam2: ${lastCam2 || '없음'}`);
+      
       // 카메라 번호 자동 증가
       // cam1 처리: 저장된 번호 또는 현재 번호에서 +1
       const cam1Base = savedCam1 || lastCam1 || '0';
@@ -1575,8 +1612,9 @@ async function sendDataToGoogleSheet(){
       const nextCam1 = currentNum1 > 0 ? currentNum1 + 1 : 1;
       state.camNumbers.cam1no = String(nextCam1);
       state.lastCamNo = String(nextCam1);
-      el.cam1.textContent = `${state.camPreset.cam1}${pad4(nextCam1)}`; // 콜론 제거
+      el.cam1.textContent = `${state.camPreset.cam1}${pad4(nextCam1)}`;
       localStorage.setItem('pokerHandLogger_lastCam1', String(nextCam1));
+      console.log(`  → ${state.camPreset.cam1} 다음 번호: ${nextCam1}`);
       
       // cam2 처리: 저장된 번호 또는 현재 번호에서 +1
       const cam2Base = savedCam2 || lastCam2 || '0';
@@ -1584,8 +1622,9 @@ async function sendDataToGoogleSheet(){
       const nextCam2 = currentNum2 > 0 ? currentNum2 + 1 : 1;
       state.camNumbers.cam2no = String(nextCam2);
       state.lastCamNo = String(nextCam2);
-      el.cam2.textContent = `${state.camPreset.cam2}${pad4(nextCam2)}`; // 콜론 제거
+      el.cam2.textContent = `${state.camPreset.cam2}${pad4(nextCam2)}`;
       localStorage.setItem('pokerHandLogger_lastCam2', String(nextCam2));
+      console.log(`  → ${state.camPreset.cam2} 다음 번호: ${nextCam2}`);
       
       renderAll(); saveActionState();
       el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
