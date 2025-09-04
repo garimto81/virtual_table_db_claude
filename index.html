@@ -397,23 +397,55 @@
     function closeModal(node){ node.classList.add('opacity-0'); setTimeout(()=>node.classList.add('hidden'),300); }
 
     function openCardSelector(){
-      const { count } = state.modalState.cardTarget;
+      const { target, player, index, count } = state.modalState.cardTarget;
+      
+      // 현재 선택된 카드들을 초기값으로 설정
+      let selected = [];
+      if(target === 'playerHand' && player) {
+        const p = state.playersInHand.find(p => p.name === player);
+        if(p && p.hand) selected = [...p.hand];
+      } else if(target === 'board') {
+        if(count === 3) { // flop
+          selected = [state.board[0], state.board[1], state.board[2]].filter(Boolean);
+        } else if(index === 3) { // turn
+          if(state.board[3]) selected = [state.board[3]];
+        } else if(index === 4) { // river
+          if(state.board[4]) selected = [state.board[4]];
+        }
+      }
+      
       const used=[...state.playersInHand.flatMap(p=>p.hand||[]), ...state.board].filter(Boolean);
-      let selected=[], deckHTML='';
+      let deckHTML='';
       Object.keys(SUITS).forEach(suitKey=>{
         deckHTML+='<div class="flex justify-center gap-1 mb-1">';
         RANKS.forEach(rank=>{
-          const id=`${rank}${suitKey}`, usedFlag=used.includes(id);
+          const id=`${rank}${suitKey}`;
+          // 다른 곳에서 사용 중인 카드 체크 (현재 대상 제외)
+          let usedByOthers = false;
+          const othersCards = [...state.playersInHand.flatMap(p => {
+            if(target === 'playerHand' && p.name === player) return []; // 현재 플레이어 제외
+            return p.hand || [];
+          })];
+          if(target !== 'board') {
+            othersCards.push(...state.board.filter(Boolean));
+          }
+          usedByOthers = othersCards.includes(id) && !selected.includes(id);
+          
+          const isSelected = selected.includes(id);
           const color=(suitKey==='h'||suitKey==='d')?'card-red':'card-black';
-          deckHTML+=`<button class="btn card-selector-btn rounded-md w-9 h-11 ${usedFlag?'bg-gray-600 text-gray-500':'bg-white hover:bg-amber-300'} ${color}" data-card-id="${id}" ${usedFlag?'disabled':''}>${rank}${SUITS[suitKey]}</button>`;
+          const bgClass = isSelected ? 'bg-amber-300' : (usedByOthers ? 'bg-gray-600 text-gray-500' : 'bg-white hover:bg-amber-300');
+          const selectedClass = isSelected ? 'selected' : '';
+          
+          deckHTML+=`<button class="btn card-selector-btn rounded-md w-9 h-11 ${bgClass} ${color} ${selectedClass}" data-card-id="${id}" ${usedByOthers?'disabled':''}>${rank}${SUITS[suitKey]}</button>`;
         });
         deckHTML+='</div>';
       });
       const html=`<div class="bg-gray-800 rounded-lg p-2 w-full max-w-md">
         <h2 class="text-lg font-bold text-amber-400 mb-2 text-center">카드 선택 (${count}장)</h2>
-        <div id="selected-cards" class="text-center mb-2 text-sm text-gray-300">선택된 카드: <span id="selected-count">0</span>/${count}</div>
+        <div id="selected-cards" class="text-center mb-2 text-sm text-gray-300">선택된 카드: <span id="selected-count">${selected.length}</span>/${count}</div>
         <div id="card-deck">${deckHTML}</div>
         <div class="flex gap-2 mt-2">
+          <button id="clear-cards" class="btn flex-1 bg-yellow-600 py-2 rounded-md">모두 해제</button>
           <button id="confirm-cards" class="btn flex-1 bg-green-600 py-2 rounded-md">확인</button>
           <button id="close-card-modal" class="btn flex-1 bg-red-600 py-2 rounded-md">닫기</button>
         </div>
@@ -442,11 +474,19 @@
       
       // 확인 버튼 이벤트
       el.cardSelectorModal.querySelector('#confirm-cards').onclick=()=>{
-        if(selected.length > 0) {
-          assignCard(selected);
-        } else {
-          showFeedback('카드를 선택해주세요.', true);
-        }
+        // 카드가 없으면 제거, 있으면 할당
+        assignCard(selected.length > 0 ? selected : null);
+      };
+      
+      // 모두 해제 버튼 이벤트
+      el.cardSelectorModal.querySelector('#clear-cards').onclick=()=>{
+        selected = [];
+        el.cardSelectorModal.querySelectorAll('.card-selector-btn.selected').forEach(btn => {
+          btn.classList.remove('selected');
+          btn.classList.remove('bg-amber-300');
+          btn.classList.add('bg-white');
+        });
+        updateSelectedCount();
       };
     }
 
@@ -523,11 +563,31 @@
       renderPlayerDetails(); renderWinnerSelection();
     }
     function assignCard(cards){
-      const {target,player,index} = state.modalState.cardTarget;
-      if(target==='board'){ cards.forEach((c,i)=> state.board[index+i]=c); renderBoard(); }
+      const {target,player,index,count} = state.modalState.cardTarget;
+      if(target==='board'){
+        if(!cards || cards.length === 0) {
+          // 카드 제거
+          if(count === 3) { // flop
+            state.board[0] = null;
+            state.board[1] = null;
+            state.board[2] = null;
+          } else if(index === 3) { // turn
+            state.board[3] = null;
+          } else if(index === 4) { // river
+            state.board[4] = null;
+          }
+        } else {
+          // 카드 할당
+          cards.forEach((c,i)=> state.board[index+i]=c);
+        }
+        renderBoard();
+      }
       else{
         const p=state.playersInHand.find(pp=>pp.name===player);
-        if(p){ p.hand=cards; renderPlayerDetails(); }
+        if(p){ 
+          p.hand = cards || []; // null이면 빈 배열로
+          renderPlayerDetails();
+        }
       }
       closeModal(el.cardSelectorModal);
     }
