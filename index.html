@@ -836,8 +836,23 @@
       const A3=(rows[2]&&rows[2][0])?String(rows[2][0]).trim():'';
       state.camPreset.cam1=A2||'Cam1';
       state.camPreset.cam2=A3||'Cam2';
-      el.cam1.textContent = state.camPreset.cam1 || 'Cam1';
-      el.cam2.textContent = state.camPreset.cam2 || 'Cam2';
+      // localStorage에서 마지막 카메라 번호 읽어서 표시
+      const lastCam1No = localStorage.getItem('pokerHandLogger_lastCam1');
+      const lastCam2No = localStorage.getItem('pokerHandLogger_lastCam2');
+      
+      if(lastCam1No) {
+        const nextNo = parseInt(lastCam1No, 10) + 1;
+        el.cam1.textContent = `${state.camPreset.cam1}${pad4(nextNo)}`;
+      } else {
+        el.cam1.textContent = `${state.camPreset.cam1}0001`;
+      }
+      
+      if(lastCam2No) {
+        const nextNo = parseInt(lastCam2No, 10) + 1;
+        el.cam2.textContent = `${state.camPreset.cam2}${pad4(nextNo)}`;
+      } else {
+        el.cam2.textContent = `${state.camPreset.cam2}0001`;
+      }
 
       const byTable={};
       for(let i=1;i<rows.length;i++){
@@ -1519,24 +1534,28 @@ async function sendDataToGoogleSheet(){
         preflop: [], flop: [], turn: [], river: [],
       };
       
-      // 카메라 번호 자동 증가
-      // cam1 처리: 번호가 있으면 증가, 없으면 0001로 시작
-      if(lastCam1 || lastCam1 === '0' || lastCam1 === '') {
-        const currentNum = parseInt(lastCam1, 10) || 0;
-        const nextCam1 = currentNum > 0 ? currentNum + 1 : 1;
-        state.camNumbers.cam1no = String(nextCam1);
-        state.lastCamNo = String(nextCam1);
-        el.cam1.textContent = `${state.camPreset.cam1}: ${pad4(nextCam1)}`;
-      }
+      // localStorage에서 마지막 카메라 번호 읽기
+      const savedCam1 = localStorage.getItem('pokerHandLogger_lastCam1') || '';
+      const savedCam2 = localStorage.getItem('pokerHandLogger_lastCam2') || '';
       
-      // cam2 처리: 번호가 있으면 증가, 없으면 0001로 시작
-      if(lastCam2 || lastCam2 === '0' || lastCam2 === '') {
-        const currentNum = parseInt(lastCam2, 10) || 0;
-        const nextCam2 = currentNum > 0 ? currentNum + 1 : 1;
-        state.camNumbers.cam2no = String(nextCam2);
-        state.lastCamNo = String(nextCam2);
-        el.cam2.textContent = `${state.camPreset.cam2}: ${pad4(nextCam2)}`;
-      }
+      // 카메라 번호 자동 증가
+      // cam1 처리: 저장된 번호 또는 현재 번호에서 +1
+      const cam1Base = savedCam1 || lastCam1 || '0';
+      const currentNum1 = parseInt(cam1Base, 10) || 0;
+      const nextCam1 = currentNum1 > 0 ? currentNum1 + 1 : 1;
+      state.camNumbers.cam1no = String(nextCam1);
+      state.lastCamNo = String(nextCam1);
+      el.cam1.textContent = `${state.camPreset.cam1}${pad4(nextCam1)}`; // 콜론 제거
+      localStorage.setItem('pokerHandLogger_lastCam1', String(nextCam1));
+      
+      // cam2 처리: 저장된 번호 또는 현재 번호에서 +1
+      const cam2Base = savedCam2 || lastCam2 || '0';
+      const currentNum2 = parseInt(cam2Base, 10) || 0;
+      const nextCam2 = currentNum2 > 0 ? currentNum2 + 1 : 1;
+      state.camNumbers.cam2no = String(nextCam2);
+      state.lastCamNo = String(nextCam2);
+      el.cam2.textContent = `${state.camPreset.cam2}${pad4(nextCam2)}`; // 콜론 제거
+      localStorage.setItem('pokerHandLogger_lastCam2', String(nextCam2));
       
       renderAll(); saveActionState();
       el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
@@ -1782,13 +1801,15 @@ async function sendDataToGoogleSheet(){
             if (which==='cam1'){
               state.camNumbers.cam1no = padded;
               state.lastCamNo = padded;
-              el.cam1.textContent = `${state.camPreset.cam1}: ${padded}`; // 버튼 텍스트 업데이트
-              showFeedback(`${state.camPreset.cam1 || 'Cam1'}: ${padded} 입력됨`);
+              el.cam1.textContent = `${state.camPreset.cam1}${padded}`; // 콜론 제거
+              localStorage.setItem('pokerHandLogger_lastCam1', padded); // localStorage에 저장
+              showFeedback(`${state.camPreset.cam1 || 'Cam1'}${padded} 입력됨`);
             }else if (which==='cam2'){
               state.camNumbers.cam2no = padded;
               state.lastCamNo = padded;
-              el.cam2.textContent = `${state.camPreset.cam2}: ${padded}`; // 버튼 텍스트 업데이트
-              showFeedback(`${state.camPreset.cam2 || 'Cam2'}: ${padded} 입력됨`);
+              el.cam2.textContent = `${state.camPreset.cam2}${padded}`; // 콜론 제거
+              localStorage.setItem('pokerHandLogger_lastCam2', padded); // localStorage에 저장
+              showFeedback(`${state.camPreset.cam2 || 'Cam2'}${padded} 입력됨`);
             }
           }else if(purpose==='bet'){
             if(finalAmt) addActionToLog(state.modalState.actionPadCurrentAction, finalAmt);
