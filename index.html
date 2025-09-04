@@ -502,11 +502,15 @@
         if(idx>-1){ 
           // 이미 선택된 카드를 다시 클릭하면 선택 해제
           selected.splice(idx,1); 
-          btn.classList.remove('selected'); 
+          btn.classList.remove('selected');
+          btn.classList.remove('bg-amber-300');
+          btn.classList.add('bg-white', 'hover:bg-amber-300');
         }
         else if(selected.length<count){ 
           selected.push(id); 
-          btn.classList.add('selected'); 
+          btn.classList.add('selected');
+          btn.classList.remove('bg-white', 'hover:bg-amber-300');
+          btn.classList.add('bg-amber-300');
         }
         updateSelectedCount();
       };
