@@ -1024,6 +1024,36 @@
         state.actionState.handNumber = (state.allHandNumbers.length>0? Math.max(...state.allHandNumbers.map(n=>parseInt(n,10)||0)) + 1 : 1).toString();
         el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
         el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
+        
+        // Index에서 마지막 카메라 번호 찾기 및 localStorage 동기화
+        if(state.indexRows.length > 0) {
+          // 가장 최근 핸드 찾기 (핸드 번호 기준 내림차순)
+          const sortedRows = state.indexRows.slice().sort((a,b) => {
+            const numA = parseInt(a.handNumber, 10) || 0;
+            const numB = parseInt(b.handNumber, 10) || 0;
+            return numB - numA;
+          });
+          
+          // 카메라 번호가 있는 가장 최근 핸드 찾기
+          let maxCam1 = 0, maxCam2 = 0;
+          for(const row of sortedRows) {
+            const cam1Num = parseInt(row.cam1no, 10) || 0;
+            const cam2Num = parseInt(row.cam2no, 10) || 0;
+            
+            if(cam1Num > maxCam1) maxCam1 = cam1Num;
+            if(cam2Num > maxCam2) maxCam2 = cam2Num;
+          }
+          
+          if(maxCam1 > 0) {
+            localStorage.setItem('pokerHandLogger_lastCam1', String(maxCam1));
+            logMessage(`카메라1 마지막 번호: ${maxCam1}`);
+          }
+          if(maxCam2 > 0) {
+            localStorage.setItem('pokerHandLogger_lastCam2', String(maxCam2));
+            logMessage(`카메라2 마지막 번호: ${maxCam2}`);
+          }
+        }
+        
         renderAll();
         logMessage('초기 데이터 로딩 완료');
       }catch(err){
