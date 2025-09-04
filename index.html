@@ -1782,10 +1782,12 @@ async function sendDataToGoogleSheet(){
             if (which==='cam1'){
               state.camNumbers.cam1no = padded;
               state.lastCamNo = padded;
+              el.cam1.textContent = `${state.camPreset.cam1}: ${padded}`; // 버튼 텍스트 업데이트
               showFeedback(`${state.camPreset.cam1 || 'Cam1'}: ${padded} 입력됨`);
             }else if (which==='cam2'){
               state.camNumbers.cam2no = padded;
               state.lastCamNo = padded;
+              el.cam2.textContent = `${state.camPreset.cam2}: ${padded}`; // 버튼 텍스트 업데이트
               showFeedback(`${state.camPreset.cam2 || 'Cam2'}: ${padded} 입력됨`);
             }
           }else if(purpose==='bet'){
