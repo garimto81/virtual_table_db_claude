@@ -1200,8 +1200,61 @@
 
         // currentStreet 결정: Index에서 저장된 값 우선, 없으면 액션으로 판단
         const indexRow = state.indexRows.find(r => r.handNumber === String(handNumber));
-        if(indexRow && indexRow.lastStreet) {
-          state.currentStreet = indexRow.lastStreet;
+        console.log(`🔍 핸드 #${handNumber} 로드 중...`);
+        console.log('📋 Index 행 데이터:', indexRow);
+        
+        if(indexRow) {
+          // 카메라 정보 로드 및 로깅
+          if(indexRow.cam1 || indexRow.cam1no) {
+            console.log(`📷 카메라1 정보 발견:`);
+            console.log(`   - 이름: ${indexRow.cam1 || '없음'}`);
+            console.log(`   - 번호: ${indexRow.cam1no || '없음'}`);
+            
+            // 카메라1 정보 업데이트
+            if(indexRow.cam1) {
+              state.camPreset.cam1 = indexRow.cam1;
+              const camIndex = ['camAa', 'camAb', 'camBa', 'camBb'].indexOf(indexRow.cam1);
+              if(camIndex >= 0) {
+                const btns = el.cam1Buttons.querySelectorAll('button');
+                btns.forEach(b => b.classList.remove('btn-selected'));
+                btns[camIndex]?.classList.add('btn-selected');
+              }
+            }
+            if(indexRow.cam1no) {
+              state.camNumbers.cam1no = indexRow.cam1no;
+              el.cam1.textContent = state.camPreset.cam1 + pad4(indexRow.cam1no);
+            }
+          }
+          
+          if(indexRow.cam2 || indexRow.cam2no) {
+            console.log(`📷 카메라2 정보 발견:`);
+            console.log(`   - 이름: ${indexRow.cam2 || '없음'}`);
+            console.log(`   - 번호: ${indexRow.cam2no || '없음'}`);
+            
+            // 카메라2 정보 업데이트
+            if(indexRow.cam2) {
+              state.camPreset.cam2 = indexRow.cam2;
+              const camIndex = ['camAa', 'camAb', 'camBa', 'camBb'].indexOf(indexRow.cam2);
+              if(camIndex >= 0) {
+                const btns = el.cam2Buttons.querySelectorAll('button');
+                btns.forEach(b => b.classList.remove('btn-selected'));
+                btns[camIndex]?.classList.add('btn-selected');
+              }
+            }
+            if(indexRow.cam2no) {
+              state.camNumbers.cam2no = indexRow.cam2no;
+              el.cam2.textContent = state.camPreset.cam2 + pad4(indexRow.cam2no);
+            }
+          }
+          
+          console.log('📊 로드 후 카메라 상태:');
+          console.log(`   - cam1: ${state.camPreset.cam1}${pad4(state.camNumbers.cam1no || '0')}`);
+          console.log(`   - cam2: ${state.camPreset.cam2}${pad4(state.camNumbers.cam2no || '0')}`);
+          
+          if(indexRow.lastStreet) {
+            state.currentStreet = indexRow.lastStreet;
+          }
+          
           // 작업 상태 표시
           if(indexRow.workStatus) {
             const statusText = {
