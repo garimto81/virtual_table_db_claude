@@ -310,7 +310,7 @@
         const roleClass=(p.role==='winner')?'is-winner':'';
         return `<div class="player-card flex items-center gap-2 text-sm border-b border-gray-700 pb-1 ${roleClass}" data-player-name="${p.name}">
           <div class="w-1/4 truncate font-bold">${p.name}</div>
-          <div class="w-1/4"><input type="text" readonly class="number-input player-chip-input w-full bg-gray-700 border border-gray-600 rounded-md p-1 text-xs" placeholder="칩" value="${formatNumber(p.chips)}"></div>
+          <div class="w-1/4"><input type="text" class="number-input player-chip-input w-full bg-gray-700 border border-gray-600 rounded-md p-1 text-xs" placeholder="칩" value="${formatNumber(p.chips)}"></div>
           <div class="w-1/4"><button class="keypad-icon-btn btn bg-gray-600 p-1 rounded-md text-xs w-full">⌨️</button></div>
           <div class="w-1/4 card-placeholder h-10 flex justify-center items-center gap-1" data-player-name="${p.name}" data-count="2">
             ${p.hand?.length? p.hand.map(formatCardDisplay).join('') : '<span class="text-gray-400 text-lg">+</span>'}
@@ -411,16 +411,42 @@
       });
       const html=`<div class="bg-gray-800 rounded-lg p-2 w-full max-w-md">
         <h2 class="text-lg font-bold text-amber-400 mb-2 text-center">카드 선택 (${count}장)</h2>
+        <div id="selected-cards" class="text-center mb-2 text-sm text-gray-300">선택된 카드: <span id="selected-count">0</span>/${count}</div>
         <div id="card-deck">${deckHTML}</div>
-        <button id="close-card-modal" class="btn mt-2 w-full bg-red-600 py-2 rounded-md">닫기</button>
+        <div class="flex gap-2 mt-2">
+          <button id="confirm-cards" class="btn flex-1 bg-green-600 py-2 rounded-md">확인</button>
+          <button id="close-card-modal" class="btn flex-1 bg-red-600 py-2 rounded-md">닫기</button>
+        </div>
       </div>`;
       openModal(el.cardSelectorModal, html);
+      // 카드 선택 이벤트
+      const updateSelectedCount = () => {
+        const counter = el.cardSelectorModal.querySelector('#selected-count');
+        if(counter) counter.textContent = selected.length;
+      };
+      
       el.cardSelectorModal.querySelector('#card-deck').onclick=e=>{
         const btn=e.target.closest('.card-selector-btn'); if(!btn) return;
         const id=btn.dataset.cardId; const idx=selected.indexOf(id);
-        if(idx>-1){ selected.splice(idx,1); btn.classList.remove('selected'); }
-        else if(selected.length<count){ selected.push(id); btn.classList.add('selected'); }
-        if(selected.length===count) assignCard(selected);
+        if(idx>-1){ 
+          // 이미 선택된 카드를 다시 클릭하면 선택 해제
+          selected.splice(idx,1); 
+          btn.classList.remove('selected'); 
+        }
+        else if(selected.length<count){ 
+          selected.push(id); 
+          btn.classList.add('selected'); 
+        }
+        updateSelectedCount();
+      };
+      
+      // 확인 버튼 이벤트
+      el.cardSelectorModal.querySelector('#confirm-cards').onclick=()=>{
+        if(selected.length > 0) {
+          assignCard(selected);
+        } else {
+          showFeedback('카드를 선택해주세요.', true);
+        }
       };
     }
 
