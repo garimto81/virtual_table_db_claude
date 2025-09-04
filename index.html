@@ -955,6 +955,21 @@
         }
       }
 
+  // 승자 판단 로직 개선: 가장 많은 칩 증가량을 가진 플레이어 한 명만 승자로 지정
+  let winnerName = null;
+  let maxGain = 0;
+  
+  players.forEach(p => {
+    const initial = parseInt(p.initialChips || 0, 10);
+    const final = parseInt(p.finalChips || 0, 10);
+    const gain = final - initial;
+    
+    if(gain > maxGain) {
+      maxGain = gain;
+      winnerName = p.name;
+    }
+  });
+
   return {
     handInfo,
     table,
@@ -969,7 +984,7 @@
       initialChips:p.initialChips,
       finalChips:p.finalChips,
       hand:p.hand,
-      role: (parseInt(p.finalChips||0,10)>parseInt(p.initialChips||0,10)) ? 'winner' : null
+      role: (p.name === winnerName && maxGain > 0) ? 'winner' : null
     }))
   };
 }
