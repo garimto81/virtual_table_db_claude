@@ -485,7 +485,6 @@
         <div id="selected-cards" class="text-center mb-2 text-sm text-gray-300">선택된 카드: <span id="selected-count">${selected.length}</span>/${count}</div>
         <div id="card-deck">${deckHTML}</div>
         <div class="flex gap-2 mt-2">
-          <button id="clear-cards" class="btn flex-1 bg-yellow-600 py-2 rounded-md">모두 해제</button>
           <button id="confirm-cards" class="btn flex-1 bg-green-600 py-2 rounded-md">확인</button>
           <button id="close-card-modal" class="btn flex-1 bg-red-600 py-2 rounded-md">닫기</button>
         </div>
@@ -516,17 +515,6 @@
       el.cardSelectorModal.querySelector('#confirm-cards').onclick=()=>{
         // 카드가 없으면 제거, 있으면 할당
         assignCard(selected.length > 0 ? selected : null);
-      };
-      
-      // 모두 해제 버튼 이벤트
-      el.cardSelectorModal.querySelector('#clear-cards').onclick=()=>{
-        selected = [];
-        el.cardSelectorModal.querySelectorAll('.card-selector-btn.selected').forEach(btn => {
-          btn.classList.remove('selected');
-          btn.classList.remove('bg-amber-300');
-          btn.classList.add('bg-white');
-        });
-        updateSelectedCount();
       };
     }
 
