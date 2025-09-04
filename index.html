@@ -306,10 +306,15 @@
       }).join('');
     }
     function renderPlayerDetails(){
+      const finalPot = calculateFinalPot();
+      
       el.playerDetailsSection.innerHTML = state.playersInHand.map(p=>{
         const roleClass=(p.role==='winner')?'is-winner':'';
+        const winnerBadge = p.role === 'winner' && finalPot > 0 ? 
+          `<span class="ml-2 text-amber-300 font-bold text-xs animate-pulse">🏆 +${formatNumber(finalPot)}</span>` : '';
+        
         return `<div class="player-card flex items-center gap-2 text-sm border-b border-gray-700 pb-1 ${roleClass}" data-player-name="${p.name}">
-          <div class="w-1/4 truncate font-bold">${p.name}</div>
+          <div class="w-1/4 truncate font-bold">${p.name}${winnerBadge}</div>
           <div class="w-1/4"><input type="text" class="number-input player-chip-input w-full bg-gray-700 border border-gray-600 rounded-md p-1 text-xs" placeholder="칩" value="${formatNumber(p.chips)}"></div>
           <div class="w-1/4"><button class="keypad-icon-btn btn bg-gray-600 p-1 rounded-md text-xs w-full">⌨️</button></div>
           <div class="w-1/4 card-placeholder h-10 flex justify-center items-center gap-1" data-player-name="${p.name}" data-count="2">
@@ -324,10 +329,45 @@
       const river=`<div class="card-placeholder h-10 w-8" data-target="board" data-index="4" data-count="1">${state.board[4]?formatCardDisplay(state.board[4]):'<span class="text-gray-400 text-lg">+</span>'}</div>`;
       el.boardCardPlaceholders.innerHTML = flop+turn+river;
     }
+    // 최종 팟 계산 함수
+    function calculateFinalPot(){
+      const streets=['preflop','flop','turn','river']; 
+      let totalPot=0;
+      
+      streets.forEach(street=>{
+        const logs=state.actionState[street]||[]; 
+        let streetPot=0;
+        
+        if(street==='preflop'){
+          streetPot += parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
+          streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+          if(state.actionState.hasBBAnte) streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+        }
+        
+        // Pot Correction이 있는지 확인
+        const potCorrection = logs.find(a => a.action === 'Pot Correction');
+        if(potCorrection) {
+          totalPot = parseInt(unformatNumber(potCorrection.amount),10);
+        } else {
+          logs.forEach(a=>{ 
+            if(a.amount && a.action !== 'Pot Correction') {
+              streetPot += parseInt(unformatNumber(a.amount),10); 
+            }
+          });
+          totalPot += streetPot;
+        }
+      });
+      
+      return totalPot;
+    }
+    
     function renderWinnerSelection(){
+      const finalPot = calculateFinalPot();
+      
       el.winnerButtons.innerHTML = state.playersInHand.map(p=>{
         const sel=(p.role==='winner');
-        return `<button class="btn ${sel?'btn-selected':'bg-gray-600 hover:bg-gray-500'} px-2 py-1 text-xs rounded-md set-winner-btn" data-player-name="${p.name}">${p.name}</button>`;
+        const potDisplay = sel && finalPot > 0 ? ` <span class="text-amber-300 font-bold">+${formatNumber(finalPot)}</span>` : '';
+        return `<button class="btn ${sel?'btn-selected bg-amber-600':'bg-gray-600 hover:bg-gray-500'} px-2 py-1 text-xs rounded-md set-winner-btn" data-player-name="${p.name}">${p.name}${potDisplay}</button>`;
       }).join('');
     }
     function renderActionStreets(){
@@ -558,9 +598,18 @@
       renderPlayerSelection(); renderPlayerDetails(); renderWinnerSelection();
     }
     function setPlayerRole(name){
-      const p=state.playersInHand.find(pp=>pp.name===name); if(!p) return;
+      // 기존 승자 해제 (한 명만 승자 가능)
+      state.playersInHand.forEach(p => {
+        if(p.name !== name) p.role = null;
+      });
+      
+      const p=state.playersInHand.find(pp=>pp.name===name); 
+      if(!p) return;
       p.role = (p.role==='winner')? null : 'winner';
-      renderPlayerDetails(); renderWinnerSelection();
+      
+      renderPlayerDetails(); 
+      renderWinnerSelection();
+      renderActionStreets(); // 액션 로그에도 승자 하이라이트 업데이트
     }
     function assignCard(cards){
       const {target,player,index,count} = state.modalState.cardTarget;
