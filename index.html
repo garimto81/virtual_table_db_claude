@@ -645,7 +645,7 @@
       let lastBet = null;
       let requiredAmt = 0;
       
-      // 현재 스트리트에서 마지막 베팅 찾기
+      // 현재 스트리트에서만 마지막 베팅 찾기 (각 스트리트는 독립적)
       for(let i = actions.length - 1; i >= 0; i--) {
         const action = actions[i];
         if(['Bets', 'Raises', 'All In'].includes(action.action) && action.amount) {
@@ -654,28 +654,11 @@
         }
       }
       
-      // 베팅이 없으면 이전 스트리트 확인 (preflop 제외)
-      if(!lastBet && street !== 'preflop') {
-        const streetOrder = ['preflop', 'flop', 'turn', 'river'];
-        const currentIdx = streetOrder.indexOf(street);
-        for(let i = currentIdx - 1; i >= 0; i--) {
-          const prevActions = state.actionState[streetOrder[i]];
-          for(let j = prevActions.length - 1; j >= 0; j--) {
-            const action = prevActions[j];
-            if(['Bets', 'Raises', 'All In'].includes(action.action) && action.amount) {
-              lastBet = action;
-              break;
-            }
-          }
-          if(lastBet) break;
-        }
-      }
-      
       const p = state.playersInHand.find(pp => pp.name === player);
       const playerChips = p ? parseInt(unformatNumber(p.chips), 10) : 0;
       
       if(!lastBet) {
-        // 베팅 없음 → CHECK
+        // 현재 스트리트에 베팅 없음 → CHECK
         if(street === 'preflop') {
           // 프리플랍에서 베팅 없으면 빅블라인드 콜
           requiredAmt = unformatNumber(state.actionState.bigBlind);
@@ -684,9 +667,10 @@
           }
           return { action: 'Calls', amount: requiredAmt, label: `Call ${formatNumber(requiredAmt)}` };
         }
+        // 플랍, 턴, 리버에서는 각 스트리트가 새로 시작되므로 체크 가능
         return { action: 'Checks', amount: null, label: 'Check' };
       } else {
-        // 베팅 있음 → CALL
+        // 현재 스트리트에 베팅 있음 → CALL
         requiredAmt = lastBet.amount;
         if(playerChips <= parseInt(unformatNumber(requiredAmt), 10)) {
           // 칩 부족 → ALL-IN
