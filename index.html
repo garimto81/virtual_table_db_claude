@@ -614,8 +614,20 @@
             state.board[4] = null;
           }
         } else {
-          // 카드 할당
-          cards.forEach((c,i)=> state.board[index+i]=c);
+          // 보드 배열이 충분한 크기인지 확인
+          while(state.board.length <= Math.max(index + count - 1, 4)) {
+            state.board.push(null);
+          }
+          
+          // 카드 할당 (기존 카드 유지하면서 새 카드만 업데이트)
+          if(count === 3) { // flop: 인덱스 0,1,2
+            state.board[0] = cards[0] || null;
+            state.board[1] = cards[1] || null;
+            state.board[2] = cards[2] || null;
+          } else {
+            // turn(index=3) 또는 river(index=4): 해당 인덱스만 업데이트
+            state.board[index] = cards[0] || null;
+          }
         }
         renderBoard();
       }
