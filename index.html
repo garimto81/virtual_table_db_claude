@@ -121,7 +121,6 @@
   <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
-  <div id="camera-select-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="log-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
     <div class="bg-gray-800 rounded-lg p-4 w-full max-w-lg h-2/3 flex flex-col">
       <div class="flex justify-between items-center mb-2">
@@ -221,51 +220,7 @@
       cam1: document.getElementById('cam-btn-1'),
       cam2: document.getElementById('cam-btn-2'),
       dataStamp: document.getElementById('data-stamp'),
-      cameraSelectModal: document.getElementById('camera-select-modal'),
     };
-
-    // ====== CAMERA SELECT MODAL ======
-    function openCameraSelectModal(which) {
-      const modal = el.cameraSelectModal;
-      modal.innerHTML = `
-        <div class="bg-gray-800 rounded-lg p-4 max-w-md w-full">
-          <h3 class="text-xl font-bold mb-4">카메라 ${which === 'cam1' ? '1' : '2'} 설정</h3>
-          <div class="grid grid-cols-2 gap-2 mb-4">
-            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camAa">camAa</button>
-            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camAb">camAb</button>
-            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camBa">camBa</button>
-            <button class="btn bg-gray-700 hover:bg-gray-600 p-3 rounded-md" data-cam-preset="camBb">camBb</button>
-          </div>
-          <div class="flex justify-end gap-2">
-            <button class="btn bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-md" onclick="closeModal(el.cameraSelectModal)">취소</button>
-          </div>
-        </div>
-      `;
-      
-      // 카메라 프리셋 버튼 클릭 이벤트
-      modal.querySelectorAll('[data-cam-preset]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const preset = e.target.dataset.camPreset;
-          
-          // state 업데이트
-          if(which === 'cam1') {
-            state.camPreset.cam1 = preset;
-            // 카메라 번호 선택을 위한 키패드 열기
-            const prefill = computeCamPrefill('cam1');
-            closeModal(modal);
-            openKeypad(null, { purpose:'cam', cam:'cam1', prefill });
-          } else {
-            state.camPreset.cam2 = preset;
-            const prefill = computeCamPrefill('cam2');
-            closeModal(modal);
-            openKeypad(null, { purpose:'cam', cam:'cam2', prefill });
-          }
-        });
-      });
-      
-      modal.classList.remove('hidden');
-      setTimeout(() => modal.classList.remove('opacity-0'), 10);
-    }
 
     // ====== LOG MODAL ======
     function openLogModal(){ 
@@ -1543,6 +1498,11 @@ async function sendDataToGoogleSheet(){
       const handUpdatedAt = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
       const table = state.selectedTable || '';
       
+      // 카메라 정보 로깅
+      console.log('📦 Index 메타데이터 빌드:');
+      console.log(`  cam1: ${state.camPreset.cam1} / 번호: ${state.camNumbers.cam1no}`);
+      console.log(`  cam2: ${state.camPreset.cam2} / 번호: ${state.camNumbers.cam2no}`);
+      
       // 마지막 액션 찾기
       let lastActionDesc = '';
       const streets = ['river', 'turn', 'flop', 'preflop'];
@@ -1580,9 +1540,9 @@ async function sendDataToGoogleSheet(){
         tableUpdatedAt: handUpdatedAt,                        // I열 (YYYY-MM-DD)
         cam: `${state.camPreset.cam1 || ''}+${state.camPreset.cam2 || ''}`, // J열
         camFile01name: state.camPreset.cam1 || '',            // K열
-        camFile01number: state.camNumbers.cam1no || '',       // L열
+        camFile01number: String(state.camNumbers.cam1no || ''), // L열 - 문자열로 변환
         camFile02name: state.camPreset.cam2 || '',            // M열
-        camFile02number: state.camNumbers.cam2no || '',       // N열
+        camFile02number: String(state.camNumbers.cam2no || ''), // N열 - 문자열로 변환
         lastStreet: state.currentStreet,                      // O열
         lastAction: lastActionDesc,                           // P열
         workStatus: determineWorkStatus()                     // Q열
@@ -1771,13 +1731,15 @@ async function sendDataToGoogleSheet(){
       el.refreshDataBtn.onclick = loadInitial;
       el.resetBtn.onclick = resetApp;
       
-      // Cam 버튼 클릭 - 카메라 선택 모달 열기
+      // Cam 버튼 클릭 - 바로 키패드 열기
       el.cam1.addEventListener('click', ()=>{
-        openCameraSelectModal('cam1');
+        const prefill = computeCamPrefill('cam1');
+        openKeypad(null, { purpose:'cam', cam:'cam1', prefill });
       });
 
       el.cam2.addEventListener('click', ()=>{
-        openCameraSelectModal('cam2');
+        const prefill = computeCamPrefill('cam2');
+        openKeypad(null, { purpose:'cam', cam:'cam2', prefill });
       });
       // "시트 전송" 버튼을 누르면 → 바로 전송 (노트 기능 제거)
       el.sendToSheetBtn.onclick = () => { sendDataToGoogleSheet(); };
@@ -1996,17 +1958,20 @@ async function sendDataToGoogleSheet(){
           if(purpose==='cam'){
             const which = state.modalState.keypadOptions.cam; // 'cam1'|'cam2'
             const padded = pad4(finalAmt);
+            const numValue = String(finalAmt); // 숫자만 저장 (0007 → 7)
             if (which==='cam1'){
-              state.camNumbers.cam1no = padded;
-              state.lastCamNo = padded;
-              el.cam1.textContent = `${state.camPreset.cam1}${padded}`; // 콜론 제거
-              localStorage.setItem('pokerHandLogger_lastCam1', padded); // localStorage에 저장
+              state.camNumbers.cam1no = numValue; // 숫자로 저장
+              state.lastCamNo = numValue;
+              el.cam1.textContent = `${state.camPreset.cam1}${padded}`; // 표시는 패딩된 형태로
+              localStorage.setItem('pokerHandLogger_lastCam1', numValue); // localStorage에 숫자로 저장
               showFeedback(`${state.camPreset.cam1 || 'Cam1'}${padded} 입력됨`);
+              console.log(`📷 cam1 저장: ${state.camPreset.cam1}=${numValue}`);
             }else if (which==='cam2'){
-              state.camNumbers.cam2no = padded;
-              state.lastCamNo = padded;
-              el.cam2.textContent = `${state.camPreset.cam2}${padded}`; // 콜론 제거
-              localStorage.setItem('pokerHandLogger_lastCam2', padded); // localStorage에 저장
+              state.camNumbers.cam2no = numValue; // 숫자로 저장
+              state.lastCamNo = numValue;
+              el.cam2.textContent = `${state.camPreset.cam2}${padded}`; // 표시는 패딩된 형태로
+              localStorage.setItem('pokerHandLogger_lastCam2', numValue); // localStorage에 숫자로 저장
+              console.log(`📷 cam2 저장: ${state.camPreset.cam2}=${numValue}`);
               showFeedback(`${state.camPreset.cam2 || 'Cam2'}${padded} 입력됨`);
             }
           }else if(purpose==='bet'){
