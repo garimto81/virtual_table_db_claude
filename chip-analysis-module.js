@@ -139,32 +139,110 @@ function addChipAnalysisButtons() {
   });
 }
 
+// 디바이스 타입 감지
+function getDeviceType() {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+  const hasCamera = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  
+  return {
+    isMobile: isMobile,
+    isPC: !isMobile,
+    hasCamera: hasCamera,
+    platform: isMobile ? (userAgent.includes('iphone') || userAgent.includes('ipad') ? 'iOS' : 'Android') : 'PC'
+  };
+}
+
 // 칩 슬롯 선택
 function selectChipSlot(slotIndex) {
-  console.log('칩 슬롯 선택:', slotIndex);
+  console.log('=============================================');
+  console.log(`🎯 칩 슬롯 선택: ${slotIndex}번 슬롯`);
+  
+  const device = getDeviceType();
+  console.log(`📱 디바이스 정보:`, device);
+  console.log(`  - 플랫폼: ${device.platform}`);
+  console.log(`  - 카메라 지원: ${device.hasCamera ? '✅' : '❌'}`);
+  
+  if (!device.hasCamera) {
+    console.warn('⚠️ 카메라 API를 지원하지 않습니다. 파일 업로드만 사용 가능합니다.');
+  }
+  
   state.currentChipSlot = slotIndex;
   openChipColorModal();
 }
 
-// 칩 컬러 촬영 모달 열기
+// 칩 컬러 모달 열기 (개선된 버전)
 async function openChipColorModal() {
-  console.log('칩 컬러 모달 열기 시도');
+  console.log('🎰 칩 컬러 모달 열기 시작');
   const modal = document.getElementById('chip-color-modal');
+  
   if (!modal) {
-    console.error('칩 컬러 모달을 찾을 수 없습니다!');
+    console.error('❌ 칩 컬러 모달을 찾을 수 없습니다!');
+    alert('칩 등록 모달을 열 수 없습니다. 페이지를 새로고침해주세요.');
     return;
   }
   
+  // 모달 초기화
+  resetChipModal();
+  
+  // 모달 표시
   modal.classList.remove('hidden');
   setTimeout(() => modal.classList.remove('opacity-0'), 10);
   
+  const device = getDeviceType();
+  
+  // PC에서 카메라가 없는 경우 안내
+  if (device.isPC && !device.hasCamera) {
+    console.log('💻 PC 환경 - 카메라 미지원, 파일 업로드 권장');
+    document.getElementById('chip-info-message').innerHTML = 
+      '⚠️ PC에서 카메라를 사용할 수 없습니다. 파일 선택을 이용해주세요.';
+  } else if (device.isMobile) {
+    console.log('📱 모바일 환경 - 카메라 촬영 가능');
+    document.getElementById('chip-info-message').innerHTML = 
+      '📱 카메라로 칩을 촬영하거나 갤러리에서 선택하세요.';
+  }
+  
+  console.log('✅ 칩 모달이 열렸습니다. 옵션을 선택하세요.');
+  
+}
+
+// 모달 초기화
+function resetChipModal() {
+  // 모든 섹션 숨기기
+  const optionSelect = document.getElementById('chip-option-select');
+  const cameraView = document.getElementById('camera-view');
+  const imagePreview = document.getElementById('image-preview');
+  
+  if (optionSelect) optionSelect.classList.remove('hidden');
+  if (cameraView) cameraView.classList.add('hidden');
+  if (imagePreview) imagePreview.classList.add('hidden');
+  
+  // 버튼 상태 초기화
+  document.querySelectorAll('#capture-chip-btn, #confirm-chip-btn, #retry-chip-btn').forEach(btn => {
+    btn.classList.add('hidden');
+  });
+  
+  // 입력 필드 초기화
+  const valueInput = document.getElementById('chip-value-input');
+  if (valueInput) valueInput.value = '';
+}
+
+// 카메라 시작
+async function startCameraCapture() {
+  console.log('📷 카메라 모드 시작');
+  
+  // UI 전환
+  document.getElementById('chip-option-select').classList.add('hidden');
+  document.getElementById('camera-view').classList.remove('hidden');
+  document.getElementById('capture-chip-btn').classList.remove('hidden');
+  
+  const video = document.getElementById('chip-video');
+  if (!video) {
+    console.error('비디오 요소를 찾을 수 없습니다!');
+    return;
+  }
+  
   try {
-    const video = document.getElementById('chip-video');
-    if (!video) {
-      console.error('비디오 요소를 찾을 수 없습니다!');
-      return;
-    }
-    
     console.log('카메라 스트림 요청 중...');
     const stream = await navigator.mediaDevices.getUserMedia({ 
       video: { 
@@ -173,17 +251,88 @@ async function openChipColorModal() {
         height: { ideal: 720 }
       } 
     });
-    console.log('카메라 스트림 획득 성공');
+    console.log('✅ 카메라 스트림 획득 성공');
     video.srcObject = stream;
   } catch (err) {
-    console.error('카메라 접근 실패:', err);
-    alert('카메라를 사용할 수 없습니다.\n' + err.message);
+    console.error('❌ 카메라 접근 실패:', err);
+    alert('카메라를 사용할 수 없습니다.\n' + err.message + '\n\n파일 선택을 이용해주세요.');
+    resetChipModal();
+  }
+}
+
+// 파일 선택 시작
+function startFileSelection() {
+  console.log('📁 파일 선택 모드 시작');
+  
+  const fileInput = document.getElementById('file-input');
+  if (!fileInput) {
+    console.error('파일 입력 요소를 찾을 수 없습니다!');
+    return;
+  }
+  
+  fileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) {
+      console.log('파일이 선택되지 않았습니다.');
+      return;
+    }
+    
+    console.log(`📄 선택된 파일: ${file.name} (${(file.size / 1024).toFixed(2)}KB)`);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      // UI 전환
+      document.getElementById('chip-option-select').classList.add('hidden');
+      document.getElementById('image-preview').classList.remove('hidden');
+      document.getElementById('confirm-chip-btn').classList.remove('hidden');
+      document.getElementById('retry-chip-btn').classList.remove('hidden');
+      
+      // 이미지 표시
+      const previewImg = document.getElementById('preview-img');
+      if (previewImg) {
+        previewImg.src = e.target.result;
+        state.tempImageData = e.target.result;
+        console.log('✅ 이미지 미리보기 로드 완료');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  fileInput.click();
+}
+
+// 파일 선택에서 칩 저장
+function saveChipFromImage() {
+  console.log('💾 파일에서 칩 정보 저장');
+  
+  const valueInput = document.getElementById('chip-value-input');
+  const chipValue = parseInt(valueInput.value.replace(/\D/g, '')) || 0;
+  
+  if (chipValue === 0) {
+    alert('칩 값을 입력해주세요.');
+    return;
+  }
+  
+  if (state.currentChipSlot !== null && state.tempImageData) {
+    if (!state.chipColors[state.currentChipSlot]) {
+      state.chipColors[state.currentChipSlot] = {};
+    }
+    
+    state.chipColors[state.currentChipSlot].image = state.tempImageData;
+    state.chipColors[state.currentChipSlot].value = chipValue;
+    state.chipColors[state.currentChipSlot].color = '#888'; // 기본 색상
+    
+    console.log(`✅ 칩 저장 완료: ${chipValue}원`);
+    saveChipColors();
+    renderChipColorSlots();
     closeChipColorModal();
+    alert(`칩 등록 완료!\n값: ${chipValue.toLocaleString()}원`);
   }
 }
 
 // 칩 사진 촬영
 function captureChipPhoto() {
+  console.log('📸 칩 사진 촬영');
   const video = document.getElementById('chip-video');
   const canvas = document.getElementById('chip-canvas');
   const valueInput = document.getElementById('chip-value-input');
@@ -502,7 +651,10 @@ function setupChipAnalysisListeners() {
   document.addEventListener('click', (e) => {
     // 칩 추가 버튼 클릭 처리
     if (e.target && e.target.id === 'add-chip-color-btn') {
-      console.log('칩 추가 버튼 클릭됨');
+      console.log('============================================');
+      console.log('🎰 칩 추가 버튼 클릭!');
+      console.log('현재 등록된 칩 개수:', state.chipColors.length);
+      console.log('============================================');
       e.preventDefault();
       e.stopPropagation();
       
@@ -510,8 +662,37 @@ function setupChipAnalysisListeners() {
         const emptySlot = state.chipColors.length;
         selectChipSlot(emptySlot);
       } else {
+        console.warn('⚠️ 최대 5개까지만 등록 가능');
         alert('최대 5개까지만 등록 가능합니다.');
       }
+    }
+    
+    // 카메라 선택 버튼
+    if (e.target && (e.target.id === 'select-camera-btn' || e.target.parentElement?.id === 'select-camera-btn')) {
+      console.log('📷 카메라 선택됨');
+      e.preventDefault();
+      startCameraCapture();
+    }
+    
+    // 파일 선택 버튼
+    if (e.target && (e.target.id === 'select-file-btn' || e.target.parentElement?.id === 'select-file-btn')) {
+      console.log('📁 파일 선택됨');
+      e.preventDefault();
+      startFileSelection();
+    }
+    
+    // 다시 선택 버튼
+    if (e.target && e.target.id === 'retry-chip-btn') {
+      console.log('🔄 다시 선택');
+      e.preventDefault();
+      resetChipModal();
+    }
+    
+    // 확인 버튼 (파일 선택 후)
+    if (e.target && e.target.id === 'confirm-chip-btn') {
+      console.log('✅ 이미지 확인');
+      e.preventDefault();
+      saveChipFromImage();
     }
   });
   
