@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.2.0</title>
+  <title>포커 핸드 로거 v2.2.2</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <style>
@@ -48,7 +48,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.2.1</span>
+        <span id="version-display" class="text-gray-400">v2.2.2</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -245,16 +245,33 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.2.1';
+  const APP_VERSION = 'v2.2.2';
   const VERSION_DATE = '2025-01-05';
+  const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
   // Gemini API 설정
   const GEMINI_API_KEY = 'AIzaSyBB8uqP1ECTe40jknSy5XK71TCs8_KbGV0';
   const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
   
+  // 버전 정보를 항상 콘솔에 표시
+  console.log(`%c====================================`, 'color: #fbbf24');
+  console.log(`%c🎯 ${VERSION_INFO}`, 'color: #fbbf24; font-size: 18px; font-weight: bold');
+  console.log(`%c====================================`, 'color: #fbbf24');
+  console.log('%c📱 AI 칩 스택 분석 기능 활성화', 'color: #10b981');
+  console.log('%c💡 관리 버튼 → 칩 컬러 탭에서 칩 등록', 'color: #60a5fa');
+  
+  // 모든 에러와 경고에 버전 정보 포함
+  const originalError = console.error;
+  const originalWarn = console.warn;
+  console.error = function(...args) {
+    originalError.apply(console, [`[${APP_VERSION}]`, ...args]);
+  };
+  console.warn = function(...args) {
+    originalWarn.apply(console, [`[${APP_VERSION}]`, ...args]);
+  };
+  
   document.addEventListener('DOMContentLoaded', () => {
-    console.log(`%c🎯 포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`, 'color: #fbbf24; font-size: 16px; font-weight: bold');
-    console.log('%c최신 변경사항: AI 칩 스택 분석 기능 추가', 'color: #10b981');
+    console.log(`%c🚀 앱 초기화 시작 - ${VERSION_INFO}`, 'color: #10b981; font-weight: bold');
     console.log('Initialized at', new Date().toISOString());
     
     // 칩 분석 모듈 초기화
@@ -2532,8 +2549,8 @@ async function sendDataToGoogleSheet(){
     async function initializeApp(){
       el.logDisplay.innerHTML=''; 
       openLogModal(); 
-      logMessage(`🎯 포커 핸드 로거 ${APP_VERSION}`);
-      logMessage('앱 초기화 시작...');
+      logMessage(`🎯 ${VERSION_INFO}`);
+      logMessage(`📅 초기화 시작: ${new Date().toLocaleString('ko-KR')}`);
       populateTimezones(); loadActionState();
       try{
         await loadInitial();

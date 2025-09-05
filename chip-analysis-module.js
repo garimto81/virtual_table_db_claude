@@ -1,14 +1,17 @@
 /**
  * ============================================
  * 포커 핸드 로거 - AI 칩 분석 모듈
- * Version: 1.0.0
+ * Version: 1.0.1
  * Last Modified: 2025-01-05
+ * Parent App: v2.2.2
  * ============================================
  */
 
+const CHIP_MODULE_VERSION = '1.0.1';
+
 // 칩 분석 모듈 초기화
 function initChipAnalyzer() {
-  console.log('🎲 AI 칩 분석 모듈 초기화 v1.0.0');
+  console.log(`%c🎲 AI 칩 분석 모듈 초기화 v${CHIP_MODULE_VERSION}`, 'color: #a78bfa; font-weight: bold');
   
   // 칩 컬러 렌더링
   renderChipColorSlots();
