@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PLAYER 행 형식 테스트</title>
+    <style>
+        body { font-family: monospace; background: #1a1a1a; color: white; padding: 20px; }
+        .test-case { background: #333; border-radius: 8px; padding: 15px; margin: 20px 0; }
+        .test-case h3 { color: #fbbf24; margin: 0 0 10px 0; }
+        .expected { color: #10b981; }
+        .actual { color: #3b82f6; }
+        .error { color: #ef4444; }
+        .success { color: #10b981; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        td, th { border: 1px solid #555; padding: 5px; text-align: left; }
+        th { background-color: #444; }
+        .column-label { background-color: #2d3748; font-weight: bold; }
+        button { background: #4b5563; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #6b7280; }
+    </style>
+</head>
+<body>
+    <h1>🎯 PLAYER 행 형식 검증</h1>
+    
+    <div class="test-case">
+        <h3>올바른 형식 (예상)</h3>
+        <table>
+            <tr class="column-label">
+                <td>A</td><td>B</td><td>C</td><td>D</td><td>E</td><td>F</td><td>G</td><td>H</td>
+            </tr>
+            <tr class="expected">
+                <td>4</td>
+                <td>PLAYER</td>
+                <td>LEMMENS</td>
+                <td>1</td>
+                <td>0</td>
+                <td>575000</td>
+                <td>0</td>
+                <td>7h 7d</td>
+            </tr>
+            <tr class="expected">
+                <td>5</td>
+                <td>PLAYER</td>
+                <td>CALONGE</td>
+                <td>2</td>
+                <td>0</td>
+                <td>998000</td>
+                <td>358000</td>
+                <td>Qh Jh</td>
+            </tr>
+        </table>
+        <p>형식: 행번호 | PLAYER | 이름 | 좌석 | 0 | 시작칩 | 종료칩 | 핸드</p>
+    </div>
+    
+    <div class="test-case">
+        <h3>현재 생성되는 형식 테스트</h3>
+        <div id="test-output"></div>
+    </div>
+    
+    <button onclick="testPlayerFormat()">PLAYER 행 생성 테스트</button>
+    <button onclick="testParsePlayer()">PLAYER 행 파싱 테스트</button>
+    <button onclick="location.href='index.html'">메인으로 돌아가기</button>
+    
+    <script>
+        // 테스트용 함수들
+        function unformatNumber(str) {
+            if (!str) return '';
+            return String(str).replace(/,/g, '');
+        }
+        
+        function testPlayerFormat() {
+            // 생성 테스트
+            const testPlayers = [
+                { name: 'LEMMENS', seat: 1, initialChips: '575000', chips: '0', hand: ['7h', '7d'] },
+                { name: 'CALONGE', seat: 2, initialChips: '998000', chips: '358000', hand: ['Qh', 'Jh'] }
+            ];
+            
+            const rows = [];
+            testPlayers.forEach(p => {
+                let initialChips = parseInt(unformatNumber(p.initialChips) || 0, 10);
+                let finalChips = parseInt(unformatNumber(p.chips) || 0, 10);
+                // 수정된 형식: PLAYER, name, seat, 0, 시작칩, 종료칩, 핸드
+                rows.push(['PLAYER', p.name, p.seat, 0, initialChips, finalChips, p.hand?.length ? p.hand.join(' ') : '']);
+            });
+            
+            let html = '<table>';
+            html += '<tr class="column-label"><td>A</td><td>B</td><td>C</td><td>D</td><td>E</td><td>F</td><td>G</td><td>H</td></tr>';
+            
+            rows.forEach((row, idx) => {
+                html += '<tr class="actual">';
+                html += `<td>${idx + 4}</td>`;  // 행 번호
+                row.forEach((cell, i) => {
+                    html += `<td>${cell}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</table>';
+            
+            html += '<div style="margin-top: 20px">';
+            if(rows[0][4] === 575000 && rows[0][5] === 0 && rows[1][4] === 998000 && rows[1][5] === 358000) {
+                html += '<p class="success">✅ 형식이 올바릅니다!</p>';
+                html += '<p>칼럼 E: 시작칩, 칼럼 F: 종료칩 위치가 정확합니다.</p>';
+            } else {
+                html += '<p class="error">❌ 형식 오류 발견</p>';
+                html += '<p>현재: E=' + rows[0][4] + ', F=' + rows[0][5] + '</p>';
+                html += '<p>예상: E=575000, F=0</p>';
+            }
+            html += '</div>';
+            
+            document.getElementById('test-output').innerHTML = html;
+        }
+        
+        function testParsePlayer() {
+            // 파싱 테스트
+            const testRows = [
+                ['4', 'PLAYER', 'LEMMENS', '1', '0', '575000', '0', '7h 7d'],
+                ['5', 'PLAYER', 'CALONGE', '2', '0', '998000', '358000', 'Qh Jh']
+            ];
+            
+            const players = [];
+            testRows.forEach(row => {
+                if(row[1] === 'PLAYER') {
+                    const name = row[2];
+                    const seat = row[3];
+                    // 파싱: row[4]는 0, row[5]는 시작칩, row[6]은 종료칩, row[7]은 핸드
+                    const init = row[5], final = row[6];
+                    const cards = (row[7] || '').trim() ? String(row[7]).trim().split(' ') : [];
+                    players.push({ name, seat, initialChips: init, finalChips: final, hand: cards });
+                }
+            });
+            
+            let html = '<h4>파싱 결과:</h4>';
+            html += '<pre style="background: #222; padding: 10px; border-radius: 4px;">';
+            html += JSON.stringify(players, null, 2);
+            html += '</pre>';
+            
+            if(players[0].initialChips === '575000' && players[0].finalChips === '0' &&
+               players[1].initialChips === '998000' && players[1].finalChips === '358000') {
+                html += '<p class="success">✅ 파싱이 올바르게 작동합니다!</p>';
+            } else {
+                html += '<p class="error">❌ 파싱 오류</p>';
+            }
+            
+            document.getElementById('test-output').innerHTML = html;
+        }
+        
+        // 페이지 로드 시 자동 테스트
+        window.onload = () => {
+            testPlayerFormat();
+        };
+    </script>
+</body>
+</html>

@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.1.0</title>
+  <title>포커 핸드 로거 v2.0.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -39,13 +39,6 @@
 </head>
 <body class="bg-gray-900 text-white antialiased">
   <div id="app-container">
-    <!-- 버전 표시 헤더 -->
-    <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
-      <div class="flex justify-between items-center text-xs">
-        <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.1.0</span>
-      </div>
-    </div>
     <main class="p-2 space-y-2">
       <div class="bg-gray-800 p-2 rounded-lg space-y-2">
         <div class="flex items-center gap-2 text-sm">
@@ -143,27 +136,14 @@
   /**
    * ============================================
    * 포커 핸드 로거 - Main JavaScript
-   * Version: 2.1.0
-   * Last Modified: 2025-01-06 KST
-   * Changes: 팟 계산 로직 수정, PLAYER 행 형식 수정
+   * Version: 2.0.0
+   * Last Modified: 2025-01-02 10:30 KST
    * Author: garimto81 with Claude
    * ============================================
    */
   
-  // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.1.0';
-  const VERSION_DATE = '2025-01-06';
-  
   document.addEventListener('DOMContentLoaded', () => {
-    console.log(`%c🎯 포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`, 'color: #fbbf24; font-size: 16px; font-weight: bold');
-    console.log('%c최신 변경사항: 팟 계산 로직 개선, PLAYER 행 형식 수정', 'color: #10b981');
-    console.log('Initialized at', new Date().toISOString());
-    
-    // 화면에 버전 표시 업데이트
-    const versionDisplay = document.getElementById('version-display');
-    if(versionDisplay) {
-      versionDisplay.textContent = `${APP_VERSION} (${VERSION_DATE})`;
-    }
+    console.log('포커 핸드 로거 v2.0.0 - Initialized at', new Date().toISOString());
     
     // ====== CONFIG (필수: 실제 URL로 교체) ======
     const CSV_HAND_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv"; // Hand 탭 CSV
@@ -351,24 +331,10 @@
     }
     // 최종 팟 계산 함수
     function calculateFinalPot(){
-      // 실제 팟 계산 사용 (폴드한 플레이어의 베팅 포함, 언콜 베팅 제외)
-      return calculateActualPot();
-    }
-    
-    function renderWinnerSelection(){
-      const finalPot = calculateFinalPot();
-      
-      el.winnerButtons.innerHTML = state.playersInHand.map(p=>{
-        const sel=(p.role==='winner');
-        const potDisplay = sel && finalPot > 0 ? ` <span class="text-amber-300 font-bold">+${formatNumber(finalPot)}</span>` : '';
-        return `<button class="btn ${sel?'btn-selected bg-amber-600':'bg-gray-600 hover:bg-gray-500'} px-2 py-1 text-xs rounded-md set-winner-btn" data-player-name="${p.name}">${p.name}${potDisplay}</button>`;
-      }).join('');
-    }
-    function renderActionStreets(){
       const streets=['preflop','flop','turn','river']; 
-      let displayPot=0;  // UI 표시용 팟
+      let totalPot=0;
       
-      el.streetLogsContainer.innerHTML = streets.map(street=>{
+      streets.forEach(street=>{
         const logs=state.actionState[street]||[]; 
         let streetPot=0;
         
@@ -381,8 +347,44 @@
         // Pot Correction이 있는지 확인
         const potCorrection = logs.find(a => a.action === 'Pot Correction');
         if(potCorrection) {
+          totalPot = parseInt(unformatNumber(potCorrection.amount),10);
+        } else {
+          logs.forEach(a=>{ 
+            if(a.amount && a.action !== 'Pot Correction') {
+              streetPot += parseInt(unformatNumber(a.amount),10); 
+            }
+          });
+          totalPot += streetPot;
+        }
+      });
+      
+      return totalPot;
+    }
+    
+    function renderWinnerSelection(){
+      const finalPot = calculateFinalPot();
+      
+      el.winnerButtons.innerHTML = state.playersInHand.map(p=>{
+        const sel=(p.role==='winner');
+        const potDisplay = sel && finalPot > 0 ? ` <span class="text-amber-300 font-bold">+${formatNumber(finalPot)}</span>` : '';
+        return `<button class="btn ${sel?'btn-selected bg-amber-600':'bg-gray-600 hover:bg-gray-500'} px-2 py-1 text-xs rounded-md set-winner-btn" data-player-name="${p.name}">${p.name}${potDisplay}</button>`;
+      }).join('');
+    }
+    function renderActionStreets(){
+      const streets=['preflop','flop','turn','river']; let cumulativePot=0;
+      el.streetLogsContainer.innerHTML = streets.map(street=>{
+        const logs=state.actionState[street]||[]; let streetPot=0;
+        if(street==='preflop'){
+          streetPot += parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
+          streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+          if(state.actionState.hasBBAnte) streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+        }
+        
+        // Pot Correction이 있는지 확인
+        const potCorrection = logs.find(a => a.action === 'Pot Correction');
+        if(potCorrection) {
           // Pot Correction이 있으면 그 값을 직접 사용
-          displayPot = parseInt(unformatNumber(potCorrection.amount),10);
+          cumulativePot = parseInt(unformatNumber(potCorrection.amount),10);
         } else {
           // 일반 액션들만 더함
           logs.forEach(a=>{ 
@@ -390,17 +392,7 @@
               streetPot += parseInt(unformatNumber(a.amount),10); 
             }
           });
-          displayPot += streetPot;
-        }
-        
-        // 실제 팟 계산 (폴드한 플레이어의 베팅 포함)
-        const actualPot = calculateActualPot();
-        const uncalledBet = calculateUncalledBet();
-        
-        // 실제 팟과 표시 팟이 다른 경우를 위한 표시
-        let potDisplay = formatNumber(displayPot);
-        if(displayPot !== actualPot && logs.length > 0) {
-          potDisplay = `${formatNumber(displayPot)} <span class="text-xs text-amber-400">(실제: ${formatNumber(actualPot)})</span>`;
+          cumulativePot += streetPot;
         }
         const logHTML = logs.map(log=>{
           // Pot Correction은 시스템 액션이므로 player가 없음
@@ -427,8 +419,8 @@
             <button class="street-select-btn ${streetBtnClass} px-3 py-1 rounded-md font-bold min-w-[70px] text-center transition-all cursor-pointer" 
                     data-street="${street}" style="${isActive ? 'box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);' : ''}">${street.toUpperCase()}</button>
             <div class="flex items-center gap-1">
-              <span class="font-mono">Pot: ${potDisplay}</span>
-              <button class="pot-keypad-btn btn bg-gray-600 px-1 py-0 rounded" data-street="${street}" data-current-pot="${displayPot}">⌨️</button>
+              <span class="font-mono">Pot: ${formatNumber(cumulativePot)}</span>
+              <button class="pot-keypad-btn btn bg-gray-600 px-1 py-0 rounded" data-street="${street}" data-current-pot="${cumulativePot}">⌨️</button>
             </div>
             <div class="flex gap-1">
               <button class="add-action-btn btn bg-indigo-600 text-white font-bold py-1 px-2 rounded" data-street="${street}">액션+</button>
@@ -588,30 +580,12 @@
     // ====== SELECTORS & INPUTS ======
     function togglePlayerInHand(name){
       const i=state.playersInHand.findIndex(p=>p.name===name);
-      if(i>-1) {
-        // 플레이어 제거
-        state.playersInHand.splice(i,1);
-        console.log(`➖ ${name} 제거`);
-      } else {
-        // 플레이어 추가
+      if(i>-1) state.playersInHand.splice(i,1);
+      else{
         const pool=state.playerDataByTable[state.selectedTable]||[];
         const pd=pool.find(p=>p.name===name);
         const chips=pd?pd.chips:'';
-        const notable=pd?pd.notable:false;
-        const seat=pd?pd.seat:String(state.playersInHand.length + 1); // Type에서 seat 정보 가져오기
-        
-        // 새 플레이어 추가 시 initialChips를 현재 칩으로 설정
-        console.log(`➕ ${name} 추가: 시작칩 = 현재칩 = ${chips}, 좌석 = ${seat}`);
-        state.playersInHand.push({
-          name, 
-          hand:[], 
-          chips, 
-          initialChips:chips,  // 시작칩은 현재 칩 값으로 설정
-          role:null,
-          notable:notable,  // Notable 정보 추가
-          seat:seat,  // Seat 정보 추가
-          chipsSetAt: new Date().toISOString()  // 칩 설정 시간 기록
-        });
+        state.playersInHand.push({name, hand:[], chips, initialChips:chips, role:null});
       }
       renderPlayerSelection(); renderPlayerDetails(); renderWinnerSelection();
     }
@@ -856,129 +830,6 @@
     }
     
     // ====== POT ======
-    // 플레이어별 총 기여액 계산 (폴드한 플레이어 포함)
-    function calculatePlayerContributions() {
-      const contributions = {};
-      
-      ['preflop', 'flop', 'turn', 'river'].forEach(street => {
-        const actions = state.actionState[street] || [];
-        
-        actions.forEach(action => {
-          if(action.amount && action.player && action.action !== 'Pot Correction') {
-            const player = action.player;
-            const amount = parseInt(unformatNumber(action.amount), 10);
-            contributions[player] = (contributions[player] || 0) + amount;
-          }
-        });
-      });
-      
-      return contributions;
-    }
-    
-    // 실제 팟 계산 (모든 베팅 포함, 언콜 베팅 제외)
-    function calculateActualPot() {
-      let totalPot = 0;
-      let potCorrectionFound = false;
-      let potCorrectionValue = 0;
-      
-      console.log(`%c🎲 === 팟 계산 시작 [v2.1.0] ===`, 'color: #10b981; font-weight: bold');
-      
-      // 블라인드와 앤티 추가
-      totalPot += parseInt(unformatNumber(state.actionState.smallBlind) || 0, 10);
-      totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
-      if(state.actionState.hasBBAnte) {
-        totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
-      }
-      
-      // 모든 스트리트의 액션 합산
-      ['preflop', 'flop', 'turn', 'river'].forEach(street => {
-        const actions = state.actionState[street] || [];
-        
-        // Pot Correction 확인
-        const potCorrectionIdx = actions.findIndex(a => a.action === 'Pot Correction');
-        if(potCorrectionIdx !== -1) {
-          const potCorrection = actions[potCorrectionIdx];
-          potCorrectionFound = true;
-          potCorrectionValue = parseInt(unformatNumber(potCorrection.amount), 10);
-          
-          // Pot Correction 이후 같은 스트리트의 액션들만 추가
-          for(let i = potCorrectionIdx + 1; i < actions.length; i++) {
-            if(actions[i].amount && actions[i].action !== 'Pot Correction') {
-              totalPot += parseInt(unformatNumber(actions[i].amount), 10);
-            }
-          }
-          return; // 다음 스트리트로
-        }
-        
-        // Pot Correction이 이미 발견되었으면 이후 스트리트만 계산
-        if(potCorrectionFound) {
-          actions.forEach(action => {
-            if(action.amount && action.action !== 'Pot Correction') {
-              totalPot += parseInt(unformatNumber(action.amount), 10);
-            }
-          });
-        } else {
-          // Pot Correction 전까지는 모든 액션 합산
-          actions.forEach(action => {
-            if(action.amount && action.action !== 'Pot Correction') {
-              totalPot += parseInt(unformatNumber(action.amount), 10);
-            }
-          });
-        }
-      });
-      
-      // Pot Correction이 있었으면 그 값을 기준으로 설정
-      if(potCorrectionFound) {
-        console.log(`  Pot Correction 발견: ${potCorrectionValue}`);
-        console.log(`  Correction 이후 추가 베팅: ${totalPot}`);
-        totalPot = potCorrectionValue + totalPot; // Pot Correction 값 + 그 이후 액션들
-      }
-      
-      console.log(`  총 팟 (언콜 제외 전): ${totalPot}`);
-      
-      // 언콜 베팅 제외
-      const uncalledBet = calculateUncalledBet();
-      console.log(`  언콜 베팅: ${uncalledBet.amount} (플레이어: ${uncalledBet.player})`);
-      const finalPot = totalPot - uncalledBet.amount;
-      console.log(`  최종 팟: ${finalPot}`);
-      console.log(`%c🎲 === 팟 계산 종료 [v2.1.0] ===`, 'color: #10b981; font-weight: bold');
-      
-      return finalPot;
-    }
-    
-    // 언콜 베팅 계산
-    function calculateUncalledBet() {
-      const contributions = calculatePlayerContributions();
-      const activePlayers = state.playersInHand.filter(p => 
-        state.playerStatus[p.name] !== 'folded'
-      );
-      
-      // 활성 플레이어가 1명일 때만 언콜 베팅 계산
-      if(activePlayers.length === 1) {
-        const winner = activePlayers[0];
-        const winnerContribution = contributions[winner.name] || 0;
-        
-        // 다른 플레이어들의 최대 기여액
-        const otherMaxContribution = Math.max(
-          ...Object.entries(contributions)
-            .filter(([player]) => player !== winner.name)
-            .map(([_, amount]) => amount),
-          0
-        );
-        
-        // 언콜 베팅 = 승자 기여액 - 타 플레이어 최대 기여액
-        const uncalledAmount = Math.max(0, winnerContribution - otherMaxContribution);
-        
-        return {
-          amount: uncalledAmount,
-          player: winner.name
-        };
-      }
-      
-      return { amount: 0, player: null };
-    }
-    
-    // 기존 calculatePotSize 함수는 UI 표시용으로 유지
     function calculatePotSize(){
       let pot=0;
       pot+=parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
@@ -1009,9 +860,9 @@
     }
 
     function buildTypeFromCsv(rows){
-      // Type 시트 구조:
-      // A:Camera Preset, B:Player, C:Table, D:Notable, E:Chips, F:updatedAt, G:Seat
-      // A2: Cam1 name, A3: Cam2 name (카메라 프리셋 정보)
+      // Type: header in row[0]
+      // B:Player, C:Table, D:Notable(checkbox TRUE/FALSE), E:Chips
+      // A2: Cam1 name, A3: Cam2 name
       if(!rows||rows.length<1) return;
       const header=rows[0];
       const A2=(rows[1]&&rows[1][0])?String(rows[1][0]).trim():'';
@@ -1047,24 +898,14 @@
       const byTable={};
       for(let i=1;i<rows.length;i++){
         const r=rows[i]||[];
-        // A:Camera Preset, B:Player, C:Table, D:Notable, E:Chips, F:updatedAt, G:Seat
         const player=String(r[1]||'').trim();
         const table =String(r[2]||'').trim();
         const notable = String(r[3]||'').toUpperCase()==='TRUE';
         const chips = String(r[4]!=null?r[4]:'0').trim();
-        const updatedAt = String(r[5]||'').trim(); // F열: updatedAt
-        const seat = String(r[6]||'').trim(); // G열: Seat
-        
         if(player && table){
           if(!byTable[table]) byTable[table]=[];
           if(!byTable[table].some(p=>p.name===player)){
-            byTable[table].push({
-              name: player, 
-              chips, 
-              notable,
-              updatedAt,
-              seat
-            });
+            byTable[table].push({name:player, chips, notable});
           }
         }
       }
@@ -1144,7 +985,6 @@
         }else if(row[1]==='PLAYER'){
           const name=row[2];
           const seat=row[3];
-          // PLAYER 파싱: row[4]는 0, row[5]는 시작칩, row[6]은 종료칩, row[7]은 핸드
           const init=row[5], final=row[6];
           const cards=(row[7]||'').trim()? String(row[7]).trim().split(' ') : [];
           players.push({name, seat, initialChips:init, finalChips:final, hand:cards});
@@ -1214,7 +1054,7 @@
     // ====== LOADERS (initial) ======
     async function loadInitial(){
       openLogModal(); el.logDisplay.innerHTML='';
-      logMessage(`🚀 ${APP_VERSION} 초기 데이터 로딩 시작 (Type/Index) ...`);
+      logMessage('초기 데이터 로딩 시작 (Type/Index) ...');
       try{
         const [typeRows, idxRows] = await Promise.all([
           CSV_TYPE_URL.includes('http')? fetchCsv(CSV_TYPE_URL) : Promise.resolve([]),
@@ -1279,7 +1119,7 @@
         }
         
         renderAll();
-        logMessage(`✅ ${APP_VERSION} 초기 데이터 로딩 완료`);
+        logMessage('초기 데이터 로딩 완료');
       }catch(err){
         console.error(err); logMessage(`초기 로딩 실패: ${err.message}`, true);
       }finally{
@@ -1289,11 +1129,7 @@
 
     // ====== LOAD HAND MODAL ======
     function openLoadHandModal(){
-      console.log('📂 Load Hand 모달 열기 시도...');
-      console.log('📋 Index 행 개수:', state.indexRows.length);
-      
       if(!state.indexRows.length){
-        console.error('❌ Index 데이터 없음');
         showFeedback('Index 데이터가 없습니다. CSV 게시와 URL을 확인하세요.', true);
         return;
       }
@@ -1365,25 +1201,13 @@
     }
 
     async function loadHandData(handNumber, preferDate){
-      console.log(`📥 핸드 #${handNumber} 불러오기 시작...`);
       try{
         const rows = await ensureHandCsv();
-        console.log(`📊 Hand CSV 로드 완료: ${rows.length} 행`);
-        
         const data = parseHandBlock(rows, handNumber, preferDate);
-        console.log('📝 파싱된 데이터:', data);
-        
-        if(!data){ 
-          console.error(`❌ Hand #${handNumber} 데이터를 찾을 수 없음`);
-          showFeedback(`Hand #${handNumber} 블록을 찾을 수 없습니다.`, true); 
-          return; 
-        }
+        if(!data){ showFeedback(`Hand #${handNumber} 블록을 찾을 수 없습니다.`, true); return; }
 
-        // 상태 초기화
         state.playersInHand=[];
         state.board = data.board||[];
-        state.playerStatus = {}; // 플레이어 상태 초기화 추가
-        
         state.actionState = {
           ...state.actionState,
           handNumber: String(handNumber),
@@ -1401,17 +1225,6 @@
         state.playersInHand = (data.players||[]).map(p=>({
           name:p.name, hand:p.hand||[], chips:p.finalChips, initialChips:p.initialChips, role:p.role||null
         }));
-        
-        // 플레이어 상태 복원 (액션에서 폴드/올인 확인)
-        ['preflop', 'flop', 'turn', 'river'].forEach(street => {
-          (data.actions?.[street] || []).forEach(action => {
-            if(action.player && action.action === 'Folds') {
-              state.playerStatus[action.player] = 'folded';
-            } else if(action.player && action.action === 'All In') {
-              state.playerStatus[action.player] = 'allin';
-            }
-          });
-        });
 
         el.handNumberDisplay.textContent = `#${handNumber}`;
         el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
@@ -1493,9 +1306,7 @@
         closeModal(el.loadHandModal);
         showFeedback(`#${handNumber} 핸드를 불러왔습니다.`);
       }catch(err){
-        console.error('핸드 불러오기 오류:', err);
-        console.error('오류 스택:', err.stack);
-        showFeedback(`불러오기 실패: ${err.message}`, true);
+        console.error(err); showFeedback(`불러오기 실패: ${err.message}`, true);
       }
     }
 
@@ -1542,77 +1353,12 @@
       ]);
 
       // PLAYERS
-      const players = state.playersInHand.map((p,i)=>({
-        ...p, 
-        seat: p.seat || (i+1)  // Type에서 가져온 seat 정보가 있으면 사용, 없으면 인덱스+1
-      }));
-      
-      console.log(`%c=== PLAYER 행 생성 [v2.1.0] ===`, 'color: #3b82f6; font-weight: bold');
-      console.log(`현재 행번호(no): ${no}`);
-      console.log(`플레이어 수: ${players.length}`);
-      console.log('%c형식: A=행번호, B=PLAYER, C=이름, D=좌석, E=0(고정), F=시작칩, G=종료칩, H=핸드', 'color: #9ca3af');
-      
+      const players = state.playersInHand.map((p,i)=>({...p, seat:i+1}));
       players.forEach(p=>{
-        console.log(`\n--- ${p.name} 처리 시작 ---`);
-        console.log(`  원본 데이터:`, p);
-        
-        // 칩 값 확인 - initialChips가 없으면 chips 값을 사용
-        let initialChips;
+        let initialChips = parseInt(unformatNumber(p.initialChips)||0,10);
         let finalChips = parseInt(unformatNumber(p.chips)||0,10);
-        
-        // initialChips가 undefined이거나 빈 문자열인 경우 처리
-        if(p.initialChips === undefined || p.initialChips === '' || p.initialChips === null) {
-          console.warn(`  ⚠️ initialChips가 없음. chips 값 사용: ${p.chips}`);
-          initialChips = finalChips; // 시작칩이 없으면 현재 칩을 시작칩으로 사용
-        } else {
-          const unformattedInitial = unformatNumber(p.initialChips);
-          console.log(`  unformatNumber(p.initialChips) = "${unformattedInitial}"`);
-          initialChips = parseInt(unformattedInitial || '0', 10);
-          if(isNaN(initialChips)) {
-            console.error(`  ❌ parseInt가 NaN 반환! 원본: "${p.initialChips}"`);
-            initialChips = 0;
-          }
-        }
-        
-        // 디버깅: 실제 값 확인
-        console.log(`  초기칩(raw): "${p.initialChips}" → ${initialChips}`);
-        console.log(`  최종칩(raw): "${p.chips}" → ${finalChips}`);
-        console.log(`  핸드: ${p.hand?.join(' ') || '(없음)'}`);
-        
-        // 배열 생성 전 값 타입 확인
-        console.log(`  initialChips 타입: ${typeof initialChips}, 값: ${initialChips}`);
-        console.log(`  finalChips 타입: ${typeof finalChips}, 값: ${finalChips}`);
-        
-        // PLAYER 형식: B=PLAYER, C=name, D=seat, E=0, F=시작칩, G=종료칩, H=핸드
-        // push 함수가 자동으로 행번호를 A열에 추가하므로 7개 요소 필요
-        const playerRow = ['PLAYER', p.name, parseInt(p.seat) || 1, 0, initialChips, finalChips, p.hand?.length? p.hand.join(' ') : ''];
-        
-        console.log(`  ===== PLAYER 행 생성 =====`);
-        console.log(`  playerRow 배열:`, playerRow);
-        console.log(`  playerRow.length: ${playerRow.length}`);
-        
-        // 각 요소 검증
-        console.log(`  [0] = '${playerRow[0]}' (PLAYER 문자열)`);
-        console.log(`  [1] = '${playerRow[1]}' (이름: ${p.name})`);
-        console.log(`  [2] = ${playerRow[2]} (좌석: ${p.seat})`);
-        console.log(`  [3] = ${playerRow[3]} (0 고정값)`);
-        console.log(`  [4] = ${playerRow[4]} (시작칩: ${initialChips})`);
-        console.log(`  [5] = ${playerRow[5]} (종료칩: ${finalChips})`);
-        console.log(`  [6] = '${playerRow[6]}' (핸드)`);
-        
-        // push 전 현재 행번호
-        const currentNo = no;
-        console.log(`  push 전 행번호: ${currentNo}`);
-        
-        push(playerRow);
-        
-        // push 후 실제 저장된 데이터 확인
-        const pushedRow = out[out.length - 1];
-        console.log(`  push 후 저장된 행:`, pushedRow);
-        console.log(`  최종 CSV 형식:`);
-        console.log(`    A=${pushedRow[0]} (행번호), B=${pushedRow[1]} (PLAYER), C=${pushedRow[2]} (이름), D=${pushedRow[3]} (좌석),`);
-        console.log(`    E=${pushedRow[4]} (0 고정값), F=${pushedRow[5]} (시작칩), G=${pushedRow[6]} (종료칩), H=${pushedRow[7]} (핸드)`);
-        console.log(`--- ${p.name} 처리 완료 ---\n`);
+        // PLAYER: B name, C seat, D 0, E 0, F 시작칩, G 종료칩, H 핸드
+        push(['PLAYER', p.name, p.seat, 0, 0, initialChips, finalChips, p.hand?.length? p.hand.join(' ') : '']);
       });
 
       // EVENTS
@@ -1714,9 +1460,8 @@ async function sendDataToGoogleSheet(){
       }catch(_){ /* noop */ }
       
       // 성공적으로 저장된 경우에만 새 핸드로 재설정
-      // 시트 전송 직후에는 Index 재로드 없이 바로 다음 번호로 이동
-      await resetApp(false, true);
-      logMessage(`✅ ${APP_VERSION} 새 핸드 준비 완료`);
+      await resetApp();
+      logMessage('✅ 새 핸드 준비 완료');
     }
 
   }catch(err){
@@ -1799,13 +1544,11 @@ async function sendDataToGoogleSheet(){
       const table = state.selectedTable || '';
       return state.playersInHand
         .filter(p => p.chipsUpdatedAt) // 수정된 케이스만
-        .map((p, index) => ({
+        .map(p => ({
           player: p.name,
           table,
-          notable: p.notable || false, // Notable 정보 추가
           chips: String(p.chips || ''),
-          updatedAt: p.chipsUpdatedAt, // ISO. 앱 스크립트에서 Date로 set
-          seat: String(p.seat || index + 1) // Seat 정보 추가 (좌석 번호 또는 인덱스+1)
+          updatedAt: p.chipsUpdatedAt // ISO. 앱 스크립트에서 Date로 set
         }));
     }
 
@@ -1902,51 +1645,26 @@ async function sendDataToGoogleSheet(){
     }
     
     // ====== RESET & FEEDBACK ======
-    async function resetApp(reloadIndex = true, autoIncrement = false){
-      let lastNo;
-      
-      if(autoIncrement) {
-        // 시트 전송 직후: 현재 핸드 번호를 그대로 사용 (이미 전송된 번호)
-        lastNo = parseInt(state.actionState.handNumber, 10) || 0;
-        console.log('🔄 시트 전송 완료 - 다음 핸드로 자동 증가:', lastNo, '→', lastNo + 1);
-      } else if(reloadIndex) {
-        // 새로고침이나 수동 재설정: Index를 다시 로드하여 최신 핸드 번호 가져오기
-        try {
-          if(CSV_INDEX_URL.includes('http')){
-            const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
-            buildIndexFromCsv(idxRows);
-          }
-        } catch(err) {
-          console.error('Index 재로드 실패:', err);
+    async function resetApp(){
+      // Index 데이터 다시 로드하여 최신 핸드 번호 가져오기
+      try {
+        if(CSV_INDEX_URL.includes('http')){
+          const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
+          buildIndexFromCsv(idxRows);
         }
-        
-        lastNo = state.indexRows.length
-          ? Math.max(...state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
-          : 0;
-        console.log('🔄 Index 재로드 - 마지막 핸드:', lastNo, '→ 다음:', lastNo + 1);
-      } else {
-        // Index 재로드 없이 현재 상태 유지
-        lastNo = state.indexRows.length
-          ? Math.max(...state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
-          : 0;
+      } catch(err) {
+        console.error('Index 재로드 실패:', err);
       }
+      
+      const lastNo = state.indexRows.length
+        ? Math.max(...state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
+        : 0;
       
       // 마지막 카메라 번호 저장 및 다음 번호 준비
       const lastCam1 = state.camNumbers.cam1no;
       const lastCam2 = state.camNumbers.cam2no;
       
-      // 플레이어 유지하면서 새 핸드 시작
-      console.log('🔄 새 핸드 시작 - 플레이어 초기화');
-      
-      // 기존 플레이어들의 현재 칩을 다음 핸드의 시작칩으로 설정
-      state.playersInHand.forEach(p => {
-        // 현재 칩을 시작칩으로 재설정
-        p.initialChips = p.chips;
-        p.hand = [];  // 핸드 카드 초기화
-        p.role = null;  // 역할 초기화
-        console.log(`  ${p.name}: 시작칩 = ${p.initialChips} (현재칩 유지)`);
-      });
-      
+      state.playersInHand = [];
       state.board = [];
       state.playerStatus = {}; // 플레이어 상태 초기화
       state.currentStreet = 'preflop'; // 스트리트 초기화
@@ -2071,20 +1789,12 @@ async function sendDataToGoogleSheet(){
         const parent = e.target.closest('.player-card');
         const player = state.playersInHand.find(p=>p.name===parent.dataset.playerName);
         const raw = unformatNumber(e.target.value);
+        if(player) player.chips = raw;
         e.target.value = formatNumber(raw);
-        
+        const nowIso = new Date().toISOString();
         if (player){
-          const oldChips = player.chips;
           player.chips = raw;
-          player.chipsUpdatedAt = new Date().toISOString();
-          
-          // initialChips가 아직 설정되지 않았거나 핸드 시작 전이면 initialChips도 업데이트
-          if(!player.initialChips || player.initialChips === '' || player.initialChips === '0') {
-            player.initialChips = raw;
-            console.log(`🎰 ${player.name}의 시작칩 설정: ${raw}`);
-          } else {
-            console.log(`💰 ${player.name}의 칩 변경: ${oldChips} → ${raw} (시작칩 유지: ${player.initialChips})`);
-          }
+          player.chipsUpdatedAt = nowIso;     // ★ 마지막 수정 시각 기록
         }
       });
 
@@ -2328,10 +2038,7 @@ async function sendDataToGoogleSheet(){
 
     // ====== INIT ======
     async function initializeApp(){
-      el.logDisplay.innerHTML=''; 
-      openLogModal(); 
-      logMessage(`🎯 포커 핸드 로거 ${APP_VERSION}`);
-      logMessage('앱 초기화 시작...');
+      el.logDisplay.innerHTML=''; openLogModal(); logMessage('앱 초기화 시작...');
       populateTimezones(); loadActionState();
       try{
         await loadInitial();
@@ -2339,7 +2046,7 @@ async function sendDataToGoogleSheet(){
         if(timeUpdater) clearInterval(timeUpdater);
         timeUpdater = setInterval(updateTimeDisplay, 1000);
         updateTimeDisplay();
-        logMessage(`✅ ${APP_VERSION} 준비 완료!`);
+        logMessage('준비 완료!');
       }catch(err){
         console.error(err); logMessage(`초기화 실패: ${err.message}`, true);
       }finally{

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jaewon 플레이어 문제 재현</title>
+    <style>
+        body { font-family: monospace; background: #1a1a1a; color: white; padding: 20px; }
+        .test-case { background: #333; border-radius: 8px; padding: 15px; margin: 20px 0; }
+        h3 { color: #fbbf24; }
+        table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+        td, th { border: 1px solid #555; padding: 8px; text-align: left; }
+        th { background-color: #444; color: #fbbf24; }
+        .error { background-color: #4d1a1a; }
+        .expected { background-color: #1a4d1a; }
+        .column-header { background-color: #2d3748; font-weight: bold; }
+        pre { background: #222; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Jaewon 플레이어 데이터 문제 재현</h1>
+    
+    <div class="test-case">
+        <h3>사용자가 보고한 문제</h3>
+        <p>예상: 4 PLAYER Jaewon 1 0 134000 994000 3h 3d</p>
+        <p>실제: 4 PLAYER Jaewon 1 0 0 134000 994000 3h 3d (칼럼이 하나 더 많음)</p>
+    </div>
+    
+    <div class="test-case">
+        <h3>가능한 원인 분석</h3>
+        <div id="analysis"></div>
+    </div>
+    
+    <script>
+        function unformatNumber(str) {
+            if (!str) return '';
+            return String(str).replace(/,/g, '');
+        }
+        
+        function analyze() {
+            let html = '<h4>1. 원본 데이터 구조 확인</h4>';
+            
+            // 사용자가 언급한 Jaewon의 데이터
+            const jaewonData = {
+                name: 'Jaewon',
+                initialChips: '134,000',  // 시작칩
+                chips: '994,000',         // 종료칩
+                hand: ['3h', '3d']
+            };
+            
+            html += '<pre>';
+            html += 'Jaewon 원본 데이터:\n';
+            html += JSON.stringify(jaewonData, null, 2);
+            html += '</pre>';
+            
+            // 문제가 발생할 수 있는 시나리오들
+            html += '<h4>2. 가능한 시나리오들</h4>';
+            
+            // 시나리오 1: initialChips가 undefined인 경우
+            html += '<div style="background: #222; padding: 10px; margin: 10px 0;">';
+            html += '<h5>시나리오 1: initialChips가 undefined</h5>';
+            let scenario1 = {
+                name: 'Jaewon',
+                initialChips: undefined,
+                chips: '994,000',
+                hand: ['3h', '3d']
+            };
+            
+            let initialChips1 = parseInt(unformatNumber(scenario1.initialChips) || 0, 10);
+            let finalChips1 = parseInt(unformatNumber(scenario1.chips) || 0, 10);
+            
+            if(scenario1.initialChips === undefined) {
+                initialChips1 = finalChips1;
+            }
+            
+            const playerRow1 = ['PLAYER', 'Jaewon', 1, 0, initialChips1, finalChips1, '3h 3d'];
+            html += `<p>생성된 배열: [${playerRow1.join(', ')}]</p>`;
+            html += `<p>결과: F=${initialChips1}, G=${finalChips1}</p>`;
+            html += '</div>';
+            
+            // 시나리오 2: chips와 initialChips가 바뀐 경우
+            html += '<div style="background: #222; padding: 10px; margin: 10px 0;">';
+            html += '<h5>시나리오 2: chips와 initialChips가 바뀐 경우</h5>';
+            let scenario2 = {
+                name: 'Jaewon',
+                initialChips: '994,000',  // 바뀜!
+                chips: '134,000',          // 바뀜!
+                hand: ['3h', '3d']
+            };
+            
+            let initialChips2 = parseInt(unformatNumber(scenario2.initialChips) || 0, 10);
+            let finalChips2 = parseInt(unformatNumber(scenario2.chips) || 0, 10);
+            
+            const playerRow2 = ['PLAYER', 'Jaewon', 1, 0, initialChips2, finalChips2, '3h 3d'];
+            html += `<p>생성된 배열: [${playerRow2.join(', ')}]</p>`;
+            html += `<p>결과: F=${initialChips2}, G=${finalChips2}</p>`;
+            html += '</div>';
+            
+            // 시나리오 3: 추가 필드가 있는 경우
+            html += '<div style="background: #222; padding: 10px; margin: 10px 0;">';
+            html += '<h5>시나리오 3: 플레이어 객체에 추가 필드</h5>';
+            let scenario3 = {
+                name: 'Jaewon',
+                initialChips: '134,000',
+                chips: '994,000',
+                hand: ['3h', '3d'],
+                extraField: 0  // 추가 필드
+            };
+            
+            // 만약 실수로 extraField를 포함시킨다면
+            const playerRow3Wrong = ['PLAYER', 'Jaewon', 1, 0, scenario3.extraField, 134000, 994000, '3h 3d'];
+            html += `<p>잘못된 배열: [${playerRow3Wrong.join(', ')}]</p>`;
+            html += `<p>이 경우 0이 E열에, 134000이 F열에, 994000이 G열에, 핸드가 H열에</p>`;
+            html += '<p style="color: #ef4444;">❌ 이것이 사용자가 보고한 문제와 일치!</p>';
+            html += '</div>';
+            
+            // 결론
+            html += '<h4>3. 결론</h4>';
+            html += '<div style="background: #1a4d1a; padding: 10px; border-radius: 4px;">';
+            html += '<p>문제 원인: playerRow 배열 생성 시 의도치 않은 추가 필드가 포함될 가능성</p>';
+            html += '<p>해결책: playerRow 배열이 정확히 7개 요소만 포함하도록 확인</p>';
+            html += '<p>현재 코드는 올바르게 작성되어 있으나, 실행 시 데이터 상태를 확인 필요</p>';
+            html += '</div>';
+            
+            document.getElementById('analysis').innerHTML = html;
+        }
+        
+        window.onload = analyze;
+    </script>
+</body>
+</html>
