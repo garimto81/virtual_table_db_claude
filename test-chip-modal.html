@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>칩 모달 테스트</title>
+  <script src="https://cdn-tailwindcss.vercel.app/"></script>
+  <style>
+    .chip-color-sample { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #4B5563; cursor: pointer; }
+  </style>
+</head>
+<body class="bg-gray-900 text-white p-4">
+  <h1 class="text-2xl font-bold mb-4">칩 모달 테스트 페이지</h1>
+  
+  <div class="space-y-4">
+    <!-- 관리 버튼 -->
+    <button id="open-management" class="bg-amber-600 px-4 py-2 rounded">
+      관리 모달 열기
+    </button>
+    
+    <!-- 직접 칩 추가 버튼 -->
+    <button id="direct-add-chip" class="bg-green-600 px-4 py-2 rounded">
+      직접 칩 추가 (모달 바이패스)
+    </button>
+    
+    <!-- 디버그 정보 -->
+    <div id="debug-info" class="bg-gray-800 p-4 rounded">
+      <h2 class="font-bold mb-2">디버그 정보:</h2>
+      <div id="debug-log" class="text-sm font-mono"></div>
+    </div>
+  </div>
+
+  <!-- 관리 모달 -->
+  <div id="registration-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden z-50">
+    <div class="flex items-center justify-center h-full p-4">
+      <div class="bg-gray-800 rounded-lg p-4 max-w-lg w-full">
+        <h2 class="text-xl font-bold text-amber-400 mb-4">설정 관리</h2>
+        
+        <div class="flex gap-2 mb-4">
+          <button id="tab-players" class="bg-gray-600 px-4 py-2 rounded">플레이어</button>
+          <button id="tab-chips" class="bg-amber-600 px-4 py-2 rounded">칩 컬러</button>
+        </div>
+        
+        <div id="tab-content-chips">
+          <h3 class="text-lg font-bold mb-3">칩 컬러 등록</h3>
+          <button id="add-chip-color-btn" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm">
+            + 칩 추가
+          </button>
+          <div id="chip-colors-container" class="flex gap-2 mt-3"></div>
+        </div>
+        
+        <button id="close-modal" class="mt-4 bg-gray-600 px-4 py-2 rounded">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 칩 컬러 촬영 모달 -->
+  <div id="chip-color-modal" class="fixed inset-0 bg-black bg-opacity-75 hidden z-[60]">
+    <div class="flex items-center justify-center h-full p-4">
+      <div class="bg-gray-800 rounded-lg p-4 max-w-md w-full">
+        <h3 class="text-lg font-bold mb-3 text-amber-400">칩 사진 촬영</h3>
+        <video id="chip-video" class="w-full rounded-lg mb-3 bg-black" autoplay playsinline></video>
+        <canvas id="chip-canvas" class="hidden"></canvas>
+        <input type="text" id="chip-value-input" class="w-full bg-gray-700 px-3 py-2 rounded mb-3" placeholder="칩 값 (예: 1000)">
+        <div class="flex gap-2">
+          <button id="capture-chip-btn" class="flex-1 bg-green-600 hover:bg-green-700 py-2 rounded font-medium">
+            촬영
+          </button>
+          <button id="close-chip-modal" class="flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded font-medium">
+            취소
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 간단한 상태 관리
+    const state = {
+      chipColors: [],
+      maxChips: 5,
+      currentChipSlot: null
+    };
+
+    const debugLog = (msg) => {
+      const log = document.getElementById('debug-log');
+      const time = new Date().toLocaleTimeString();
+      log.innerHTML = `[${time}] ${msg}<br>` + log.innerHTML;
+      console.log(msg);
+    };
+
+    // 관리 모달 열기
+    document.getElementById('open-management').addEventListener('click', () => {
+      debugLog('관리 모달 열기');
+      document.getElementById('registration-modal').classList.remove('hidden');
+    });
+
+    // 관리 모달 닫기
+    document.getElementById('close-modal').addEventListener('click', () => {
+      debugLog('관리 모달 닫기');
+      document.getElementById('registration-modal').classList.add('hidden');
+    });
+
+    // 칩 추가 버튼 클릭
+    document.getElementById('add-chip-color-btn').addEventListener('click', (e) => {
+      debugLog('칩 추가 버튼 클릭됨!');
+      e.preventDefault();
+      e.stopPropagation();
+      
+      if (state.chipColors.length < state.maxChips) {
+        openChipColorModal();
+      } else {
+        alert('최대 5개까지만 등록 가능합니다.');
+      }
+    });
+
+    // 직접 칩 모달 열기
+    document.getElementById('direct-add-chip').addEventListener('click', () => {
+      debugLog('직접 칩 모달 열기 시도');
+      openChipColorModal();
+    });
+
+    // 칩 컬러 모달 열기
+    async function openChipColorModal() {
+      debugLog('openChipColorModal 함수 호출됨');
+      const modal = document.getElementById('chip-color-modal');
+      
+      if (!modal) {
+        debugLog('ERROR: 칩 컬러 모달을 찾을 수 없음!');
+        return;
+      }
+      
+      debugLog('모달 찾음, hidden 클래스 제거');
+      modal.classList.remove('hidden');
+      
+      try {
+        debugLog('카메라 접근 시도...');
+        const video = document.getElementById('chip-video');
+        
+        if (!video) {
+          debugLog('ERROR: 비디오 요소를 찾을 수 없음!');
+          return;
+        }
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' } 
+        });
+        
+        debugLog('카메라 스트림 획득 성공!');
+        video.srcObject = stream;
+        
+      } catch (err) {
+        debugLog('ERROR: 카메라 접근 실패 - ' + err.message);
+        alert('카메라를 사용할 수 없습니다: ' + err.message);
+      }
+    }
+
+    // 칩 모달 닫기
+    document.getElementById('close-chip-modal').addEventListener('click', () => {
+      debugLog('칩 모달 닫기');
+      const modal = document.getElementById('chip-color-modal');
+      const video = document.getElementById('chip-video');
+      
+      if (video && video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+      }
+      
+      modal.classList.add('hidden');
+    });
+
+    // 칩 촬영
+    document.getElementById('capture-chip-btn').addEventListener('click', () => {
+      debugLog('칩 촬영 버튼 클릭');
+      const video = document.getElementById('chip-video');
+      const canvas = document.getElementById('chip-canvas');
+      const valueInput = document.getElementById('chip-value-input');
+      
+      if (!video.videoWidth) {
+        alert('비디오가 아직 준비되지 않았습니다.');
+        return;
+      }
+      
+      const context = canvas.getContext('2d');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0);
+      
+      const chipValue = valueInput.value || '0';
+      debugLog(`칩 촬영 완료! 값: ${chipValue}`);
+      
+      // 칩 정보 저장
+      state.chipColors.push({
+        value: parseInt(chipValue),
+        image: canvas.toDataURL('image/jpeg', 0.8)
+      });
+      
+      alert(`칩 등록 완료! 현재 ${state.chipColors.length}개 등록됨`);
+      
+      // 모달 닫기
+      document.getElementById('close-chip-modal').click();
+    });
+
+    debugLog('테스트 페이지 초기화 완료');
+  </script>
+</body>
+</html>

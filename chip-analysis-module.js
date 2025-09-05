@@ -138,19 +138,31 @@ function addChipAnalysisButtons() {
 
 // 칩 슬롯 선택
 function selectChipSlot(slotIndex) {
+  console.log('칩 슬롯 선택:', slotIndex);
   state.currentChipSlot = slotIndex;
   openChipColorModal();
 }
 
 // 칩 컬러 촬영 모달 열기
 async function openChipColorModal() {
+  console.log('칩 컬러 모달 열기 시도');
   const modal = document.getElementById('chip-color-modal');
-  if (!modal) return;
+  if (!modal) {
+    console.error('칩 컬러 모달을 찾을 수 없습니다!');
+    return;
+  }
   
   modal.classList.remove('hidden');
+  setTimeout(() => modal.classList.remove('opacity-0'), 10);
   
   try {
     const video = document.getElementById('chip-video');
+    if (!video) {
+      console.error('비디오 요소를 찾을 수 없습니다!');
+      return;
+    }
+    
+    console.log('카메라 스트림 요청 중...');
     const stream = await navigator.mediaDevices.getUserMedia({ 
       video: { 
         facingMode: 'environment',
@@ -158,6 +170,7 @@ async function openChipColorModal() {
         height: { ideal: 720 }
       } 
     });
+    console.log('카메라 스트림 획득 성공');
     video.srcObject = stream;
   } catch (err) {
     console.error('카메라 접근 실패:', err);
@@ -482,45 +495,54 @@ function loadSavedChipColors() {
 
 // 이벤트 리스너 설정
 function setupChipAnalysisListeners() {
-  // 칩 추가 버튼
-  const addBtn = document.getElementById('add-chip-color-btn');
-  if (addBtn) {
-    addBtn.addEventListener('click', () => {
+  // 이벤트 위임을 사용하여 동적으로 생성되는 요소도 처리
+  document.addEventListener('click', (e) => {
+    // 칩 추가 버튼 클릭 처리
+    if (e.target && e.target.id === 'add-chip-color-btn') {
+      console.log('칩 추가 버튼 클릭됨');
+      e.preventDefault();
+      e.stopPropagation();
+      
       if (state.chipColors.length < state.maxChips) {
         const emptySlot = state.chipColors.length;
         selectChipSlot(emptySlot);
       } else {
         alert('최대 5개까지만 등록 가능합니다.');
       }
-    });
-  }
+    }
+  });
   
-  // 칩 촬영 버튼들
-  const captureChipBtn = document.getElementById('capture-chip-btn');
-  if (captureChipBtn) {
-    captureChipBtn.addEventListener('click', captureChipPhoto);
-  }
-  
-  const closeChipBtn = document.getElementById('close-chip-modal');
-  if (closeChipBtn) {
-    closeChipBtn.addEventListener('click', closeChipColorModal);
-  }
-  
-  // 스택 촬영 버튼들
-  const captureStackBtn = document.getElementById('capture-stack-btn');
-  if (captureStackBtn) {
-    captureStackBtn.addEventListener('click', captureStackPhoto);
-  }
-  
-  const analyzeBtn = document.getElementById('analyze-stack-btn');
-  if (analyzeBtn) {
-    analyzeBtn.addEventListener('click', analyzeChipStack);
-  }
-  
-  const closeStackBtn = document.getElementById('close-stack-modal');
-  if (closeStackBtn) {
-    closeStackBtn.addEventListener('click', closeStackAnalysisModal);
-  }
+  // 모든 버튼 클릭을 이벤트 위임으로 처리
+  document.addEventListener('click', (e) => {
+    const targetId = e.target.id;
+    
+    // 칩 촬영 관련 버튼들
+    if (targetId === 'capture-chip-btn') {
+      console.log('칩 촬영 버튼 클릭');
+      e.preventDefault();
+      captureChipPhoto();
+    } else if (targetId === 'close-chip-modal') {
+      console.log('칩 모달 닫기');
+      e.preventDefault();
+      closeChipColorModal();
+    }
+    // 스택 분석 관련 버튼들
+    else if (targetId === 'capture-stack-btn') {
+      console.log('스택 촬영 버튼 클릭');
+      e.preventDefault();
+      captureStackPhoto();
+    } else if (targetId === 'analyze-stack-btn') {
+      console.log('AI 분석 시작');
+      e.preventDefault();
+      if (!e.target.disabled) {
+        analyzeChipStack();
+      }
+    } else if (targetId === 'close-stack-modal') {
+      console.log('스택 모달 닫기');
+      e.preventDefault();
+      closeStackAnalysisModal();
+    }
+  });
 }
 
 // MutationObserver로 플레이어 카드 변경 감지
