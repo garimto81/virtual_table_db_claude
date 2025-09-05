@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.1.0</title>
+  <title>포커 핸드 로거 v2.1.1</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
@@ -43,7 +43,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.1.0</span>
+        <span id="version-display" class="text-gray-400">v2.1.1</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -143,20 +143,20 @@
   /**
    * ============================================
    * 포커 핸드 로거 - Main JavaScript
-   * Version: 2.1.0
+   * Version: 2.1.1
    * Last Modified: 2025-01-06 KST
-   * Changes: 팟 계산 로직 수정, PLAYER 행 형식 수정
+   * Changes: Pot Correction 로직 개선 - 정확한 팟 설정
    * Author: garimto81 with Claude
    * ============================================
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.1.0';
+  const APP_VERSION = 'v2.1.1';
   const VERSION_DATE = '2025-01-06';
   
   document.addEventListener('DOMContentLoaded', () => {
     console.log(`%c🎯 포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`, 'color: #fbbf24; font-size: 16px; font-weight: bold');
-    console.log('%c최신 변경사항: 팟 계산 로직 개선, PLAYER 행 형식 수정', 'color: #10b981');
+    console.log('%c최신 변경사항: Pot Correction = 실제 팟 값 설정', 'color: #10b981');
     console.log('Initialized at', new Date().toISOString());
     
     // 화면에 버전 표시 업데이트
@@ -880,15 +880,9 @@
       let totalPot = 0;
       let potCorrectionFound = false;
       let potCorrectionValue = 0;
+      let additionalBets = 0; // Pot Correction 이후 추가 베팅
       
-      console.log(`%c🎲 === 팟 계산 시작 [v2.1.0] ===`, 'color: #10b981; font-weight: bold');
-      
-      // 블라인드와 앤티 추가
-      totalPot += parseInt(unformatNumber(state.actionState.smallBlind) || 0, 10);
-      totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
-      if(state.actionState.hasBBAnte) {
-        totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
-      }
+      console.log(`%c🎲 === 팟 계산 시작 [v2.1.1] ===`, 'color: #10b981; font-weight: bold');
       
       // 모든 스트리트의 액션 합산
       ['preflop', 'flop', 'turn', 'river'].forEach(street => {
@@ -904,7 +898,7 @@
           // Pot Correction 이후 같은 스트리트의 액션들만 추가
           for(let i = potCorrectionIdx + 1; i < actions.length; i++) {
             if(actions[i].amount && actions[i].action !== 'Pot Correction') {
-              totalPot += parseInt(unformatNumber(actions[i].amount), 10);
+              additionalBets += parseInt(unformatNumber(actions[i].amount), 10);
             }
           }
           return; // 다음 스트리트로
@@ -914,11 +908,11 @@
         if(potCorrectionFound) {
           actions.forEach(action => {
             if(action.amount && action.action !== 'Pot Correction') {
-              totalPot += parseInt(unformatNumber(action.amount), 10);
+              additionalBets += parseInt(unformatNumber(action.amount), 10);
             }
           });
         } else {
-          // Pot Correction 전까지는 모든 액션 합산
+          // Pot Correction 전까지는 모든 액션 합산 (블라인드 포함)
           actions.forEach(action => {
             if(action.amount && action.action !== 'Pot Correction') {
               totalPot += parseInt(unformatNumber(action.amount), 10);
@@ -927,11 +921,18 @@
         }
       });
       
-      // Pot Correction이 있었으면 그 값을 기준으로 설정
-      if(potCorrectionFound) {
+      // Pot Correction이 없는 경우 블라인드/앤티 추가
+      if(!potCorrectionFound) {
+        totalPot += parseInt(unformatNumber(state.actionState.smallBlind) || 0, 10);
+        totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
+        if(state.actionState.hasBBAnte) {
+          totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
+        }
+      } else {
+        // Pot Correction이 있으면 그 값이 기준
         console.log(`  Pot Correction 발견: ${potCorrectionValue}`);
-        console.log(`  Correction 이후 추가 베팅: ${totalPot}`);
-        totalPot = potCorrectionValue + totalPot; // Pot Correction 값 + 그 이후 액션들
+        console.log(`  Correction 이후 추가 베팅: ${additionalBets}`);
+        totalPot = potCorrectionValue + additionalBets; // Pot Correction 값 + 그 이후 액션들
       }
       
       console.log(`  총 팟 (언콜 제외 전): ${totalPot}`);
@@ -941,7 +942,7 @@
       console.log(`  언콜 베팅: ${uncalledBet.amount} (플레이어: ${uncalledBet.player})`);
       const finalPot = totalPot - uncalledBet.amount;
       console.log(`  최종 팟: ${finalPot}`);
-      console.log(`%c🎲 === 팟 계산 종료 [v2.1.0] ===`, 'color: #10b981; font-weight: bold');
+      console.log(`%c🎲 === 팟 계산 종료 [v2.1.1] ===`, 'color: #10b981; font-weight: bold');
       
       return finalPot;
     }
@@ -981,24 +982,54 @@
     // 기존 calculatePotSize 함수는 UI 표시용으로 유지
     function calculatePotSize(){
       let pot=0;
-      pot+=parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
-      pot+=parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
-      if(state.actionState.hasBBAnte) pot+=parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+      let potCorrectionFound = false;
+      let potCorrectionValue = 0;
       
+      // 모든 스트리트 순회
       ['preflop','flop','turn','river'].forEach(st=> {
-        state.actionState[st].forEach(a=>{ 
-          if(a.amount) {
-            // Pot Correction은 팟을 직접 설정하는 값이므로 다르게 처리
-            if(a.action === 'Pot Correction') {
-              // Pot Correction: 입력한 값이 새로운 팟 크기가 됨
-              pot = parseInt(unformatNumber(a.amount),10);
-            } else {
-              // 일반 액션: 팟에 추가
-              pot+=parseInt(unformatNumber(a.amount),10); 
+        const actions = state.actionState[st];
+        
+        // Pot Correction 찾기
+        const correctionIdx = actions.findIndex(a => a.action === 'Pot Correction');
+        if(correctionIdx !== -1) {
+          potCorrectionFound = true;
+          potCorrectionValue = parseInt(unformatNumber(actions[correctionIdx].amount), 10);
+          
+          // Pot Correction 이후의 액션들만 추가
+          for(let i = correctionIdx + 1; i < actions.length; i++) {
+            if(actions[i].amount && actions[i].action !== 'Pot Correction') {
+              pot += parseInt(unformatNumber(actions[i].amount), 10);
             }
           }
-        });
+        } else if(potCorrectionFound) {
+          // Pot Correction 이후의 스트리트
+          actions.forEach(a => {
+            if(a.amount && a.action !== 'Pot Correction') {
+              pot += parseInt(unformatNumber(a.amount), 10);
+            }
+          });
+        } else {
+          // Pot Correction 이전의 액션들
+          actions.forEach(a => {
+            if(a.amount && a.action !== 'Pot Correction') {
+              pot += parseInt(unformatNumber(a.amount), 10);
+            }
+          });
+        }
       });
+      
+      // Pot Correction이 없으면 블라인드/앤티 추가
+      if(!potCorrectionFound) {
+        pot += parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
+        pot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+        if(state.actionState.hasBBAnte) {
+          pot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+        }
+      } else {
+        // Pot Correction 값이 기준
+        pot = potCorrectionValue + pot;
+      }
+      
       return pot;
     }
 
@@ -1547,7 +1578,7 @@
         seat: p.seat || (i+1)  // Type에서 가져온 seat 정보가 있으면 사용, 없으면 인덱스+1
       }));
       
-      console.log(`%c=== PLAYER 행 생성 [v2.1.0] ===`, 'color: #3b82f6; font-weight: bold');
+      console.log(`%c=== PLAYER 행 생성 [v2.1.1] ===`, 'color: #3b82f6; font-weight: bold');
       console.log(`현재 행번호(no): ${no}`);
       console.log(`플레이어 수: ${players.length}`);
       console.log('%c형식: A=행번호, B=PLAYER, C=이름, D=좌석, E=0(고정), F=시작칩, G=종료칩, H=핸드', 'color: #9ca3af');
