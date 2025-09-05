@@ -43,7 +43,7 @@ function renderChipColorSlots() {
         slot.style.backgroundSize = 'cover';
       }
       slot.innerHTML = `<span class="text-white font-bold bg-black bg-opacity-50 px-1 rounded">${chip.value || '?'}</span>`;
-      slot.title = `칩 값: ${chip.value || '미설정'}`;
+      slot.title = `칩 값: ${chip.value || '미설정'} (클릭하여 수정)`;
     } else {
       slot.classList.add('bg-gray-700');
       slot.innerHTML = '<span class="text-gray-500">+</span>';
@@ -53,6 +53,60 @@ function renderChipColorSlots() {
     slot.addEventListener('click', () => selectChipSlot(i));
     container.appendChild(slot);
   }
+  
+  // 칩 값 리스트도 업데이트
+  renderChipValuesList();
+}
+
+// 칩 값 리스트 렌더링
+function renderChipValuesList() {
+  const listContainer = document.getElementById('chip-values-list');
+  if (!listContainer) return;
+  
+  listContainer.innerHTML = '';
+  
+  if (state.chipColors.length === 0) {
+    listContainer.innerHTML = '<p class="text-gray-500 text-sm">등록된 칩이 없습니다.</p>';
+    return;
+  }
+  
+  state.chipColors.forEach((chip, index) => {
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 bg-gray-700 p-2 rounded';
+    div.innerHTML = `
+      <div class="w-6 h-6 rounded-full border-2 border-gray-500" 
+           style="background: ${chip.image ? `url(${chip.image})` : chip.color}; background-size: cover;"></div>
+      <input type="text" 
+             class="bg-gray-600 px-2 py-1 rounded text-sm flex-1" 
+             placeholder="칩 값 입력"
+             value="${chip.value || ''}"
+             data-index="${index}">
+      <button class="text-red-500 hover:text-red-400 text-sm px-2" data-remove="${index}">삭제</button>
+    `;
+    listContainer.appendChild(div);
+  });
+  
+  // 이벤트 리스너 추가
+  listContainer.querySelectorAll('input').forEach(input => {
+    input.addEventListener('input', (e) => {
+      const index = parseInt(e.target.dataset.index);
+      const value = parseInt(e.target.value.replace(/\D/g, '')) || 0;
+      state.chipColors[index].value = value;
+      saveChipColors();
+      renderChipColorSlots();
+    });
+  });
+  
+  listContainer.querySelectorAll('[data-remove]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const index = parseInt(e.target.dataset.remove);
+      if (confirm(`칩 ${state.chipColors[index].value || ''}을(를) 삭제하시겠습니까?`)) {
+        state.chipColors.splice(index, 1);
+        saveChipColors();
+        renderChipColorSlots();
+      }
+    });
+  });
 }
 
 // 플레이어별 칩 분석 버튼 추가

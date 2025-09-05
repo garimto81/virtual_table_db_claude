@@ -48,7 +48,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.2.0</span>
+        <span id="version-display" class="text-gray-400">v2.2.1</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -109,16 +109,6 @@
         <div class="space-y-1" id="street-logs-container"></div>
       </div>
 
-      <!-- 칩 컬러 등록 섹션 -->
-      <div class="bg-gray-800 p-2 rounded-lg space-y-2">
-        <div class="flex justify-between items-center">
-          <span class="text-sm font-bold text-amber-400">칩 컬러 등록</span>
-          <button id="add-chip-color-btn" class="text-xs bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded">+ 칩 추가</button>
-        </div>
-        <div id="chip-colors-container" class="flex gap-1 flex-wrap">
-          <!-- 칩 컬러들이 여기 표시됨 -->
-        </div>
-      </div>
 
       <div class="bg-gray-800 p-2 rounded-lg space-y-2">
         <div class="flex flex-wrap gap-1 items-center">
@@ -143,7 +133,47 @@
   <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
-  <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+  <!-- 플레이어 & 칩 관리 모달 -->
+  <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
+    <div class="bg-gray-800 rounded-lg p-4 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold text-amber-400">설정 관리</h2>
+        <button id="close-registration-modal" class="text-2xl hover:text-gray-400">&times;</button>
+      </div>
+      
+      <!-- 탭 메뉴 -->
+      <div class="flex gap-2 mb-4">
+        <button id="tab-players" class="tab-btn bg-amber-600 text-white px-4 py-2 rounded-lg font-medium">플레이어</button>
+        <button id="tab-chips" class="tab-btn bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded-lg font-medium">칩 컬러</button>
+      </div>
+      
+      <!-- 플레이어 관리 탭 -->
+      <div id="tab-content-players" class="tab-content">
+        <h3 class="text-lg font-bold mb-3">플레이어 관리</h3>
+        <div id="player-management-content" class="space-y-2">
+          <!-- 플레이어 관리 내용이 여기 표시됨 -->
+          <p class="text-gray-400 text-sm">플레이어 선택 후 정보를 수정할 수 있습니다.</p>
+        </div>
+      </div>
+      
+      <!-- 칩 컬러 관리 탭 -->
+      <div id="tab-content-chips" class="tab-content hidden">
+        <h3 class="text-lg font-bold mb-3">칩 컬러 등록</h3>
+        <div class="space-y-3">
+          <div class="flex justify-between items-center">
+            <span class="text-sm text-gray-400">최대 5개까지 등록 가능</span>
+            <button id="add-chip-color-btn" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm">+ 칩 추가</button>
+          </div>
+          <div id="chip-colors-container" class="flex gap-2 flex-wrap">
+            <!-- 칩 컬러들이 여기 표시됨 -->
+          </div>
+          <div id="chip-values-list" class="space-y-2 mt-3">
+            <!-- 칩 값 입력 필드들이 여기 표시됨 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="log-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
     <div class="bg-gray-800 rounded-lg p-4 w-full max-w-lg h-2/3 flex flex-col">
       <div class="flex justify-between items-center mb-2">
@@ -215,7 +245,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.2.0';
+  const APP_VERSION = 'v2.2.1';
   const VERSION_DATE = '2025-01-05';
   
   // Gemini API 설정
@@ -2439,6 +2469,64 @@ async function sendDataToGoogleSheet(){
         }
       });
     }
+
+    // ====== 관리 모달 관련 함수 ======
+    function openRegistrationModal() {
+      const modal = el.registrationModal;
+      if (modal) {
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+      }
+    }
+    
+    function closeRegistrationModal() {
+      const modal = el.registrationModal;
+      if (modal) {
+        modal.classList.add('opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
+      }
+    }
+    
+    // 탭 전환 함수
+    function switchTab(tabName) {
+      // 모든 탭 콘텐츠 숨기기
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+      });
+      
+      // 모든 탭 버튼 스타일 초기화
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-amber-600');
+        btn.classList.add('bg-gray-600', 'hover:bg-gray-500');
+      });
+      
+      // 선택한 탭 활성화
+      const selectedContent = document.getElementById(`tab-content-${tabName}`);
+      const selectedBtn = document.getElementById(`tab-${tabName}`);
+      
+      if (selectedContent) {
+        selectedContent.classList.remove('hidden');
+      }
+      
+      if (selectedBtn) {
+        selectedBtn.classList.remove('bg-gray-600', 'hover:bg-gray-500');
+        selectedBtn.classList.add('bg-amber-600');
+      }
+    }
+    
+    // 관리 모달 이벤트 리스너
+    if (el.managePlayersBtn) {
+      el.managePlayersBtn.addEventListener('click', openRegistrationModal);
+    }
+    
+    const closeBtn = document.getElementById('close-registration-modal');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', closeRegistrationModal);
+    }
+    
+    // 탭 버튼 이벤트 리스너
+    document.getElementById('tab-players')?.addEventListener('click', () => switchTab('players'));
+    document.getElementById('tab-chips')?.addEventListener('click', () => switchTab('chips'));
 
     // ====== INIT ======
     async function initializeApp(){
