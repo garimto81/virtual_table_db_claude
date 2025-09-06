@@ -1544,26 +1544,63 @@
     
     // Virtual 시트에서 가장 비슷한 시간 찾기 (날짜 제외, 시간만 비교)
     async function findClosestVirtualRow(targetTime, virtualSheetUrl) {
+      console.log('🔍 === Virtual 시트 매칭 시작 ===');
+      console.log(`📋 입력 URL: ${virtualSheetUrl}`);
+      console.log(`⏰ 타겟 타임스탬프: ${targetTime} (${new Date(targetTime * 1000)})`);
+      
       try {
         // URL에서 Google Sheets ID 추출
         const sheetIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
         if (!sheetIdMatch) {
+          console.error('❌ Google Sheets URL 파싱 실패');
           throw new Error('올바른 Google Sheets URL이 아닙니다');
         }
         const sheetId = sheetIdMatch[1];
+        console.log(`🔑 추출된 시트 ID: ${sheetId}`);
         
         // Virtual 시트 CSV URL 생성 (기본 gid=0 사용, 필요시 수정)
         const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
+        console.log(`📡 CSV URL: ${csvUrl}`);
         
+        console.log('📥 Google Sheets CSV 요청 중...');
         const response = await fetch(csvUrl);
+        console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
+        console.log(`📊 응답 헤더 Content-Type: ${response.headers.get('content-type')}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP 오류: ${response.status} ${response.statusText}`);
+        }
+        
         const text = await response.text();
+        console.log(`📄 CSV 데이터 크기: ${text.length} characters`);
+        console.log(`📄 CSV 데이터 미리보기 (첫 500자):`);
+        console.log(text.substring(0, 500) + (text.length > 500 ? '...' : ''));
+        
         const rows = parseCSV(text);
+        console.log(`📋 파싱된 행 수: ${rows.length}`);
+        
+        if (rows.length === 0) {
+          throw new Error('CSV에 데이터가 없습니다');
+        }
+        
+        // 첫 5행 데이터 샘플 로그
+        console.log('📋 CSV 데이터 샘플 (첫 5행):');
+        for (let i = 0; i < Math.min(5, rows.length); i++) {
+          console.log(`   행 ${i+1}: A="${rows[i][0] || ''}", B="${rows[i][1] || ''}", C="${rows[i][2] || ''}", D="${rows[i][3] || ''}"`);
+        }
         
         // Seoul 시간대로 변환 (UTC+9)
+        console.log('⏰ === 시간대 변환 시작 ===');
         const targetDate = new Date(targetTime * 1000);
+        console.log(`📅 원본 시간 (로컬): ${targetDate.toLocaleString()}`);
+        
         const seoulOffset = 9 * 60; // Seoul UTC+9 (분 단위)
         const localOffset = targetDate.getTimezoneOffset(); // 로컬 시간대 offset (분 단위, UTC 기준)
+        console.log(`🌍 Seoul 오프셋: +${seoulOffset/60}시간 (${seoulOffset}분)`);
+        console.log(`🌍 로컬 오프셋: ${localOffset > 0 ? '-' : '+'}${Math.abs(localOffset/60)}시간 (${localOffset}분)`);
+        
         const seoulTime = new Date(targetTime * 1000 + (seoulOffset + localOffset) * 60 * 1000);
+        console.log(`🇰🇷 변환된 Seoul 시간: ${seoulTime.toLocaleString()}`);
         
         const targetHours = seoulTime.getHours();
         const targetMinutes = seoulTime.getMinutes();
@@ -1572,69 +1609,93 @@
         // 초 단위까지 정확한 타겟 시간 계산
         const targetTotalSeconds = targetHours * 3600 + targetMinutes * 60 + targetSeconds;
         
-        console.log(`🕰️ 타겟 시간 (Seoul): ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`);
+        console.log(`🎯 타겟 시간 (Seoul): ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')} (${targetTotalSeconds}초)`);
         
         let closestRow = null;
         let minDiff = Infinity;
         let rowIndex = -1;
         let matchedTime = '';
+        let validTimeFoundCount = 0;
         
         // 다양한 시간 형식 지원을 위한 정규식들
         const timePatterns = [
-          /(\d{1,2}):(\d{2}):(\d{2})/, // HH:MM:SS
-          /(\d{1,2}):(\d{2})/,        // HH:MM (초는 0으로 처리)
-          /(\d{1,2})시\s*(\d{2})분\s*(\d{2})초/, // 한국어 형식
-          /(\d{1,2})시\s*(\d{2})분/   // 한국어 형식 (초 없음)
+          { pattern: /(\d{1,2}):(\d{2}):(\d{2})/, name: 'HH:MM:SS' },
+          { pattern: /(\d{1,2}):(\d{2})/, name: 'HH:MM' },
+          { pattern: /(\d{1,2})시\s*(\d{2})분\s*(\d{2})초/, name: '한국어 시분초' },
+          { pattern: /(\d{1,2})시\s*(\d{2})분/, name: '한국어 시분' }
         ];
         
-        console.log(`🔍 Virtual 시트 C열에서 정밀 시간 매칭 검색 중...`);
+        console.log(`🔍 === C열 시간 데이터 매칭 시작 ===`);
+        console.log(`🔍 총 ${rows.length}개 행에서 검색 중...`);
         
         // C열(index 2)만 검색
         for (let i = 0; i < rows.length; i++) {
           const cellValue = rows[i][2]; // C열만 확인
-          if (!cellValue || !cellValue.trim()) continue;
+          if (!cellValue || !cellValue.trim()) {
+            // 빈 셀은 로그 생략
+            continue;
+          }
+          
+          console.log(`🔍 행 ${i+1} C열 검사: "${cellValue}"`);
           
           let hours, minutes, seconds = 0;
           let timeMatch = null;
+          let matchedPatternName = '';
           
           // 다양한 시간 형식 파싱
-          for (const pattern of timePatterns) {
+          for (const {pattern, name} of timePatterns) {
             timeMatch = cellValue.match(pattern);
             if (timeMatch) {
               hours = parseInt(timeMatch[1]);
               minutes = parseInt(timeMatch[2]);
               seconds = timeMatch[3] ? parseInt(timeMatch[3]) : 0;
+              matchedPatternName = name;
+              console.log(`   ✅ 패턴 매칭: ${name} → ${hours}:${minutes}:${seconds}`);
               break;
             }
           }
           
-          if (timeMatch && hours !== undefined && minutes !== undefined) {
-            // 초 단위까지 정확한 시간 계산
-            const cellTotalSeconds = hours * 3600 + minutes * 60 + seconds;
-            const diff = Math.abs(cellTotalSeconds - targetTotalSeconds);
+          if (!timeMatch) {
+            console.log(`   ❌ 시간 형식 매칭 실패`);
+            continue;
+          }
+          
+          validTimeFoundCount++;
+          
+          // 초 단위까지 정확한 시간 계산
+          const cellTotalSeconds = hours * 3600 + minutes * 60 + seconds;
+          const diff = Math.abs(cellTotalSeconds - targetTotalSeconds);
+          
+          console.log(`   📊 시간 차이: ${diff}초 (현재 최소: ${minDiff}초)`);
+          
+          // 가장 가까운 시간 업데이트
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestRow = rows[i];
+            rowIndex = i + 1;
+            matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             
-            // 가장 가까운 시간 업데이트
-            if (diff < minDiff) {
-              minDiff = diff;
-              closestRow = rows[i];
-              rowIndex = i + 1;
-              matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-              
-              // 정확히 일치하거나 매우 가까운 경우 (5초 이내) 즉시 종료
-              if (diff <= 5) {
-                console.log(`✅ Virtual 시트 매칭 성공! (${diff}초 차이)`);
-                console.log(`   📍 위치: 행 ${rowIndex}, C열 (Seoul 시간)`);
-                console.log(`   🕐 시간: ${matchedTime}`);
-                console.log(`   📋 전체 행 데이터:`);
-                console.log(`      A열(Blinds): "${rows[i][0] || ''}"`);
-                console.log(`      B열(Cyprus): "${rows[i][1] || ''}"`);
-                console.log(`      C열(Seoul): "${rows[i][2]}"`);
-                console.log(`      D열(#): "${rows[i][3] || ''}"`);
-                break;
-              }
+            console.log(`   🎯 새로운 최적 매칭: 행 ${rowIndex}, 차이 ${diff}초`);
+            
+            // 정확히 일치하거나 매우 가까운 경우 (5초 이내) 즉시 종료
+            if (diff <= 5) {
+              console.log(`✅ === Virtual 시트 매칭 성공! ===`);
+              console.log(`   📍 위치: 행 ${rowIndex}, C열 (Seoul 시간)`);
+              console.log(`   🕐 시간: ${matchedTime} (${diff}초 차이)`);
+              console.log(`   📋 전체 행 데이터:`);
+              console.log(`      A열(Blinds): "${rows[i][0] || ''}"`);
+              console.log(`      B열(Cyprus): "${rows[i][1] || ''}"`);
+              console.log(`      C열(Seoul): "${rows[i][2]}"`);
+              console.log(`      D열(#): "${rows[i][3] || ''}"`);
+              break;
             }
           }
         }
+        
+        console.log(`📊 === 매칭 결과 요약 ===`);
+        console.log(`📊 유효한 시간 데이터 발견: ${validTimeFoundCount}개`);
+        console.log(`📊 최소 시간 차이: ${minDiff === Infinity ? '무한' : minDiff + '초'}`);
+        console.log(`📊 최적 매칭 행: ${rowIndex > 0 ? rowIndex : '없음'}`)
         
         // 결과 로깅
         if (minDiff > 5) {
@@ -1652,16 +1713,57 @@
           console.log(`   📍 행 ${rowIndex}, C열: ${matchedTime} (${timeDiffStr} 차이)`);
         }
         
-        return {
-          row: closestRow,
-          rowIndex: rowIndex,
-          timeDiff: minDiff,
-          targetTime: `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`,
-          matchedTime: matchedTime,
-          accuracy: minDiff <= 5 ? 'exact' : minDiff <= 30 ? 'close' : 'approximate'
-        };
+        // 최종 결과 처리 및 반환
+        if (closestRow && minDiff !== Infinity) {
+          console.log(`✅ === Virtual 시트 매칭 완료 ===`);
+          console.log(`✅ 매칭 성공: 행 ${rowIndex}`);
+          console.log(`✅ 시간 차이: ${minDiff}초`);
+          console.log(`✅ 정확도: ${minDiff <= 5 ? '정확 (5초 이내)' : minDiff <= 30 ? '근사 (30초 이내)' : '대략적 (30초 초과)'}`);
+          
+          return {
+            row: closestRow,
+            rowIndex: rowIndex,
+            timeDiff: minDiff,
+            targetTime: `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`,
+            matchedTime: matchedTime,
+            accuracy: minDiff <= 5 ? 'exact' : minDiff <= 30 ? 'close' : 'approximate'
+          };
+        } else {
+          console.error(`❌ === Virtual 시트 매칭 실패 ===`);
+          console.error(`❌ 매칭할 수 있는 시간 데이터를 찾지 못했습니다.`);
+          console.error(`❌ 유효한 시간 데이터: ${validTimeFoundCount}개`);
+          console.error(`❌ 가능한 원인:`);
+          console.error(`   - C열에 올바른 시간 형식의 데이터가 없음`);
+          console.error(`   - 지원되는 형식: HH:MM, HH:MM:SS, N시 N분, N시 N분 N초`);
+          console.error(`   - 시트가 비어있거나 잘못된 열을 참조하고 있음`);
+          
+          if (validTimeFoundCount === 0) {
+            console.error(`💡 해결책: C열에 "14:35" 또는 "14시 35분" 형식의 시간 데이터를 입력하세요.`);
+          } else {
+            console.error(`💡 해결책: 타겟 시간과 유사한 시간대의 데이터를 C열에 추가하세요.`);
+          }
+          
+          return null;
+        }
       } catch (error) {
-        console.error('Virtual 시트 접근 오류:', error);
+        console.error('❌ === Virtual 시트 매칭 실패 ===');
+        console.error('❌ 오류 타입:', error.name || 'Unknown');
+        console.error('❌ 오류 메시지:', error.message || '알 수 없는 오류');
+        console.error('❌ 오류 스택:', error.stack || '스택 정보 없음');
+        console.error('❌ 입력 URL:', virtualSheetUrl);
+        console.error('❌ 입력 타임스탬프:', targetTime);
+        
+        // 일반적인 오류 원인 안내
+        if (error.message.includes('HTTP 오류')) {
+          console.error('💡 해결책: Google Sheets가 "링크가 있는 사용자에게 보기 권한"으로 설정되어 있는지 확인하세요.');
+        } else if (error.message.includes('올바른 Google Sheets URL이 아닙니다')) {
+          console.error('💡 해결책: URL이 https://docs.google.com/spreadsheets/d/[ID]/... 형식인지 확인하세요.');
+        } else if (error.message.includes('CSV에 데이터가 없습니다')) {
+          console.error('💡 해결책: 시트에 데이터가 있는지, 올바른 gid를 사용하는지 확인하세요.');
+        } else if (error instanceof TypeError) {
+          console.error('💡 해결책: 네트워크 연결을 확인하거나 CORS 정책 문제일 수 있습니다.');
+        }
+        
         return null;
       }
     }
