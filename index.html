@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - 키 플레이어 분석 버전
-  Version: 8.4.0
-  Last Updated: 2025-09-05
-  Description: 키 플레이어 중심 파일명 및 분석
+  Version: 8.5.0
+  Last Updated: 2025-09-06
+  Description: 키 플레이어 중심 파일명 및 분석, Virtual 시트 시간 매칭 정밀도 개선
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v8.4.0 - 키 플레이어 분석</title>
+  <title>포커 핸드 모니터링 v8.5.0 - 키 플레이어 분석</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v8.4.0 KeyPlayer</span>
+        <span class="text-xs text-gray-500">v8.5.0 KeyPlayer</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -2248,7 +2248,7 @@ ${handText}
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v8.6.0 - C열 전용 최적화 매칭');
+      console.log('🚀 포커 핸드 모니터링 시스템 v8.5.0 - Virtual 시트 시간 매칭 정밀도 개선');
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
