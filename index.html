@@ -1559,48 +1559,70 @@
         const text = await response.text();
         const rows = parseCSV(text);
         
-        // 타겟 시간에서 시간 부분만 추출 (HH:MM만 사용, 초 제외)
+        // Seoul 시간대로 변환 (UTC+9)
         const targetDate = new Date(targetTime * 1000);
-        const targetHours = targetDate.getHours();
-        const targetMinutes = targetDate.getMinutes();
-        const targetTimeOnly = targetHours * 3600 + targetMinutes * 60; // 초 제외하고 분까지만 사용
+        const seoulOffset = 9 * 60; // Seoul UTC+9 (분 단위)
+        const localOffset = targetDate.getTimezoneOffset(); // 로컬 시간대 offset (분 단위, UTC 기준)
+        const seoulTime = new Date(targetTime * 1000 + (seoulOffset + localOffset) * 60 * 1000);
         
-        console.log(`🕰️ 타겟 시간: ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')} (초 제외)`);
+        const targetHours = seoulTime.getHours();
+        const targetMinutes = seoulTime.getMinutes();
+        const targetSeconds = seoulTime.getSeconds();
+        
+        // 초 단위까지 정확한 타겟 시간 계산
+        const targetTotalSeconds = targetHours * 3600 + targetMinutes * 60 + targetSeconds;
+        
+        console.log(`🕰️ 타겟 시간 (Seoul): ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`);
         
         let closestRow = null;
         let minDiff = Infinity;
         let rowIndex = -1;
         let matchedTime = '';
         
-        // C열(Seoul 시간)에서만 검색 - 최적화된 로직
-        console.log(`🔍 Virtual 시트 C열에서 ${targetHours}:${targetMinutes.toString().padStart(2, '0')} 검색 중...`);
+        // 다양한 시간 형식 지원을 위한 정규식들
+        const timePatterns = [
+          /(\d{1,2}):(\d{2}):(\d{2})/, // HH:MM:SS
+          /(\d{1,2}):(\d{2})/,        // HH:MM (초는 0으로 처리)
+          /(\d{1,2})시\s*(\d{2})분\s*(\d{2})초/, // 한국어 형식
+          /(\d{1,2})시\s*(\d{2})분/   // 한국어 형식 (초 없음)
+        ];
+        
+        console.log(`🔍 Virtual 시트 C열에서 정밀 시간 매칭 검색 중...`);
         
         // C열(index 2)만 검색
         for (let i = 0; i < rows.length; i++) {
           const cellValue = rows[i][2]; // C열만 확인
           if (!cellValue || !cellValue.trim()) continue;
           
-          // HH:MM 형식 파싱
-          const timeMatch = cellValue.match(/(\d{1,2}):(\d{2})/);
-          if (timeMatch) {
-            const hours = parseInt(timeMatch[1]);
-            const minutes = parseInt(timeMatch[2]);
-            
-            // 시간값을 분 단위로 변환하여 비교
-            const cellMinutes = hours * 60 + minutes;
-            const targetMinutesTotal = targetHours * 60 + targetMinutes;
-            const diff = Math.abs(cellMinutes - targetMinutesTotal);
+          let hours, minutes, seconds = 0;
+          let timeMatch = null;
+          
+          // 다양한 시간 형식 파싱
+          for (const pattern of timePatterns) {
+            timeMatch = cellValue.match(pattern);
+            if (timeMatch) {
+              hours = parseInt(timeMatch[1]);
+              minutes = parseInt(timeMatch[2]);
+              seconds = timeMatch[3] ? parseInt(timeMatch[3]) : 0;
+              break;
+            }
+          }
+          
+          if (timeMatch && hours !== undefined && minutes !== undefined) {
+            // 초 단위까지 정확한 시간 계산
+            const cellTotalSeconds = hours * 3600 + minutes * 60 + seconds;
+            const diff = Math.abs(cellTotalSeconds - targetTotalSeconds);
             
             // 가장 가까운 시간 업데이트
             if (diff < minDiff) {
               minDiff = diff;
               closestRow = rows[i];
               rowIndex = i + 1;
-              matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+              matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
               
-              // 정확히 일치하면 즉시 종료
-              if (diff === 0) {
-                console.log(`✅ Virtual 시트 매칭 성공!`);
+              // 정확히 일치하거나 매우 가까운 경우 (5초 이내) 즉시 종료
+              if (diff <= 5) {
+                console.log(`✅ Virtual 시트 매칭 성공! (${diff}초 차이)`);
                 console.log(`   📍 위치: 행 ${rowIndex}, C열 (Seoul 시간)`);
                 console.log(`   🕐 시간: ${matchedTime}`);
                 console.log(`   📋 전체 행 데이터:`);
@@ -1614,19 +1636,29 @@
           }
         }
         
-        // 정확한 매치가 없으면 가장 가까운 시간 표시
-        if (minDiff > 0) {
+        // 결과 로깅
+        if (minDiff > 5) {
+          const diffMinutes = Math.floor(minDiff / 60);
+          const diffSeconds = minDiff % 60;
+          let timeDiffStr = '';
+          
+          if (diffMinutes > 0) {
+            timeDiffStr = `${diffMinutes}분 ${diffSeconds}초`;
+          } else {
+            timeDiffStr = `${diffSeconds}초`;
+          }
+          
           console.log(`⚠️ 정확한 매치 없음. 가장 가까운 시간:`);
-          console.log(`   📍 행 ${rowIndex}, C열: ${matchedTime} (${minDiff}분 차이)`);
+          console.log(`   📍 행 ${rowIndex}, C열: ${matchedTime} (${timeDiffStr} 차이)`);
         }
-        
         
         return {
           row: closestRow,
           rowIndex: rowIndex,
           timeDiff: minDiff,
-          targetTime: `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}`,
-          matchedTime: matchedTime
+          targetTime: `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`,
+          matchedTime: matchedTime,
+          accuracy: minDiff <= 5 ? 'exact' : minDiff <= 30 ? 'close' : 'approximate'
         };
       } catch (error) {
         console.error('Virtual 시트 접근 오류:', error);
@@ -1901,9 +1933,31 @@ ${handText}
             timeDiffStr = `${diffSeconds}초`;
           }
           
-          matchedRowInput.value = `Row ${virtualMatch.rowIndex} [타겟: ${virtualMatch.targetTime} ↔ 매칭: ${virtualMatch.matchedTime}] (차이: ${timeDiffStr})`;
+          // 매칭 정확도에 따른 아이콘 및 상태 표시
+          let accuracyIcon = '';
+          let accuracyText = '';
+          
+          switch(virtualMatch.accuracy) {
+            case 'exact':
+              accuracyIcon = '🎯';
+              accuracyText = '정확 매칭';
+              break;
+            case 'close':
+              accuracyIcon = '✅';
+              accuracyText = '근사 매칭';
+              break;
+            case 'approximate':
+              accuracyIcon = '⚠️';
+              accuracyText = '대략적 매칭';
+              break;
+            default:
+              accuracyIcon = '❓';
+              accuracyText = '매칭 상태 불명';
+          }
+          
+          matchedRowInput.value = `${accuracyIcon} Row ${virtualMatch.rowIndex} [타겟: ${virtualMatch.targetTime} ↔ 매칭: ${virtualMatch.matchedTime}] (차이: ${timeDiffStr}) - ${accuracyText}`;
         } else {
-          matchedRowInput.value = '매칭되는 행을 찾을 수 없음';
+          matchedRowInput.value = '❌ 매칭되는 행을 찾을 수 없음';
         }
         
         summaryTextarea.value = aiSummary || '분석 실패';

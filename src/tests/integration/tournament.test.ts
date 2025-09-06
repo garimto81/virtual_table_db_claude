@@ -1,20 +1,25 @@
 import { TournamentService } from '../../services/tournament.service';
-import { supabase } from '../../config/supabase';
+import { supabase, supabaseAdmin } from '../../config/supabase';
 
-describe.skip('Tournament Integration Tests - Requires RLS configuration', () => {
-  const service = new TournamentService();
+describe('Tournament Integration Tests', () => {
+  // Use admin mode for testing (service key to bypass RLS)
+  const service = new TournamentService(true);
   let testTournamentId: string;
 
   beforeAll(async () => {
-    // Skip authentication for now - we'll use anon key
-    // In production, you should set up proper test authentication
-    console.log('Using anonymous Supabase client for testing');
+    console.log('Using Supabase client for testing');
+    if (supabaseAdmin) {
+      console.log('Using Service Key - RLS bypassed');
+    } else {
+      console.log('Using Anon Key - RLS policies apply');
+    }
   });
 
   afterAll(async () => {
     // 테스트 데이터 정리
     if (testTournamentId) {
-      await supabase
+      const client = supabaseAdmin || supabase;
+      await client
         .from('tournaments')
         .delete()
         .eq('id', testTournamentId);
