@@ -255,10 +255,20 @@
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <input type="text" id="virtual-sheet-url" 
-               class="text-xs bg-gray-700 px-2 py-1 rounded w-64" 
-               placeholder="Virtual 시트 URL 입력..."
-               title="Virtual 시트가 포함된 Google Sheets URL">
+        <div class="flex flex-col">
+          <div class="flex items-center gap-2">
+            <input type="text" id="virtual-sheet-url" 
+                   class="text-xs bg-gray-700 px-2 py-1 rounded w-64 border-2 border-gray-500" 
+                   placeholder="웹 게시 CSV URL 입력 (권장)..."
+                   title="Google Sheets → 파일 → 웹에 게시 → CSV 선택 후 생성된 링크 사용">
+            <button id="url-help-btn" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700" title="URL 형식 도움말">
+              ?
+            </button>
+          </div>
+          <div id="url-feedback" class="mt-1 text-xs text-gray-400">
+            URL을 입력하면 유효성을 실시간 검증합니다
+          </div>
+        </div>
         <button id="refresh-btn" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
           새로고침
         </button>
@@ -1542,6 +1552,96 @@
       return null;
     }
     
+    // Google Sheets URL 유효성 검증 및 형식 분석
+    function validateGoogleSheetsUrl(url) {
+      if (!url || typeof url !== 'string' || url.trim() === '') {
+        return {
+          isValid: false,
+          type: 'empty',
+          message: 'URL을 입력해주세요',
+          recommendation: '',
+          cssClass: 'border-gray-500'
+        };
+      }
+      
+      url = url.trim();
+      
+      // Google Sheets URL 기본 검증
+      if (!url.includes('docs.google.com/spreadsheets')) {
+        return {
+          isValid: false,
+          type: 'invalid',
+          message: 'Google Sheets URL이 아닙니다',
+          recommendation: 'Google Sheets 링크를 사용해주세요',
+          cssClass: 'border-red-500'
+        };
+      }
+      
+      // 1. 웹 게시된 CSV URL (최고 등급)
+      if (url.includes('/pub?') && url.includes('output=csv')) {
+        return {
+          isValid: true,
+          type: 'published-csv',
+          message: '✅ 웹 게시 CSV URL (권장)',
+          recommendation: '완벽합니다! 이 형식이 가장 안정적입니다.',
+          cssClass: 'border-green-500'
+        };
+      }
+      
+      // 2. 웹 게시된 일반 URL (2PACX 형식)
+      if (url.includes('/spreadsheets/d/e/2PACX-')) {
+        const hasGid = url.includes('gid=');
+        return {
+          isValid: true,
+          type: 'published-general',
+          message: '🔄 웹 게시 URL (자동 변환됨)',
+          recommendation: hasGid ? 'CSV 형식으로 자동 변환됩니다.' : 'gid 파라미터가 없으면 첫 번째 시트를 사용합니다.',
+          cssClass: 'border-yellow-500'
+        };
+      }
+      
+      // 3. 일반 편집 URL
+      if (url.includes('/spreadsheets/d/') && !url.includes('/e/')) {
+        const sheetIdMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+        if (sheetIdMatch) {
+          return {
+            isValid: true,
+            type: 'edit-url',
+            message: '⚠️ 편집 URL (권한 문제 가능)',
+            recommendation: '웹 게시 CSV 링크 사용을 권장합니다. 권한 문제가 발생할 수 있습니다.',
+            cssClass: 'border-orange-500'
+          };
+        }
+      }
+      
+      return {
+        isValid: false,
+        type: 'invalid',
+        message: '지원되지 않는 URL 형식',
+        recommendation: '웹 게시된 Google Sheets CSV 링크를 사용해주세요',
+        cssClass: 'border-red-500'
+      };
+    }
+
+    // 링크 유효성 검증 결과를 UI에 표시
+    function updateUrlValidationUI(validationResult) {
+      const input = document.getElementById('virtual-sheet-url');
+      const feedbackDiv = document.getElementById('url-feedback');
+      
+      // 입력창 테두리 색상 변경
+      input.className = input.className.replace(/border-\w+-\d+/g, '') + ' ' + validationResult.cssClass;
+      
+      // 피드백 메시지 업데이트
+      if (feedbackDiv) {
+        feedbackDiv.innerHTML = `
+          <div class="text-xs mt-1">
+            <div class="font-medium">${validationResult.message}</div>
+            ${validationResult.recommendation ? `<div class="text-gray-400 mt-1">${validationResult.recommendation}</div>` : ''}
+          </div>
+        `;
+      }
+    }
+
     // Virtual 시트에서 가장 비슷한 시간 찾기 (날짜 제외, 시간만 비교)
     async function findClosestVirtualRow(targetTime, virtualSheetUrl) {
       console.log('🔍 === Virtual 시트 매칭 시작 ===');
@@ -1549,18 +1649,64 @@
       console.log(`⏰ 타겟 타임스탬프: ${targetTime} (${new Date(targetTime * 1000)})`);
       
       try {
-        // URL에서 Google Sheets ID 추출
-        const sheetIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-        if (!sheetIdMatch) {
-          console.error('❌ Google Sheets URL 파싱 실패');
-          throw new Error('올바른 Google Sheets URL이 아닙니다');
-        }
-        const sheetId = sheetIdMatch[1];
-        console.log(`🔑 추출된 시트 ID: ${sheetId}`);
+        let csvUrl = '';
         
-        // Virtual 시트 CSV URL 생성 (기본 gid=0 사용, 필요시 수정)
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=0`;
-        console.log(`📡 CSV URL: ${csvUrl}`);
+        // URL 형식 감지 및 적절한 CSV URL 생성
+        console.log('\n📄 === Virtual Sheet CSV 데이터 요청 ===');
+        console.log(`🔗 입력 URL: ${virtualSheetUrl}`);
+        console.log('🔍 URL 형식 분석 중...');
+        
+        let urlType = '';
+        
+        // 1. 이미 웹 게시된 CSV URL인지 확인 (가장 권장하는 형식)
+        if (virtualSheetUrl.includes('/pub?') && virtualSheetUrl.includes('output=csv')) {
+          console.log('✅ 웹 게시 CSV URL 감지 (권장 형식!)');
+          csvUrl = virtualSheetUrl;
+          urlType = 'published-csv';
+        }
+        // 2. 웹 게시된 일반 URL인지 확인 (2PACX 형식)
+        else if (virtualSheetUrl.includes('/spreadsheets/d/e/2PACX-')) {
+          console.log('🔄 웹 게시 일반 URL 감지 - CSV 변환 중');
+          // gid 추출
+          const gidMatch = virtualSheetUrl.match(/gid=(\d+)/);
+          const gid = gidMatch ? gidMatch[1] : '0';
+          const publishedIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
+          if (publishedIdMatch) {
+            csvUrl = `https://docs.google.com/spreadsheets/d/e/${publishedIdMatch[1]}/pub?gid=${gid}&single=true&output=csv`;
+            console.log('✅ 웹 게시 CSV URL로 자동 변환됨');
+            urlType = 'published-converted';
+          } else {
+            throw new Error('웹 게시 URL에서 ID를 추출할 수 없습니다');
+          }
+        }
+        // 3. 일반 시트 편집 URL인지 확인 (비추천 - CORS 문제 발생 가능)
+        else if (virtualSheetUrl.includes('/spreadsheets/d/') && !virtualSheetUrl.includes('/pub?')) {
+          console.log('⚠️ 일반 편집 URL 감지 - Export URL로 변환 시도');
+          console.log('❗ 주의: 이 방식은 CORS 및 권한 문제가 발생할 수 있습니다!');
+          const sheetIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+          if (sheetIdMatch) {
+            const sheetId = sheetIdMatch[1];
+            // gid 추출 시도
+            const gidMatch = virtualSheetUrl.match(/gid=(\d+)/);
+            const gid = gidMatch ? gidMatch[1] : '0';
+            csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+            console.log('🔄 Export CSV URL로 변환됨');
+            console.log('\n💡 권장 해결책:');
+            console.log('1. Google Sheets 열기');
+            console.log('2. 파일 → 웹에 게시');
+            console.log('3. "쉼표로 구분된 값(.csv)" 선택');
+            console.log('4. 게시 후 생성된 CSV 링크 사용');
+            urlType = 'export-url';
+          } else {
+            throw new Error('시트 ID를 추출할 수 없습니다');
+          }
+        }
+        else {
+          throw new Error('지원되지 않는 Google Sheets URL 형식입니다.\n\n📝 올바른 사용법:\n1. Google Sheets → 파일 → 웹에 게시\n2. "쉼표로 구분된 값(.csv)" 선택\n3. 게시 후 생성된 CSV 링크 사용\n\n✅ 올바른 형식 예시:\nhttps://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=csv');
+        }
+        
+        console.log(`📡 최종 요청 URL: ${csvUrl}`);
+        console.log(`📋 URL 형식: ${urlType}`);
         
         console.log('📥 Google Sheets CSV 요청 중...');
         const response = await fetch(csvUrl);
@@ -1568,7 +1714,13 @@
         console.log(`📊 응답 헤더 Content-Type: ${response.headers.get('content-type')}`);
         
         if (!response.ok) {
-          throw new Error(`HTTP 오류: ${response.status} ${response.statusText}`);
+          let errorMessage = `HTTP 오류: ${response.status} ${response.statusText}`;
+          if (response.status === 403) {
+            errorMessage += ' - 권한이 없습니다. 웹 게시 URL을 사용해보세요.';
+          } else if (response.status === 404) {
+            errorMessage += ' - 시트를 찾을 수 없습니다. URL을 확인해주세요.';
+          }
+          throw new Error(errorMessage);
         }
         
         const text = await response.text();
@@ -2212,6 +2364,63 @@ ${handText}
     // 이벤트 리스너
     // ====================================
     
+    // Virtual Sheet URL 입력 필드에 실시간 유효성 검증 추가
+    document.getElementById('virtual-sheet-url').addEventListener('input', (e) => {
+      const url = e.target.value;
+      const validationResult = validateGoogleSheetsUrl(url);
+      updateUrlValidationUI(validationResult);
+      
+      // 로컬 스토리지에 저장 (기존 로직 유지)
+      if (url.trim()) {
+        localStorage.setItem('virtualSheetUrl', url.trim());
+        console.log('💾 Virtual 시트 URL 저장됨');
+      }
+    });
+
+    // URL 입력 필드 포커스 아웃 시 한 번 더 검증
+    document.getElementById('virtual-sheet-url').addEventListener('blur', (e) => {
+      const url = e.target.value.trim();
+      if (url) {
+        console.log('🔍 URL 유효성 최종 검증:', url);
+        const validationResult = validateGoogleSheetsUrl(url);
+        updateUrlValidationUI(validationResult);
+        
+        // 유효하지 않은 URL인 경우 경고
+        if (!validationResult.isValid && validationResult.type !== 'empty') {
+          console.warn('⚠️ 유효하지 않은 URL 형식:', validationResult.message);
+        }
+      }
+    });
+
+    document.getElementById('url-help-btn').addEventListener('click', () => {
+      const helpMessage = `📝 Google Sheets CSV URL 올바른 사용법:
+
+🎯 권장 방법 (가장 안정적):
+1. Google Sheets 파일 열기
+2. 파일 → 웹에 게시
+3. 링크 탭 → "쉼표로 구분된 값(.csv)" 선택
+4. "게시" 버튼 클릭
+5. 생성된 CSV 링크 복사 후 사용
+
+✅ 올바른 URL 형식 예시:
+https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=csv
+
+⚠️ 주의사항:
+- 일반 편집 링크(/edit)는 권한 문제가 발생할 수 있습니다
+- 웹 게시된 CSV 링크를 사용하면 CORS 문제 없이 안정적으로 접근 가능합니다
+
+💡 팁:
+시트가 여러 개인 경우, gid 값으로 특정 시트를 선택할 수 있습니다.
+
+🔍 실시간 검증:
+- 🟢 초록 테두리: 완벽한 웹 게시 CSV URL
+- 🟡 노랑 테두리: 자동 변환 가능한 웹 게시 URL  
+- 🟠 주황 테두리: 편집 URL (권한 문제 가능)
+- 🔴 빨강 테두리: 지원되지 않는 형식`;
+      
+      alert(helpMessage);
+    });
+
     document.getElementById('refresh-btn').addEventListener('click', () => {
       console.log('🔄 수동 새로고침');
       loadIndexData(false); // 수동 새로고침은 알림 허용
@@ -2289,12 +2498,25 @@ ${handText}
     
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
-        // Virtual 시트 URL 확인
+        // Virtual 시트 URL 확인 및 유효성 검증
         const virtualSheetUrl = document.getElementById('virtual-sheet-url').value;
         if (!virtualSheetUrl) {
           alert('먼저 Virtual 시트 URL을 상단에 입력해주세요.');
           document.getElementById('virtual-sheet-url').focus();
           return;
+        }
+        
+        // URL 유효성 검증
+        const validationResult = validateGoogleSheetsUrl(virtualSheetUrl);
+        if (!validationResult.isValid) {
+          const confirmMessage = `⚠️ URL 유효성 검증 실패\n\n문제: ${validationResult.message}\n해결책: ${validationResult.recommendation}\n\n그래도 계속 진행하시겠습니까?`;
+          if (!confirm(confirmMessage)) {
+            document.getElementById('virtual-sheet-url').focus();
+            return;
+          }
+          console.warn('⚠️ 유효하지 않은 URL로 진행:', validationResult.message);
+        } else {
+          console.log('✅ URL 유효성 검증 통과:', validationResult.message);
         }
         
         // 핸드 시간 가져오기
@@ -2357,11 +2579,20 @@ ${handText}
       loadMasterHandList();
       console.log(`📁 기존 마스터 핸드: ${masterHandList.size}개`);
       
-      // Virtual 시트 URL 로드
+      // Virtual 시트 URL 로드 및 유효성 검증
       const savedVirtualUrl = localStorage.getItem('virtual_sheet_url');
       if (savedVirtualUrl) {
         document.getElementById('virtual-sheet-url').value = savedVirtualUrl;
         console.log(`💾 Virtual 시트 URL 로드: ${savedVirtualUrl.substring(0, 50)}...`);
+        
+        // 로드된 URL 유효성 검증
+        const validationResult = validateGoogleSheetsUrl(savedVirtualUrl);
+        updateUrlValidationUI(validationResult);
+        console.log(`🔍 로드된 URL 검증 결과: ${validationResult.message}`);
+      } else {
+        // 저장된 URL이 없으면 기본 피드백 메시지 표시
+        const defaultResult = validateGoogleSheetsUrl('');
+        updateUrlValidationUI(defaultResult);
       }
       
       // AI 설정 로드
