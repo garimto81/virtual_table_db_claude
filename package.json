@@ -1,6 +1,6 @@
 {
   "name": "virtual_table_db_claude",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "main": "index.js",
   "scripts": {
     "test": "jest",
