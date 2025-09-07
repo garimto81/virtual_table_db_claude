@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - 키 플레이어 분석 버전
-  Version: 8.8.0
+  Version: 8.9.0
   Last Updated: 2025-09-06
   Description: Google Sheets URL 실시간 유효성 검증 시스템 추가
 -->
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v8.8.0 - B열 기준 매칭</title>
+  <title>포커 핸드 모니터링 v8.9.0 - Apps Script 연동</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v8.8.0 KeyPlayer</span>
+        <span class="text-xs text-gray-500">v8.9.0 KeyPlayer</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -430,7 +430,61 @@
       </div>
       <div class="flex justify-end gap-2 mt-6">
         <button id="cancel-completion" class="px-4 py-2 bg-gray-600 rounded text-sm">취소</button>
+        <button id="open-sheet-update" class="px-4 py-2 bg-blue-600 rounded text-sm">📊 시트 업데이트</button>
         <button id="confirm-completion" class="px-4 py-2 bg-green-600 rounded text-sm">완료 처리</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 시트 업데이트 모달 -->
+  <div id="sheet-update-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
+      <h2 class="text-lg font-bold mb-4">📊 Virtual 시트 업데이트</h2>
+      <div class="space-y-4">
+        <div class="bg-gray-700 rounded p-3 mb-4">
+          <h3 class="text-sm font-bold mb-2">🎯 매칭 정보</h3>
+          <div class="text-sm space-y-1">
+            <div>📍 매칭된 행: <span id="update-matched-row" class="font-mono">-</span></div>
+            <div>🔢 핸드 번호: <span id="update-hand-number" class="font-mono">-</span></div>
+            <div>⏰ 매칭 시간: <span id="update-matched-time" class="font-mono">-</span></div>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm mb-2">📁 F열 - 파일명</label>
+          <input type="text" id="update-filename" 
+                 class="w-full bg-gray-700 rounded px-3 py-2 text-sm" 
+                 placeholder="파일명을 입력하세요...">
+          <p class="text-xs text-gray-400 mt-1">
+            📝 예: "hand_001_river_bluff.mp4"
+          </p>
+        </div>
+        <div>
+          <label class="block text-sm mb-2">🤖 H열 - AI 분석 내용</label>
+          <textarea id="update-ai-analysis" 
+                    class="w-full bg-gray-700 rounded px-3 py-2 text-sm h-24 resize-none"
+                    placeholder="AI 분석 결과 또는 수동 입력..."
+                    readonly>분석 실패</textarea>
+          <p class="text-xs text-gray-400 mt-1">
+            📊 현재는 "분석 실패"로 고정 (추후 AI 분석 연동 예정)
+          </p>
+        </div>
+        <div class="bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded p-3">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-yellow-400">⚠️</span>
+            <span class="text-sm font-semibold">업데이트 확인</span>
+          </div>
+          <div class="text-xs text-gray-300 space-y-1">
+            <div>• <strong>읽기 시트:</strong> B열 기준 시간 매칭</div>
+            <div>• <strong>쓰기 시트:</strong> F열(파일명), H열(AI분석) 업데이트</div>
+            <div>• <strong>Apps Script:</strong> 자동 업데이트 실행</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button id="cancel-sheet-update" class="px-4 py-2 bg-gray-600 rounded text-sm hover:bg-gray-700">취소</button>
+        <button id="confirm-sheet-update" class="px-4 py-2 bg-blue-600 rounded text-sm hover:bg-blue-700">
+          📊 시트 업데이트
+        </button>
       </div>
     </div>
   </div>
@@ -479,6 +533,43 @@
           </div>
         </div>
         <div class="mt-4 pt-4 border-t border-gray-700">
+          <h3 class="text-sm font-bold mb-2">📊 Apps Script 시트 연동</h3>
+          <div class="mb-2">
+            <label class="block text-xs mb-1">📖 읽기용 CSV 시트 URL</label>
+            <input type="text" id="read-sheet-url" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
+                   placeholder="Virtual 시트 CSV URL (B열 기준)..."
+                   title="매칭에 사용되는 Virtual 시트 CSV URL">
+            <p class="text-xs text-gray-400 mt-1">
+              ✅ B열 기준 시간 매칭에 사용
+            </p>
+          </div>
+          <div class="mb-2">
+            <label class="block text-xs mb-1">✏️ 쓰기용 시트 URL</label>
+            <input type="text" id="write-sheet-url" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
+                   placeholder="업데이트할 시트 URL..."
+                   value="https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849"
+                   title="F열(파일명), H열(AI분석) 업데이트할 시트">
+            <p class="text-xs text-gray-400 mt-1">
+              ✅ F열(파일명), H열(AI분석) 업데이트
+            </p>
+          </div>
+          <div class="mb-3">
+            <label class="block text-xs mb-1">🔗 Apps Script Web App URL</label>
+            <input type="text" id="apps-script-url" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
+                   placeholder="Apps Script 웹앱 URL..."
+                   title="시트 업데이트용 Apps Script URL">
+            <p class="text-xs text-gray-400 mt-1">
+              📝 시트 업데이트 전용 Apps Script
+            </p>
+          </div>
+          <button id="test-apps-script" class="w-full px-4 py-2 bg-green-600 rounded text-sm hover:bg-green-700 transition mb-2">
+            🧪 Apps Script 연결 테스트
+          </button>
+        </div>
+        <div class="mt-4 pt-4 border-t border-gray-700">
           <button id="clear-notification-history" class="w-full px-4 py-2 bg-red-600 rounded text-sm hover:bg-red-700 transition">
             🔄 버퍼 초기화
           </button>
@@ -496,7 +587,7 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v8.8.0 - MasterHandList + RecentHandsBuffer
+    // 포커 핸드 모니터링 시스템 v8.9.0 - MasterHandList + RecentHandsBuffer
     // ====================================
     
     const CONFIG = {
@@ -517,7 +608,12 @@
         openai: 'gpt-3.5-turbo',
         gemini: 'gemini-pro',
         claude: 'claude-3-sonnet-20240229'
-      }
+      },
+      
+      // Apps Script 시트 업데이트 설정
+      READ_SHEET_URL: '', // B열 기준 시간 매칭용 CSV URL
+      WRITE_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // F열(파일명), H열(AI분석) 업데이트용 시트 URL
+      SHEET_UPDATE_SCRIPT_URL: '' // 시트 업데이트 전용 Apps Script URL
     };
     
     // 전역 상태
@@ -2020,6 +2116,121 @@
       }
     }
     
+    // ===== Apps Script 시트 업데이트 함수들 =====
+    
+    // Apps Script 연결 테스트
+    async function testAppsScriptConnection() {
+      const appsScriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL;
+      
+      if (!appsScriptUrl) {
+        alert('⚠️ Apps Script URL이 설정되지 않았습니다.\n설정에서 Apps Script 웹앱 URL을 입력해주세요.');
+        return false;
+      }
+      
+      console.log('🧪 Apps Script 연결 테스트 시작...');
+      
+      try {
+        const response = await fetch(appsScriptUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Apps Script 연결 성공:', data);
+          alert(`✅ Apps Script 연결 성공!\n\n상태: ${data.status}\n버전: ${data.version || 'N/A'}\n시간: ${data.time || 'N/A'}`);
+          return true;
+        } else {
+          console.error('❌ Apps Script 연결 실패:', response.status, response.statusText);
+          alert(`❌ Apps Script 연결 실패\n\n상태 코드: ${response.status}\n오류: ${response.statusText}`);
+          return false;
+        }
+      } catch (error) {
+        console.error('❌ Apps Script 연결 오류:', error);
+        alert(`❌ Apps Script 연결 오류\n\n${error.message}\n\n해결책:\n• Apps Script URL을 확인하세요\n• 웹앱이 배포되었는지 확인하세요\n• 실행 권한을 확인하세요`);
+        return false;
+      }
+    }
+    
+    // 시트에 데이터 업데이트 (F열: 파일명, H열: AI분석)
+    async function updateSheetData(matchedRow, handNumber, filename, aiAnalysis) {
+      const appsScriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL;
+      const writeSheetUrl = CONFIG.WRITE_SHEET_URL;
+      
+      if (!appsScriptUrl) {
+        throw new Error('Apps Script URL이 설정되지 않았습니다.');
+      }
+      
+      if (!writeSheetUrl) {
+        throw new Error('쓰기용 시트 URL이 설정되지 않았습니다.');
+      }
+      
+      console.log('📊 === 시트 업데이트 시작 ===');
+      console.log(`📍 매칭된 행: ${matchedRow}`);
+      console.log(`🔢 핸드 번호: ${handNumber}`);
+      console.log(`📁 파일명: ${filename}`);
+      console.log(`🤖 AI 분석: ${aiAnalysis}`);
+      
+      const updateData = {
+        action: 'updateSheet',
+        sheetUrl: writeSheetUrl,
+        rowNumber: matchedRow,
+        handNumber: handNumber,
+        filename: filename,
+        aiAnalysis: aiAnalysis,
+        timestamp: new Date().toISOString()
+      };
+      
+      try {
+        console.log('📤 Apps Script로 데이터 전송 중...');
+        
+        const response = await fetch(appsScriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            payload: JSON.stringify(updateData)
+          })
+        });
+        
+        console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Apps Script 응답:', result);
+        
+        if (result.status === 'success') {
+          console.log('✅ 시트 업데이트 성공!');
+          return {
+            success: true,
+            message: result.message || '시트 업데이트 완료',
+            data: result
+          };
+        } else {
+          console.error('❌ 시트 업데이트 실패:', result.message);
+          return {
+            success: false,
+            message: result.message || '알 수 없는 오류',
+            data: result
+          };
+        }
+        
+      } catch (error) {
+        console.error('❌ 시트 업데이트 오류:', error);
+        return {
+          success: false,
+          message: error.message,
+          error: error
+        };
+      }
+    }
+    
     // AI로 핸드 분석 및 3줄 요약
     async function analyzeHandWithAI(handNumber) {
       try {
@@ -2541,11 +2752,21 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
       CONFIG.AI_SERVICE = document.getElementById('ai-service').value;
       CONFIG.AI_API_KEY = document.getElementById('ai-api-key').value;
       
+      // Apps Script 설정 저장
+      CONFIG.READ_SHEET_URL = document.getElementById('read-sheet-url').value;
+      CONFIG.WRITE_SHEET_URL = document.getElementById('write-sheet-url').value;
+      CONFIG.SHEET_UPDATE_SCRIPT_URL = document.getElementById('apps-script-url').value;
+      
       // localStorage에 저장
       localStorage.setItem('ai_service', CONFIG.AI_SERVICE);
       if (CONFIG.AI_API_KEY) {
         localStorage.setItem('ai_api_key', CONFIG.AI_API_KEY);
       }
+      
+      // Apps Script 설정 localStorage 저장
+      localStorage.setItem('read_sheet_url', CONFIG.READ_SHEET_URL);
+      localStorage.setItem('write_sheet_url', CONFIG.WRITE_SHEET_URL);
+      localStorage.setItem('sheet_update_script_url', CONFIG.SHEET_UPDATE_SCRIPT_URL);
       
       // 모든 타이머 정리
       if (refreshTimerInitial) {
@@ -2581,6 +2802,99 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
         
         // 설정 창 닫기
         document.getElementById('settings-modal').classList.add('hidden');
+      }
+    });
+    
+    // ===== Apps Script 관련 이벤트 리스너 =====
+    
+    // Apps Script 연결 테스트 버튼
+    document.getElementById('test-apps-script').addEventListener('click', async () => {
+      await testAppsScriptConnection();
+    });
+    
+    // 시트 업데이트 모달 열기 버튼
+    document.getElementById('open-sheet-update').addEventListener('click', () => {
+      const filenameInput = document.getElementById('final-filename');
+      const summaryTextarea = document.getElementById('ai-summary');
+      const matchedRowInput = document.getElementById('matched-row');
+      
+      // 완료 모달의 데이터를 시트 업데이트 모달로 복사
+      document.getElementById('update-filename').value = filenameInput.value;
+      document.getElementById('update-ai-analysis').value = summaryTextarea.value;
+      document.getElementById('update-hand-number').textContent = currentHand || '-';
+      document.getElementById('update-matched-row').textContent = matchedRowInput.value || '-';
+      document.getElementById('update-matched-time').textContent = new Date().toLocaleTimeString();
+      
+      // 시트 업데이트 모달 표시
+      document.getElementById('sheet-update-modal').classList.remove('hidden');
+    });
+    
+    // 시트 업데이트 모달 취소
+    document.getElementById('cancel-sheet-update').addEventListener('click', () => {
+      document.getElementById('sheet-update-modal').classList.add('hidden');
+    });
+    
+    // 시트 업데이트 실행
+    document.getElementById('confirm-sheet-update').addEventListener('click', async () => {
+      const filename = document.getElementById('update-filename').value.trim();
+      const aiAnalysis = document.getElementById('update-ai-analysis').value.trim();
+      const matchedRowText = document.getElementById('update-matched-row').textContent;
+      
+      if (!filename) {
+        alert('⚠️ 파일명을 입력해주세요.');
+        return;
+      }
+      
+      if (!currentHand) {
+        alert('⚠️ 현재 선택된 핸드가 없습니다.');
+        return;
+      }
+      
+      // 매칭된 행 번호 추출 (예: "🎯 Row 5 ..." → 5)
+      const rowMatch = matchedRowText.match(/Row\s+(\d+)/);
+      if (!rowMatch) {
+        alert('⚠️ 매칭된 행 정보를 찾을 수 없습니다.\n먼저 Virtual 시트 매칭을 완료해주세요.');
+        return;
+      }
+      
+      const matchedRow = parseInt(rowMatch[1]);
+      
+      console.log('📊 시트 업데이트 시작...');
+      console.log(`📍 행: ${matchedRow}, 핸드: ${currentHand}, 파일명: ${filename}`);
+      
+      try {
+        // 업데이트 버튼 비활성화
+        const updateBtn = document.getElementById('confirm-sheet-update');
+        updateBtn.disabled = true;
+        updateBtn.textContent = '📊 업데이트 중...';
+        
+        const result = await updateSheetData(matchedRow, currentHand, filename, aiAnalysis);
+        
+        if (result.success) {
+          alert(`✅ 시트 업데이트 성공!\n\n📍 행: ${matchedRow}\n📁 파일명: ${filename}\n🤖 AI 분석: ${aiAnalysis.substring(0, 30)}...`);
+          document.getElementById('sheet-update-modal').classList.add('hidden');
+          
+          // 완료 처리도 같이 실행
+          const handNumber = currentHand;
+          masterHandList.get(handNumber).status = 'completed';
+          saveMasterHandList();
+          updateHandList();
+          clearHandDetails();
+          currentHand = null;
+          
+        } else {
+          alert(`❌ 시트 업데이트 실패\n\n오류: ${result.message}`);
+        }
+        
+      } catch (error) {
+        console.error('시트 업데이트 오류:', error);
+        alert(`❌ 시트 업데이트 오류\n\n${error.message}`);
+        
+      } finally {
+        // 버튼 복구
+        const updateBtn = document.getElementById('confirm-sheet-update');
+        updateBtn.disabled = false;
+        updateBtn.textContent = '📊 시트 업데이트';
       }
     });
     
@@ -2672,7 +2986,7 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v8.8.0 - B열 기준 매칭 (다중 CSV 접근 방법)');
+      console.log('🚀 포커 핸드 모니터링 시스템 v8.9.0 - Apps Script 연동 (다중 CSV 접근 방법)');
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
@@ -2707,6 +3021,27 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
         CONFIG.AI_API_KEY = savedAiKey;
         document.getElementById('ai-api-key').value = savedAiKey;
         console.log(`🔑 AI API 키 로드됨`);
+      }
+      
+      // Apps Script 설정 로드
+      const savedReadSheetUrl = localStorage.getItem('read_sheet_url');
+      const savedWriteSheetUrl = localStorage.getItem('write_sheet_url');
+      const savedScriptUrl = localStorage.getItem('sheet_update_script_url');
+      
+      if (savedReadSheetUrl) {
+        CONFIG.READ_SHEET_URL = savedReadSheetUrl;
+        document.getElementById('read-sheet-url').value = savedReadSheetUrl;
+        console.log(`📖 읽기 시트 URL 로드됨`);
+      }
+      if (savedWriteSheetUrl) {
+        CONFIG.WRITE_SHEET_URL = savedWriteSheetUrl;
+        document.getElementById('write-sheet-url').value = savedWriteSheetUrl;
+        console.log(`✏️ 쓰기 시트 URL 로드됨`);
+      }
+      if (savedScriptUrl) {
+        CONFIG.SHEET_UPDATE_SCRIPT_URL = savedScriptUrl;
+        document.getElementById('apps-script-url').value = savedScriptUrl;
+        console.log(`🔗 Apps Script URL 로드됨`);
       }
       
       // 최근 핸드 버퍼 상태 확인

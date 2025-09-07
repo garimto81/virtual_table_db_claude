@@ -12,14 +12,22 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
 - 테이블 관리
 - 플레이어 인증 및 관리
 - 핸드 기록 및 추적
-- **포커 핸드 모니터링 시스템 (v8.8.0)**
+- **포커 핸드 모니터링 시스템 (v8.9.0)**
   - 실시간 포커 핸드 모니터링
   - Virtual 시트 연동 및 시간 기반 매칭
   - 키 플레이어 중심 분석
   - AI 기반 핸드 요약 및 분석
   - **Google Sheets URL 실시간 유효성 검증**
 
-## 최신 업데이트 (v8.8.0 - 2025-09-07)
+## 최신 업데이트 (v8.9.0 - 2025-09-07)
+
+### 📊 Apps Script 시트 업데이트 연동 (v8.9.0)
+- **시트 업데이트 팝업**: 매칭 완료 후 팝업창으로 시트 업데이트 가능
+- **읽기/쓰기 시트 분리**: 매칭용 CSV 시트와 업데이트용 시트 URL 분리 관리
+- **Apps Script 연동**: F열(파일명), H열(AI분석) 자동 업데이트
+- **설정 관리**: localStorage를 통한 Apps Script URL 및 시트 URL 저장
+- **연결 테스트**: Apps Script 연결 상태 테스트 기능
+- **시트 업데이트 UI**: 직관적인 팝업 인터페이스로 쉬운 시트 관리
 
 ### 🔧 Virtual 시트 매칭 기준 변경 (v8.8.0)
 - **B열 기준 매칭**: Virtual 시트 시간 매칭 기준을 C열(Seoul)에서 B열(Cyprus)로 변경
@@ -150,7 +158,7 @@ console.log('📊 유효한 시간 발견:', validTimeFoundCount);
 **핵심 파일:**
 - `index.html`: 메인 모니터링 시스템 (2600+ 줄)
 - `README.md`: 프로젝트 문서 (현재 파일)
-- `package.json`: v1.4.0
+- `package.json`: v1.5.0
 
 **주요 코드 위치:**
 - URL 검증: index.html 1548-1636행
@@ -267,8 +275,8 @@ A열(Blinds),B열(Cyprus),C열(Seoul),D열(#)
 
 **현재 Git 상태:**
 - 브랜치: `feature/supabase-integration`
-- 최신 커밋: `0cd64a8` (B열 기준 매칭 로직 변경)
-- 버전: HTML v8.8.0, Package v1.4.0
+- 최신 커밋: `v8.9.0` (Apps Script 시트 업데이트 연동)
+- 버전: HTML v8.9.0, Package v1.5.0
 
 **테스트 방법:**
 1. `index.html` 브라우저에서 직접 열기
