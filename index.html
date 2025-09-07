@@ -1877,18 +1877,18 @@
           { pattern: /(\d{1,2})시\s*(\d{2})분/, name: '한국어 시분' }
         ];
         
-        console.log(`🔍 === C열 시간 데이터 매칭 시작 ===`);
+        console.log(`🔍 === B열 시간 데이터 매칭 시작 ===`);
         console.log(`🔍 총 ${rows.length}개 행에서 검색 중...`);
         
-        // C열(index 2)만 검색
+        // B열(index 1)만 검색
         for (let i = 0; i < rows.length; i++) {
-          const cellValue = rows[i][2]; // C열만 확인
+          const cellValue = rows[i][1]; // B열만 확인
           if (!cellValue || !cellValue.trim()) {
             // 빈 셀은 로그 생략
             continue;
           }
           
-          console.log(`🔍 행 ${i+1} C열 검사: "${cellValue}"`);
+          console.log(`🔍 행 ${i+1} B열 검사: "${cellValue}"`);
           
           let hours, minutes, seconds = 0;
           let timeMatch = null;
@@ -1932,12 +1932,12 @@
             // 정확히 일치하거나 매우 가까운 경우 (5초 이내) 즉시 종료
             if (diff <= 5) {
               console.log(`✅ === Virtual 시트 매칭 성공! ===`);
-              console.log(`   📍 위치: 행 ${rowIndex}, C열 (Seoul 시간)`);
+              console.log(`   📍 위치: 행 ${rowIndex}, B열 (Cyprus 시간)`);
               console.log(`   🕐 시간: ${matchedTime} (${diff}초 차이)`);
               console.log(`   📋 전체 행 데이터:`);
               console.log(`      A열(Blinds): "${rows[i][0] || ''}"`);
               console.log(`      B열(Cyprus): "${rows[i][1] || ''}"`);
-              console.log(`      C열(Seoul): "${rows[i][2]}"`);
+              console.log(`      B열(Cyprus): "${rows[i][1]}"`);              console.log(`      C열(Seoul): "${rows[i][2]}"`);
               console.log(`      D열(#): "${rows[i][3] || ''}"`);
               break;
             }
@@ -1962,7 +1962,7 @@
           }
           
           console.log(`⚠️ 정확한 매치 없음. 가장 가까운 시간:`);
-          console.log(`   📍 행 ${rowIndex}, C열: ${matchedTime} (${timeDiffStr} 차이)`);
+          console.log(`   📍 행 ${rowIndex}, B열: ${matchedTime} (${timeDiffStr} 차이)`);
         }
         
         // 최종 결과 처리 및 반환
@@ -1985,14 +1985,14 @@
           console.error(`❌ 매칭할 수 있는 시간 데이터를 찾지 못했습니다.`);
           console.error(`❌ 유효한 시간 데이터: ${validTimeFoundCount}개`);
           console.error(`❌ 가능한 원인:`);
-          console.error(`   - C열에 올바른 시간 형식의 데이터가 없음`);
+          console.error(`   - B열에 올바른 시간 형식의 데이터가 없음`);
           console.error(`   - 지원되는 형식: HH:MM, HH:MM:SS, N시 N분, N시 N분 N초`);
           console.error(`   - 시트가 비어있거나 잘못된 열을 참조하고 있음`);
           
           if (validTimeFoundCount === 0) {
-            console.error(`💡 해결책: C열에 "14:35" 또는 "14시 35분" 형식의 시간 데이터를 입력하세요.`);
+            console.error(`💡 해결책: B열에 "14:35" 또는 "14시 35분" 형식의 시간 데이터를 입력하세요.`);
           } else {
-            console.error(`💡 해결책: 타겟 시간과 유사한 시간대의 데이터를 C열에 추가하세요.`);
+            console.error(`💡 해결책: 타겟 시간과 유사한 시간대의 데이터를 B열에 추가하세요.`);
           }
           
           return null;
