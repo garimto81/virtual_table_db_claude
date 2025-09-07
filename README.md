@@ -12,7 +12,7 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
 - 테이블 관리
 - 플레이어 인증 및 관리
 - 핸드 기록 및 추적
-- **포커 핸드 모니터링 시스템 (v8.6.0)**
+- **포커 핸드 모니터링 시스템 (v8.7.0)**
   - 실시간 포커 핸드 모니터링
   - Virtual 시트 연동 및 시간 기반 매칭
   - 키 플레이어 중심 분석
@@ -144,7 +144,7 @@ console.log('📊 유효한 시간 발견:', validTimeFoundCount);
 **핵심 파일:**
 - `index.html`: 메인 모니터링 시스템 (2600+ 줄)
 - `README.md`: 프로젝트 문서 (현재 파일)
-- `package.json`: v1.2.0
+- `package.json`: v1.3.0
 
 **주요 코드 위치:**
 - URL 검증: index.html 1548-1636행
@@ -261,8 +261,8 @@ A열(Blinds),B열(Cyprus),C열(Seoul),D열(#)
 
 **현재 Git 상태:**
 - 브랜치: `feature/supabase-integration`
-- 최신 커밋: `e968e77` (버전 업데이트 v8.6.0)
-- 버전: HTML v8.6.0, Package v1.2.0
+- 최신 커밋: `v8.7.0` (CORS 문제 완전 해결)
+- 버전: HTML v8.7.0, Package v1.3.0
 
 **테스트 방법:**
 1. `index.html` 브라우저에서 직접 열기
