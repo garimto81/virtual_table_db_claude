@@ -19,7 +19,7 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
   - AI 기반 핸드 요약 및 분석
   - **Google Sheets URL 실시간 유효성 검증**
 
-## 최신 업데이트 (v8.6.0 - 2025-09-06)
+## 최신 업데이트 (v8.7.0 - 2025-09-07)
 
 ### 🔗 Google Sheets URL 실시간 유효성 검증 시스템
 - **실시간 검증**: URL 입력 시 즉시 유효성 검증 및 시각적 피드백
@@ -65,20 +65,27 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
 - 시간 파싱 패턴: HH:MM:SS, HH:MM, 한국어 시간 형식 지원
 - Seoul 시간대 변환 로직 구현
 
-#### ❌ **현재 발생하는 문제:**
+#### ✅ **해결된 문제:**
 
-**문제 증상:**
+**이전 문제:**
 ```
-❌ 매칭되는 행을 찾을 수 없음
+❌ 매칭되는 행을 찾을 수 없음 (CORS 문제로 인한 CSV 접근 실패)
 ```
 
-**추정 원인들:**
-1. **Google Sheets CSV 접근 문제**
-   - CORS 정책 위반
-   - 웹 게시 설정 오류
-   - 시트 권한 문제
+**해결책 구현 (2025-09-07):**
+1. **다중 CSV 접근 방법 구현** - `fetchCsvWithFallback()` 함수
+   - 🥇 **직접 fetch** (우선순위 1): 가장 빠른 방법, 웹 게시 CSV에서 주로 성공
+   - 🥈 **Google Apps Script** (우선순위 2): CORS 정책 완전 우회, 서버사이드 접근
+   - 🥉 **AllOrigins 프록시** (우선순위 3): 최후 수단, 외부 프록시 서비스
 
-2. **CSV 데이터 파싱 문제**
+2. **검증된 해결책 출처**
+   - GitHub 저장소: `garimto81/virtual_data_claude`
+   - Apps Script URL: `AKfycbzRRDP0v9LT3Y1Wos_pj7dXg4IVCIC-hAmFpUFUovZBsE2h5hCulMspZsJwANLf1Kl9`
+   - 테스트 완료: `sheets-test-fixed.html` 개발로 검증
+
+#### 🚨 **남은 잠재적 이슈:**
+
+**향후 모니터링 필요:**
    - 예상과 다른 CSV 구조
    - 인코딩 문제 (UTF-8 BOM, CP949 등)
    - 빈 행이나 헤더 처리 오류

@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v8.6.0 - 키 플레이어 분석</title>
+  <title>포커 핸드 모니터링 v8.7.0 - CORS 문제 해결</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -695,6 +695,116 @@
     // ====================================
     // 유틸리티 함수
     // ====================================
+    
+    // Google Sheets CSV Fetch 함수 (GitHub 저장소 방식 + 프록시 fallback)
+    async function fetchCsvWithFallback(url) {
+      console.log(`🔄 CSV 가져오기 시도: ${url}`);
+      
+      try {
+        // 방법 1: GitHub 저장소와 동일한 직접 fetch
+        console.log('🔄 방법 1: 직접 fetch 시도 (GitHub 방식)');
+        const res = await fetch(url);
+        
+        console.log(`📊 HTTP 응답: ${res.status} ${res.statusText}`);
+        
+        if (!res.ok) {
+          throw new Error(`CSV fetch failed: ${res.status}`);
+        }
+        
+        const txt = await res.text();
+        console.log(`✅ 직접 방법 성공: ${txt.length}글자`);
+        
+        return { 
+          response: {
+            ok: true,
+            status: res.status,
+            statusText: res.statusText,
+            headers: { get: (key) => res.headers.get(key) }
+          },
+          fetchMethod: '직접 fetch (GitHub 방식)',
+          csvText: txt
+        };
+        
+      } catch (error) {
+        console.log(`❌ 직접 방법 실패: ${error.message}`);
+        console.log('💡 CORS 문제일 가능성이 높습니다. 프록시 방법을 시도합니다.');
+        
+        // 방법 2: 프록시 (CORS 우회)
+        try {
+          console.log('🔄 방법 2: AllOrigins 프록시 시도');
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+          const proxyResponse = await fetch(proxyUrl);
+          
+          if (!proxyResponse.ok) {
+            throw new Error(`프록시 응답 오류: ${proxyResponse.status}`);
+          }
+          
+          const proxyData = await proxyResponse.json();
+          
+          if (!proxyData.contents) {
+            throw new Error('프록시에서 빈 데이터 반환');
+          }
+          
+          let csvText = proxyData.contents;
+          
+          // Base64로 인코딩된 데이터인지 확인 및 디코딩
+          if (csvText.startsWith('data:text/csv;base64,')) {
+            console.log('🔄 Base64 인코딩 데이터 감지 - 디코딩 중...');
+            const base64Data = csvText.replace('data:text/csv;base64,', '');
+            try {
+              csvText = atob(base64Data);
+              console.log(`✅ Base64 디코딩 성공: ${csvText.length}글자`);
+            } catch (decodeError) {
+              console.error(`❌ Base64 디코딩 실패: ${decodeError.message}`);
+              throw new Error(`Base64 디코딩 실패: ${decodeError.message}`);
+            }
+          }
+          
+          console.log(`✅ 프록시 방법 성공: ${csvText.length}글자`);
+          
+          return {
+            response: {
+              ok: true,
+              status: 200,
+              statusText: 'OK (via Proxy)'
+            },
+            fetchMethod: 'AllOrigins 프록시',
+            csvText: csvText
+          };
+          
+        } catch (error2) {
+          console.log(`❌ 프록시 방법 실패: ${error2.message}`);
+          
+          // 방법 3: cors-anywhere 백업 프록시
+          try {
+            console.log('🔄 방법 3: cors-anywhere 프록시 시도');
+            const corsUrl = `https://cors-anywhere.herokuapp.com/${url}`;
+            const corsResponse = await fetch(corsUrl);
+            
+            if (!corsResponse.ok) {
+              throw new Error(`CORS 프록시 응답 오류: ${corsResponse.status}`);
+            }
+            
+            const corsTxt = await corsResponse.text();
+            console.log(`✅ CORS 프록시 방법 성공: ${corsTxt.length}글자`);
+            
+            return {
+              response: {
+                ok: true,
+                status: 200,
+                statusText: 'OK (via CORS Proxy)'
+              },
+              fetchMethod: 'CORS Anywhere 프록시',
+              csvText: corsTxt
+            };
+            
+          } catch (error3) {
+            console.log(`❌ CORS 프록시 방법 실패: ${error3.message}`);
+            throw new Error(`모든 CSV fetch 방법 실패. 직접: ${error.message}, AllOrigins: ${error2.message}, CORS-Anywhere: ${error3.message}`);
+          }
+        }
+      }
+    }
     
     function parseCSV(text) {
       const lines = text.trim().split('\n');
@@ -1708,22 +1818,12 @@
         console.log(`📡 최종 요청 URL: ${csvUrl}`);
         console.log(`📋 URL 형식: ${urlType}`);
         
-        console.log('📥 Google Sheets CSV 요청 중...');
-        const response = await fetch(csvUrl);
-        console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
-        console.log(`📊 응답 헤더 Content-Type: ${response.headers.get('content-type')}`);
+        console.log('📥 Google Sheets CSV 요청 중... (다중 방법 시도)');
+        const csvData = await fetchCsvWithFallback(csvUrl);
+        const text = csvData.csvText;
         
-        if (!response.ok) {
-          let errorMessage = `HTTP 오류: ${response.status} ${response.statusText}`;
-          if (response.status === 403) {
-            errorMessage += ' - 권한이 없습니다. 웹 게시 URL을 사용해보세요.';
-          } else if (response.status === 404) {
-            errorMessage += ' - 시트를 찾을 수 없습니다. URL을 확인해주세요.';
-          }
-          throw new Error(errorMessage);
-        }
-        
-        const text = await response.text();
+        console.log(`📊 사용된 방법: ${csvData.fetchMethod}`);
+        console.log(`📊 응답 상태: ${csvData.response.status} ${csvData.response.statusText}`);
         console.log(`📄 CSV 데이터 크기: ${text.length} characters`);
         console.log(`📄 CSV 데이터 미리보기 (첫 500자):`);
         console.log(text.substring(0, 500) + (text.length > 500 ? '...' : ''));
@@ -2572,7 +2672,7 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v8.6.0 - Google Sheets URL 실시간 유효성 검증');
+      console.log('🚀 포커 핸드 모니터링 시스템 v8.7.0 - CORS 문제 해결 (다중 CSV 접근 방법)');
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
