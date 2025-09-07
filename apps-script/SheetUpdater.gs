@@ -1,11 +1,18 @@
 /****************************************************
- * Virtual Table Sheet Updater - Apps Script v1.0
+ * Virtual Table Sheet Updater - Apps Script v1.1
  * 
  * 기능:
  * - Virtual 시트의 F열(파일명), H열(AI분석) 업데이트
  * - B열 시간 기준으로 매칭된 행에 데이터 업데이트
  * - CORS 정책 우회를 통한 안전한 시트 접근
+ * - Gemini AI를 통한 포커 핸드 자동 분석
  ****************************************************/
+
+// ===== 설정 =====
+
+// Gemini API 키 (Apps Script 스크립트 속성에서 설정)
+// PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', 'YOUR_API_KEY');
+const GEMINI_API_KEY = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
 
 // ===== 메인 핸들러 =====
 
@@ -14,8 +21,10 @@ function doGet(e) {
     status: 'ok',
     method: 'GET',
     time: new Date().toISOString(),
-    version: 'v1.0',
-    service: 'Virtual Table Sheet Updater'
+    version: 'v1.1',
+    service: 'Virtual Table Sheet Updater',
+    features: ['Sheet Update', 'Gemini AI Analysis', 'Auto Analysis'],
+    gemini_enabled: !!GEMINI_API_KEY
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -39,6 +48,8 @@ function doPost(e) {
     
     if (action === 'updateSheet') {
       return handleSheetUpdate(body);
+    } else if (action === 'analyzeHand') {
+      return handleHandAnalysis(body);
     } else {
       return _json({
         status: 'error',
@@ -123,9 +134,26 @@ function handleSheetUpdate(data) {
     sheet.getRange(targetRow, 6).setValue(filename);
     console.log(`✅ F${targetRow} 파일명 업데이트: "${filename}"`);
     
+    // AI 분석 수행 (비어있거나 기본값인 경우)
+    let finalAnalysis = aiAnalysis;
+    if (!aiAnalysis || aiAnalysis === '분석 실패' || aiAnalysis.trim() === '') {
+      console.log('🤖 AI 분석 시작...');
+      try {
+        finalAnalysis = await analyzePokerHand({
+          handNumber: handNumber,
+          filename: filename,
+          timestamp: timestamp
+        });
+        console.log(`✅ AI 분석 완료: "${finalAnalysis}"`);
+      } catch (aiError) {
+        console.error('❌ AI 분석 실패:', aiError);
+        finalAnalysis = '분석 실패';
+      }
+    }
+    
     // H열(8)에 AI 분석 업데이트
-    sheet.getRange(targetRow, 8).setValue(aiAnalysis || '분석 실패');
-    console.log(`✅ H${targetRow} AI 분석 업데이트: "${aiAnalysis}"`);
+    sheet.getRange(targetRow, 8).setValue(finalAnalysis);
+    console.log(`✅ H${targetRow} AI 분석 업데이트: "${finalAnalysis}"`);
     
     // 업데이트 시간을 I열(9)에 기록 (선택사항)
     const updateTime = new Date();
@@ -141,7 +169,7 @@ function handleSheetUpdate(data) {
         sheetName: sheet.getName(),
         rowNumber: targetRow,
         filename: filename,
-        aiAnalysis: aiAnalysis,
+        aiAnalysis: finalAnalysis,
         updatedAt: updateTime.toISOString(),
         handNumber: handNumber
       }
@@ -154,6 +182,120 @@ function handleSheetUpdate(data) {
       message: `시트 업데이트 실패: ${error.message}`,
       stack: error.stack
     });
+  }
+}
+
+// ===== AI 분석 핸들러 =====
+
+function handleHandAnalysis(data) {
+  try {
+    console.log('🤖 AI 핸드 분석 요청 수신...');
+    
+    const { handNumber, filename, timestamp, handData } = data;
+    
+    if (!handNumber && !filename) {
+      throw new Error('핸드 번호 또는 파일명이 필요합니다');
+    }
+    
+    const analysisResult = analyzePokerHand({
+      handNumber: handNumber,
+      filename: filename,
+      timestamp: timestamp,
+      handData: handData
+    });
+    
+    return _json({
+      status: 'success',
+      message: 'AI 분석 완료',
+      data: {
+        handNumber: handNumber,
+        filename: filename,
+        analysis: analysisResult,
+        analyzedAt: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ AI 분석 오류:', error);
+    return _json({
+      status: 'error',
+      message: `AI 분석 실패: ${error.message}`,
+      analysis: '분석 실패',
+      stack: error.stack
+    });
+  }
+}
+
+async function analyzePokerHand(params) {
+  try {
+    console.log('🧠 Gemini AI 포커 핸드 분석 시작...');
+    
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY가 설정되지 않았습니다');
+    }
+    
+    const { handNumber, filename, timestamp, handData } = params;
+    
+    // Gemini AI 프롬프트 구성
+    const prompt = `
+포커 핸드 분석을 요청합니다.
+
+핸드 정보:
+- 핸드 번호: ${handNumber || 'N/A'}
+- 파일명: ${filename || 'N/A'}
+- 시간: ${timestamp || 'N/A'}
+- 추가 데이터: ${handData ? JSON.stringify(handData) : 'N/A'}
+
+다음 형식으로 간단하게 분석해주세요:
+"[플레이어 액션] - [핸드 강도] - [권장사항]"
+
+예시: "리버 블러프 - 약한 핸드 - 폴드 권장"
+
+50자 이내로 간단명료하게 작성해주세요.
+`;
+
+    // Gemini API 호출
+    const response = UrlFetchApp.fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      payload: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 100,
+        }
+      })
+    });
+    
+    if (response.getResponseCode() !== 200) {
+      throw new Error(`Gemini API 오류: ${response.getResponseCode()}`);
+    }
+    
+    const responseData = JSON.parse(response.getContentText());
+    console.log('🔍 Gemini API 응답:', JSON.stringify(responseData));
+    
+    if (!responseData.candidates || !responseData.candidates[0] || !responseData.candidates[0].content) {
+      throw new Error('유효하지 않은 Gemini API 응답');
+    }
+    
+    const analysis = responseData.candidates[0].content.parts[0].text;
+    console.log(`✅ AI 분석 결과: "${analysis}"`);
+    
+    // 분석 결과 검증 및 정리
+    const cleanedAnalysis = analysis.trim().substring(0, 50);
+    return cleanedAnalysis || '분석 완료';
+    
+  } catch (error) {
+    console.error('❌ Gemini AI 분석 실패:', error);
+    throw error;
   }
 }
 
@@ -208,13 +350,33 @@ function testSheetUpdate() {
     rowNumber: 2,
     handNumber: 'TEST_001',
     filename: 'test_hand_001.mp4',
-    aiAnalysis: '테스트 분석 결과 - 성공',
+    aiAnalysis: '', // 빈 값으로 설정하여 AI 분석 자동 실행 테스트
     timestamp: new Date().toISOString()
   };
   
   console.log('🧪 시트 업데이트 테스트 시작...');
   const result = handleSheetUpdate(testData);
   console.log('🧪 테스트 결과:', result.getContent());
+  
+  return JSON.parse(result.getContent());
+}
+
+function testAIAnalysis() {
+  const testData = {
+    action: 'analyzeHand',
+    handNumber: 'AI_TEST_001',
+    filename: 'ai_test_hand.mp4',
+    timestamp: new Date().toISOString(),
+    handData: {
+      action: 'bluff',
+      street: 'river',
+      position: 'button'
+    }
+  };
+  
+  console.log('🧪 AI 분석 테스트 시작...');
+  const result = handleHandAnalysis(testData);
+  console.log('🧪 AI 분석 테스트 결과:', result.getContent());
   
   return JSON.parse(result.getContent());
 }

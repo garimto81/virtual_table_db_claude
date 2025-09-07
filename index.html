@@ -248,27 +248,13 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v8.9.0 KeyPlayer</span>
+        <span class="text-xs text-gray-500">v9.0.0 CleanUI</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <div class="flex flex-col">
-          <div class="flex items-center gap-2">
-            <input type="text" id="virtual-sheet-url" 
-                   class="text-xs bg-gray-700 px-2 py-1 rounded w-64 border-2 border-gray-500" 
-                   placeholder="웹 게시 CSV URL 입력 (권장)..."
-                   title="Google Sheets → 파일 → 웹에 게시 → CSV 선택 후 생성된 링크 사용">
-            <button id="url-help-btn" class="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700" title="URL 형식 도움말">
-              ?
-            </button>
-          </div>
-          <div id="url-feedback" class="mt-1 text-xs text-gray-400">
-            URL을 입력하면 유효성을 실시간 검증합니다
-          </div>
-        </div>
         <button id="refresh-btn" class="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
           새로고침
         </button>
@@ -512,58 +498,37 @@
           <label for="enable-sound" class="text-sm">소리 알림 활성화</label>
         </div>
         <div class="mt-4 pt-4 border-t border-gray-700">
-          <h3 class="text-sm font-bold mb-2">🤖 AI API 설정</h3>
-          <div class="mb-2">
-            <label class="block text-xs mb-1">AI 서비스 선택</label>
-            <select id="ai-service" class="w-full bg-gray-700 rounded px-3 py-1 text-sm">
-              <option value="none">사용 안 함 (기본 요약)</option>
-              <option value="openai">OpenAI (GPT-4/GPT-3.5)</option>
-              <option value="gemini">Google Gemini</option>
-              <option value="claude">Anthropic Claude</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="block text-xs mb-1">API 키</label>
-            <input type="password" id="ai-api-key" 
-                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
-                   placeholder="API 키 입력...">
-            <p class="text-xs text-gray-400 mt-1">
-              API 키는 로컬에만 저장됩니다.
-            </p>
-          </div>
-        </div>
-        <div class="mt-4 pt-4 border-t border-gray-700">
           <h3 class="text-sm font-bold mb-2">📊 Apps Script 시트 연동</h3>
           <div class="mb-2">
             <label class="block text-xs mb-1">📖 읽기용 CSV 시트 URL</label>
             <input type="text" id="read-sheet-url" 
-                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
                    placeholder="Virtual 시트 CSV URL (B열 기준)..."
                    title="매칭에 사용되는 Virtual 시트 CSV URL">
-            <p class="text-xs text-gray-400 mt-1">
+            <div id="read-sheet-url-feedback" class="text-xs mt-1 text-gray-400">
               ✅ B열 기준 시간 매칭에 사용
-            </p>
+            </div>
           </div>
           <div class="mb-2">
             <label class="block text-xs mb-1">✏️ 쓰기용 시트 URL</label>
             <input type="text" id="write-sheet-url" 
-                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
                    placeholder="업데이트할 시트 URL..."
                    value="https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849"
                    title="F열(파일명), H열(AI분석) 업데이트할 시트">
-            <p class="text-xs text-gray-400 mt-1">
+            <div id="write-sheet-url-feedback" class="text-xs mt-1 text-gray-400">
               ✅ F열(파일명), H열(AI분석) 업데이트
-            </p>
+            </div>
           </div>
           <div class="mb-3">
             <label class="block text-xs mb-1">🔗 Apps Script Web App URL</label>
             <input type="text" id="apps-script-url" 
-                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
                    placeholder="Apps Script 웹앱 URL..."
                    title="시트 업데이트용 Apps Script URL">
-            <p class="text-xs text-gray-400 mt-1">
+            <div id="apps-script-url-feedback" class="text-xs mt-1 text-gray-400">
               📝 시트 업데이트 전용 Apps Script
-            </p>
+            </div>
           </div>
           <button id="test-apps-script" class="w-full px-4 py-2 bg-green-600 rounded text-sm hover:bg-green-700 transition mb-2">
             🧪 Apps Script 연결 테스트
@@ -601,14 +566,6 @@
       ENABLE_NOTIFICATIONS: true,
       ENABLE_SOUND: true,
       
-      // AI API 설정
-      AI_SERVICE: 'none', // 'none', 'openai', 'gemini', 'claude'
-      AI_API_KEY: '',
-      AI_MODEL: { // 각 서비스별 기본 모델
-        openai: 'gpt-3.5-turbo',
-        gemini: 'gemini-pro',
-        claude: 'claude-3-sonnet-20240229'
-      },
       
       // Apps Script 시트 업데이트 설정
       READ_SHEET_URL: '', // B열 기준 시간 매칭용 CSV URL
@@ -2116,41 +2073,259 @@
       }
     }
     
+    // 핸드 세부 정보 UI 초기화
+    function clearHandDetails() {
+      console.log('🧹 핸드 세부 정보 초기화...');
+      
+      // 헤더 정보 초기화
+      document.getElementById('hand-number').textContent = '-';
+      document.getElementById('table-name').textContent = '-';
+      document.getElementById('blinds').textContent = '-/-';
+      document.getElementById('pot-amount').textContent = '-';
+      
+      // 카메라 파일 정보 초기화
+      const cameraFilesEl = document.getElementById('camera-files');
+      cameraFilesEl.textContent = '선택된 핸드 없음';
+      cameraFilesEl.title = '';
+      
+      // 보드 카드 초기화
+      const boardEl = document.getElementById('community-cards');
+      if (boardEl) {
+        boardEl.innerHTML = '<div class="card-placeholder">보드 카드</div>';
+      }
+      
+      // 플레이어 섹션 초기화
+      const playersEl = document.getElementById('players-section');
+      if (playersEl) {
+        playersEl.innerHTML = '<div class="text-gray-500 text-center py-4">선택된 핸드가 없습니다</div>';
+      }
+      
+      // 액션 히스토리 초기화
+      const historyEl = document.getElementById('action-history');
+      if (historyEl) {
+        historyEl.innerHTML = '<div class="text-gray-500 text-center py-4">액션 히스토리가 없습니다</div>';
+      }
+      
+      // 핸드 결과 초기화
+      const resultEl = document.getElementById('hand-result');
+      if (resultEl) {
+        resultEl.innerHTML = '<div class="text-gray-500 text-center py-4">핸드 결과가 없습니다</div>';
+      }
+      
+      console.log('✅ 핸드 세부 정보 초기화 완료');
+    }
+    
+    // ===== URL 유효성 검사 함수들 =====
+    
+    // CSV URL 유효성 검사
+    function validateCsvUrl(url) {
+      if (!url || url.trim() === '') {
+        return { valid: false, message: 'URL을 입력해주세요', type: 'empty' };
+      }
+      
+      // Google Sheets CSV 게시 URL 형식
+      if (url.includes('docs.google.com/spreadsheets/d/e/') && url.includes('/pub?') && url.includes('output=csv')) {
+        return { valid: true, message: '✅ 올바른 CSV 게시 URL 형식입니다', type: 'csv' };
+      }
+      
+      // 일반 Google Sheets 편집 URL
+      if (url.includes('docs.google.com/spreadsheets/d/') && url.includes('/edit')) {
+        return { 
+          valid: false, 
+          message: '⚠️ 편집 URL이 아닌 CSV 게시 URL이 필요합니다', 
+          type: 'edit',
+          suggestion: '📝 파일 → 웹에 게시 → CSV 선택 후 게시하세요' 
+        };
+      }
+      
+      // 기타 URL
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return { valid: false, message: '❌ Google Sheets CSV 게시 URL 형식이 아닙니다', type: 'other' };
+      }
+      
+      return { valid: false, message: '❌ 유효하지 않은 URL 형식입니다', type: 'invalid' };
+    }
+    
+    // Google Sheets 편집 URL 유효성 검사
+    function validateSheetUrl(url) {
+      if (!url || url.trim() === '') {
+        return { valid: false, message: 'URL을 입력해주세요', type: 'empty' };
+      }
+      
+      // Google Sheets 편집 URL 형식
+      if (url.includes('docs.google.com/spreadsheets/d/') && url.includes('/edit')) {
+        if (url.includes('gid=')) {
+          return { valid: true, message: '✅ 올바른 Google Sheets URL입니다 (특정 시트 지정)', type: 'sheet_gid' };
+        } else {
+          return { valid: true, message: '✅ 올바른 Google Sheets URL입니다', type: 'sheet' };
+        }
+      }
+      
+      // 기타 URL
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return { valid: false, message: '❌ Google Sheets 편집 URL 형식이 아닙니다', type: 'other' };
+      }
+      
+      return { valid: false, message: '❌ 유효하지 않은 URL 형식입니다', type: 'invalid' };
+    }
+    
+    // Apps Script URL 유효성 검사
+    function validateAppsScriptUrl(url) {
+      if (!url || url.trim() === '') {
+        return { valid: false, message: 'URL을 입력해주세요', type: 'empty' };
+      }
+      
+      // Apps Script Web App URL 형식
+      if (url.includes('script.google.com/macros/s/') && url.endsWith('/exec')) {
+        return { valid: true, message: '✅ 올바른 Apps Script Web App URL입니다', type: 'apps_script' };
+      }
+      
+      // Apps Script 편집 URL
+      if (url.includes('script.google.com/') && url.includes('/edit')) {
+        return { 
+          valid: false, 
+          message: '⚠️ 편집 URL이 아닌 Web App 배포 URL이 필요합니다', 
+          type: 'edit',
+          suggestion: '📝 배포 → 새 배포 → 웹 앱 배포 URL 사용하세요' 
+        };
+      }
+      
+      // 기타 URL
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        return { valid: false, message: '❌ Apps Script Web App URL 형식이 아닙니다', type: 'other' };
+      }
+      
+      return { valid: false, message: '❌ 유효하지 않은 URL 형식입니다', type: 'invalid' };
+    }
+    
+    // UI 피드백 업데이트
+    function updateUrlFeedback(inputId, feedbackId, validation) {
+      const input = document.getElementById(inputId);
+      const feedback = document.getElementById(feedbackId);
+      
+      if (!input || !feedback) return;
+      
+      // 입력 필드 스타일 업데이트
+      input.classList.remove('border-green-500', 'border-red-500', 'border-yellow-500', 'border-gray-600');
+      
+      if (validation.valid) {
+        input.classList.add('border-green-500');
+        feedback.className = 'text-xs mt-1 text-green-400';
+        feedback.textContent = validation.message;
+      } else {
+        if (validation.type === 'empty') {
+          input.classList.add('border-gray-600');
+          feedback.className = 'text-xs mt-1 text-gray-400';
+          feedback.textContent = validation.message;
+        } else if (validation.type === 'edit' || validation.suggestion) {
+          input.classList.add('border-yellow-500');
+          feedback.className = 'text-xs mt-1 text-yellow-400';
+          feedback.textContent = validation.message;
+          if (validation.suggestion) {
+            feedback.textContent += '\n' + validation.suggestion;
+          }
+        } else {
+          input.classList.add('border-red-500');
+          feedback.className = 'text-xs mt-1 text-red-400';
+          feedback.textContent = validation.message;
+        }
+      }
+    }
+    
     // ===== Apps Script 시트 업데이트 함수들 =====
     
     // Apps Script 연결 테스트
     async function testAppsScriptConnection() {
       const appsScriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL;
       
-      if (!appsScriptUrl) {
-        alert('⚠️ Apps Script URL이 설정되지 않았습니다.\n설정에서 Apps Script 웹앱 URL을 입력해주세요.');
+      console.log('🔍 Apps Script URL 디버깅:', appsScriptUrl);
+      console.log('🔍 전체 CONFIG:', CONFIG);
+      
+      if (!appsScriptUrl || appsScriptUrl.trim() === '') {
+        alert('⚠️ Apps Script URL이 설정되지 않았습니다.\n\n설정 단계:\n1. 설정 버튼 클릭\n2. "Apps Script 시트 연동" 섹션 찾기\n3. "Apps Script Web App URL" 필드에 URL 입력\n4. 설정 저장 후 다시 테스트');
+        return false;
+      }
+      
+      // URL 형식 검증
+      if (!appsScriptUrl.includes('script.google.com') || !appsScriptUrl.includes('/exec')) {
+        alert('⚠️ Apps Script URL 형식이 올바르지 않습니다.\n\n올바른 형식:\nhttps://script.google.com/macros/s/[SCRIPT_ID]/exec\n\n현재 URL:\n' + appsScriptUrl);
         return false;
       }
       
       console.log('🧪 Apps Script 연결 테스트 시작...');
+      console.log('🌐 요청 URL:', appsScriptUrl);
+      
+      // 테스트 버튼 상태 변경
+      const testBtn = document.getElementById('test-apps-script');
+      const originalText = testBtn.textContent;
+      testBtn.disabled = true;
+      testBtn.textContent = '🔄 연결 테스트 중...';
       
       try {
+        // Apps Script는 CORS 문제를 피하기 위해 단순 GET 요청
+        console.log('📡 GET 요청 전송 중...');
+        
         const response = await fetch(appsScriptUrl, {
           method: 'GET',
+          mode: 'cors',
+          cache: 'no-cache',
           headers: {
+            'Accept': 'application/json',
             'Content-Type': 'application/json'
-          }
+          },
+          redirect: 'follow'
         });
         
+        console.log('📡 응답 상태:', response.status);
+        console.log('📡 응답 헤더:', response.headers);
+        
         if (response.ok) {
-          const data = await response.json();
-          console.log('✅ Apps Script 연결 성공:', data);
-          alert(`✅ Apps Script 연결 성공!\n\n상태: ${data.status}\n버전: ${data.version || 'N/A'}\n시간: ${data.time || 'N/A'}`);
-          return true;
+          const responseText = await response.text();
+          console.log('📡 원본 응답 텍스트:', responseText);
+          
+          try {
+            const data = JSON.parse(responseText);
+            console.log('✅ Apps Script 연결 성공:', data);
+            
+            alert(`✅ Apps Script 연결 성공!\n\n🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}\n📊 상태: ${data.status}\n📈 버전: ${data.version || 'v1.1'}\n⏰ 시간: ${new Date(data.time).toLocaleString()}\n🛠️ 메소드: ${data.method}`);
+            return true;
+            
+          } catch (jsonError) {
+            console.error('❌ JSON 파싱 오류:', jsonError);
+            console.log('📄 응답이 JSON이 아님. HTML 응답일 수 있음:', responseText.substring(0, 200));
+            alert(`⚠️ Apps Script 응답을 파싱할 수 없습니다.\n\n응답 상태: ${response.status}\n응답 내용: ${responseText.substring(0, 100)}...\n\n해결책:\n• Apps Script가 올바르게 배포되었는지 확인\n• doGet 함수가 JSON 응답을 반환하는지 확인`);
+            return false;
+          }
+          
         } else {
           console.error('❌ Apps Script 연결 실패:', response.status, response.statusText);
-          alert(`❌ Apps Script 연결 실패\n\n상태 코드: ${response.status}\n오류: ${response.statusText}`);
+          const responseText = await response.text();
+          console.log('❌ 오류 응답:', responseText);
+          
+          alert(`❌ Apps Script 연결 실패\n\n📊 상태 코드: ${response.status}\n❌ 오류: ${response.statusText}\n📄 상세: ${responseText.substring(0, 200)}...\n\n해결책:\n• Apps Script URL이 정확한지 확인\n• 웹앱이 "모든 사용자" 액세스로 배포되었는지 확인\n• Apps Script 실행 권한 확인`);
           return false;
         }
+        
       } catch (error) {
         console.error('❌ Apps Script 연결 오류:', error);
-        alert(`❌ Apps Script 연결 오류\n\n${error.message}\n\n해결책:\n• Apps Script URL을 확인하세요\n• 웹앱이 배포되었는지 확인하세요\n• 실행 권한을 확인하세요`);
+        
+        let errorMessage = `❌ Apps Script 연결 오류\n\n🔍 오류 유형: ${error.name}\n💬 오류 메시지: ${error.message}\n\n`;
+        
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          errorMessage += `🌐 네트워크 오류 해결책:\n• 인터넷 연결 상태 확인\n• Apps Script URL이 정확한지 확인\n• 웹앱이 배포되어 있는지 확인\n• 방화벽/보안 프로그램 확인`;
+        } else if (error.name === 'TypeError' && error.message.includes('CORS')) {
+          errorMessage += `🔒 CORS 오류 해결책:\n• Apps Script 웹앱을 "모든 사용자" 액세스로 재배포\n• Apps Script URL이 /exec로 끝나는지 확인`;
+        } else {
+          errorMessage += `🔧 일반적인 해결책:\n• Apps Script URL 형식 확인:\n  https://script.google.com/macros/s/[SCRIPT_ID]/exec\n• 웹앱 배포 상태 확인\n• 실행 권한 설정 확인\n• 브라우저 새로고침 후 재시도`;
+        }
+        
+        alert(errorMessage);
         return false;
+        
+      } finally {
+        // 테스트 버튼 복구
+        testBtn.disabled = false;
+        testBtn.textContent = originalText;
       }
     }
     
@@ -2231,136 +2406,6 @@
       }
     }
     
-    // AI로 핸드 분석 및 3줄 요약
-    async function analyzeHandWithAI(handNumber) {
-      try {
-        const handData = await loadHandData(handNumber);
-        if (!handData) return null;
-        
-        // 핸드 정보를 텍스트로 변환
-        let handText = `포커 핸드 #${handNumber} 분석:\n\n`;
-        handText += `참가자: ${handData.players.map(p => `${p.name} (${p.position}, ${p.cards?.join(' ') || ''})`).join(', ')}\n`;
-        handText += `보드 카드: ${handData.board.join(' ')}\n`;
-        handText += `액션 히스토리:\n`;
-        
-        // 각 스트릿별 액션 추가
-        const streets = ['preflop', 'flop', 'turn', 'river'];
-        for (const street of streets) {
-          if (handData.streets[street] && handData.streets[street].length > 0) {
-            handText += `- ${street}: ${handData.streets[street].map(a => `${a.player} ${a.action} ${a.amount || ''}`).join(', ')}\n`;
-          }
-        }
-        
-        handText += `최종 팟: ${handData.pot}\n`;
-        handText += `승자: ${handData.winner?.player || 'Unknown'} (${handData.winner?.amount || 0} 획듍)\n`;
-        
-        // AI 서비스 확인
-        if (CONFIG.AI_SERVICE === 'none' || !CONFIG.AI_API_KEY) {
-          // 기본 요약 (실제 AI 없이)
-          const summary = [
-            `${handData.players.length}명 참여, 팟 ${handData.pot}`,
-            `승자: ${handData.winner?.player || 'Unknown'} (${handData.winner?.amount || 0} 획듍)`,
-            `키 스트릿: ${handData.lastStreet || 'preflop'}`
-          ].join('\n');
-          return summary;
-        }
-        
-        // AI API 호출
-        let aiResponse = '';
-        
-        if (CONFIG.AI_SERVICE === 'openai') {
-          aiResponse = await callOpenAI(handText);
-        } else if (CONFIG.AI_SERVICE === 'gemini') {
-          aiResponse = await callGeminiAI(handText);
-        } else if (CONFIG.AI_SERVICE === 'claude') {
-          aiResponse = await callClaudeAI(handText);
-        }
-        
-        return aiResponse || '분석 실패';
-      } catch (error) {
-        console.error('AI 분석 오류:', error);
-        return '분석 실패';
-      }
-    }
-    
-    // OpenAI API 호출
-    async function callOpenAI(handText) {
-      try {
-        const response = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${CONFIG.AI_API_KEY}`
-          },
-          body: JSON.stringify({
-            model: CONFIG.AI_MODEL.openai,
-            messages: [{
-              role: 'system',
-              content: '당신은 경험이 풍부한 포커 코치이자 분석가입니다. 핸드를 분석할 때 다음에 중점을 둡니다: 1) 핀 포인트와 전략적 의사결정 2) 베팅 패턴과 사이즈 3) 개선 가능한 부분. 3줄로 간결하게 요약하되, 각 줄은 40자 이내로 작성하세요.'
-            }, {
-              role: 'user',
-              content: handText + '\n\n위 핸드를 분석하여 3줄로 요약해주세요. 형식:\n1. [주요 의사결정/포인트]\n2. [베팅/플레이 패턴]\n3. [결과/개선점]'
-            }],
-            temperature: 0.3,
-            max_tokens: 150
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`OpenAI API 오류: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.choices[0].message.content.trim();
-      } catch (error) {
-        console.error('OpenAI API 호출 실패:', error);
-        return null;
-      }
-    }
-    
-    // Google Gemini API 호출
-    async function callGeminiAI(handText) {
-      try {
-        const prompt = `당신은 경험이 풍부한 포커 코치입니다. 다음 포커 핸드를 분석하고 중요한 포인트를 3줄로 요약해주세요.
-
-${handText}
-
-분석 결과를 다음 형식으로 3줄로 작성해주세요 (각 줄 40자 이내):
-1. [주요 의사결정 포인트]
-2. [베팅 패턴 분석]
-3. [결과 및 개선점]`;
-        
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${CONFIG.AI_MODEL.gemini}:generateContent?key=${CONFIG.AI_API_KEY}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: prompt
-              }]
-            }],
-            generationConfig: {
-              temperature: 0.3,
-              maxOutputTokens: 150,
-              topP: 0.8,
-              topK: 10
-            }
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Gemini API 오류: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.candidates[0].content.parts[0].text.trim();
-      } catch (error) {
-        console.error('Gemini API 호출 실패:', error);
-        return null;
-      }
-    }
     
     // 핸드에서 키 플레이어 찾기
     async function getKeyPlayerFromHand(handData) {
@@ -2399,37 +2444,6 @@ ${handText}
       }
     }
     
-    // Claude API 호출 (Anthropic)
-    async function callClaudeAI(handText) {
-      try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': CONFIG.AI_API_KEY,
-            'anthropic-version': '2023-06-01'
-          },
-          body: JSON.stringify({
-            model: CONFIG.AI_MODEL.claude,
-            max_tokens: 150,
-            messages: [{
-              role: 'user',
-              content: `당신은 전문 포커 코치입니다. 다음 핸드를 분석하여 핵심 포인트를 3줄로 요약해주세요:\n\n${handText}\n\n형식 (40자 이내):\n1. [핀 포인트/의사결정]\n2. [베팅 패턴]\n3. [결과/개선점]`
-            }]
-          })
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Claude API 오류: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        return data.content[0].text.trim();
-      } catch (error) {
-        console.error('Claude API 호출 실패:', error);
-        return null;
-      }
-    }
     
     // 완료 모달 표시
     async function showCompletionModal(handNumber, timestamp, virtualSheetUrl) {
@@ -2749,19 +2763,12 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
       CONFIG.REFRESH_INTERVAL = parseInt(document.getElementById('refresh-interval').value);
       CONFIG.ENABLE_NOTIFICATIONS = document.getElementById('enable-notifications').checked;
       CONFIG.ENABLE_SOUND = document.getElementById('enable-sound').checked;
-      CONFIG.AI_SERVICE = document.getElementById('ai-service').value;
-      CONFIG.AI_API_KEY = document.getElementById('ai-api-key').value;
       
       // Apps Script 설정 저장
       CONFIG.READ_SHEET_URL = document.getElementById('read-sheet-url').value;
       CONFIG.WRITE_SHEET_URL = document.getElementById('write-sheet-url').value;
       CONFIG.SHEET_UPDATE_SCRIPT_URL = document.getElementById('apps-script-url').value;
       
-      // localStorage에 저장
-      localStorage.setItem('ai_service', CONFIG.AI_SERVICE);
-      if (CONFIG.AI_API_KEY) {
-        localStorage.setItem('ai_api_key', CONFIG.AI_API_KEY);
-      }
       
       // Apps Script 설정 localStorage 저장
       localStorage.setItem('read_sheet_url', CONFIG.READ_SHEET_URL);
@@ -2803,6 +2810,26 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
         // 설정 창 닫기
         document.getElementById('settings-modal').classList.add('hidden');
       }
+    });
+    
+    // ===== 설정창 URL 유효성 검사 이벤트 리스너 =====
+    
+    // 읽기용 CSV 시트 URL 유효성 검사
+    document.getElementById('read-sheet-url').addEventListener('input', (e) => {
+      const validation = validateCsvUrl(e.target.value);
+      updateUrlFeedback('read-sheet-url', 'read-sheet-url-feedback', validation);
+    });
+    
+    // 쓰기용 시트 URL 유효성 검사  
+    document.getElementById('write-sheet-url').addEventListener('input', (e) => {
+      const validation = validateSheetUrl(e.target.value);
+      updateUrlFeedback('write-sheet-url', 'write-sheet-url-feedback', validation);
+    });
+    
+    // Apps Script URL 유효성 검사
+    document.getElementById('apps-script-url').addEventListener('input', (e) => {
+      const validation = validateAppsScriptUrl(e.target.value);
+      updateUrlFeedback('apps-script-url', 'apps-script-url-feedback', validation);
     });
     
     // ===== Apps Script 관련 이벤트 리스너 =====
@@ -3009,19 +3036,6 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
         updateUrlValidationUI(defaultResult);
       }
       
-      // AI 설정 로드
-      const savedAiService = localStorage.getItem('ai_service');
-      const savedAiKey = localStorage.getItem('ai_api_key');
-      if (savedAiService) {
-        CONFIG.AI_SERVICE = savedAiService;
-        document.getElementById('ai-service').value = savedAiService;
-        console.log(`🤖 AI 서비스: ${savedAiService}`);
-      }
-      if (savedAiKey) {
-        CONFIG.AI_API_KEY = savedAiKey;
-        document.getElementById('ai-api-key').value = savedAiKey;
-        console.log(`🔑 AI API 키 로드됨`);
-      }
       
       // Apps Script 설정 로드
       const savedReadSheetUrl = localStorage.getItem('read_sheet_url');
