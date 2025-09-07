@@ -22,6 +22,56 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
 
 ## 최신 업데이트 (v9.0.0 - 2025-09-07)
 
+### 🔧 현재 작업 상황 (2025-09-07 진행 중)
+
+**✅ 완료된 수정사항:**
+1. **addEventListener null 오류 해결**: 삭제된 DOM 요소(`virtual-sheet-url`, `url-help-btn`) 참조로 인한 JavaScript 오류 수정
+   - 모든 DOM 요소에 null 체크 안전장치 추가
+   - 삭제된 validation 함수 호출 제거
+   - CONFIG 기반 URL 관리로 통합
+
+2. **CORS 정책 문제 해결**: 로컬 파일에서 Google Sheets 접근 차단 문제 해결
+   - 로컬 HTTP 서버 실행 방법 제공 (`python -m http.server 8080`)
+   - CORS 프록시 자동 대체 시스템 구현 (`api.allorigins.win`)
+   - 핸드 리스트 로드 기능 완전 복구
+
+3. **UI 정리 및 최적화**: 불필요한 요소 제거 후 안정성 확보
+   - 메인 대시보드 링크 입력창 제거
+   - 설정창 URL 실시간 검증 시스템
+   - Gemini API 키 클라이언트 설정 제거
+
+**⚠️ 현재 발생한 문제:**
+- **Virtual 시트 매칭 무한 검색**: 포커 핸드 완료 후 Virtual 시트 매칭 시 "검색 중..." 상태에서 멈춤
+- **원인 분석**: `CONFIG.READ_SHEET_URL`이 빈 문자열('')로 설정되어 있어 Virtual 시트에 접근할 수 없음
+- **해결 방법**: 설정 모달에서 읽기용 CSV URL을 입력해야 Virtual 시트 매칭 기능 사용 가능
+
+**🔄 다음 작업 예정:**
+1. **READ_SHEET_URL 기본값 설정**: 빈 문자열 대신 기본 Virtual 시트 CSV URL 설정
+2. **Virtual 시트 매칭 오류 처리**: URL 미설정시 사용자에게 명확한 안내 메시지 표시
+3. **설정 UI 개선**: 필수 설정 항목에 대한 시각적 안내 추가
+4. **매칭 로직 안정성 검증**: 시간 매칭 알고리즘 정상 작동 확인
+5. **전체 시스템 테스트**: Apps Script 연동 포함한 완전한 워크플로우 검증
+
+**💻 개발 환경 요구사항:**
+- HTTP 서버 실행: `cd E:\claude02\virtual_table_db_claude && python -m http.server 8080`
+- 브라우저 접속: `http://localhost:8080`
+- 디버깅: 브라우저 개발자 도구 콘솔 확인
+
+**🔍 현재 문제 디버깅 단계:**
+1. **Virtual 시트 매칭 오류 재현**:
+   - 포커 핸드 완료 버튼 클릭
+   - "Virtual 시트 매칭 중..." 메시지 후 무한 대기
+   
+2. **콘솔 확인 항목**:
+   - `CONFIG.READ_SHEET_URL: ''` (빈 문자열 확인)
+   - Virtual 시트 접근 오류 메시지
+   - CORS 프록시 사용 여부
+   
+3. **임시 해결책**:
+   - 설정 모달 → Apps Script 시트 연동
+   - 읽기용 CSV URL에 올바른 Virtual 시트 CSV URL 입력
+   - 설정 저장 후 매칭 재시도
+
 ### 🧹 UI/UX 개선 및 코드 정리 (v9.0.0)
 - **메인 대시보드 간소화**: 불필요한 링크 입력창 제거로 깔끔한 인터페이스
 - **설정창 URL 유효성 검증**: 

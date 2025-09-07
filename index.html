@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v8.9.0 - Apps Script 연동</title>
+  <title>포커 핸드 모니터링 v9.0.1-debug - CORS 수정 및 디버깅</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.0.0 CleanUI</span>
+        <span class="text-xs text-gray-500">v9.0.1-debug</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -1013,18 +1013,36 @@
     
     async function loadIndexData(suppressNotification = false) {
       console.log(`🔄 loadIndexData 호출 - 알림 억제: ${suppressNotification}, 초기로드: ${isInitialLoad}`);
+      console.log(`📊 CONFIG.CSV_INDEX_URL: ${CONFIG.CSV_INDEX_URL}`);
       try {
         // 랜덤 파라미터 추가로 캐시 방지 강화
         const randomParam = Math.random().toString(36).substring(7);
         const csvUrl = CONFIG.CSV_INDEX_URL + '&t=' + Date.now() + '&r=' + randomParam;
         console.log(`🌐 CSV 데이터 가져오기: ${csvUrl.substring(0, 100)}...`);
         
-        const response = await fetch(csvUrl);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // CORS 문제를 위한 대안 시도
+        let text;
+        try {
+          const response = await fetch(csvUrl);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          text = await response.text();
+        } catch (error) {
+          if (error.message.includes('CORS') || error.message.includes('Failed to fetch')) {
+            console.log('🔄 CORS 오류 감지, 프록시 서버를 통한 재시도...');
+            // 간단한 CORS 프록시 시도
+            const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(csvUrl);
+            const proxyResponse = await fetch(proxyUrl);
+            if (!proxyResponse.ok) {
+              throw new Error(`프록시 서버 오류: ${proxyResponse.status}`);
+            }
+            text = await proxyResponse.text();
+            console.log('✅ 프록시를 통한 데이터 로드 성공');
+          } else {
+            throw error;
+          }
         }
-        
-        const text = await response.text();
         console.log(`📄 CSV 원본 데이터 크기: ${text.length}문자`);
         
         const rows = parseCSV(text);
@@ -1343,6 +1361,7 @@
     // ====================================
     
     function updateHandList() {
+      console.log(`📋 updateHandList 호출 - 총 핸드 수: ${allHands.length}`);
       const listEl = document.getElementById('hand-list');
       const tableFilter = document.getElementById('table-filter').value;
       const statusFilter = document.getElementById('status-filter').value;
@@ -1715,95 +1734,7 @@
       return null;
     }
     
-    // Google Sheets URL 유효성 검증 및 형식 분석
-    function validateGoogleSheetsUrl(url) {
-      if (!url || typeof url !== 'string' || url.trim() === '') {
-        return {
-          isValid: false,
-          type: 'empty',
-          message: 'URL을 입력해주세요',
-          recommendation: '',
-          cssClass: 'border-gray-500'
-        };
-      }
-      
-      url = url.trim();
-      
-      // Google Sheets URL 기본 검증
-      if (!url.includes('docs.google.com/spreadsheets')) {
-        return {
-          isValid: false,
-          type: 'invalid',
-          message: 'Google Sheets URL이 아닙니다',
-          recommendation: 'Google Sheets 링크를 사용해주세요',
-          cssClass: 'border-red-500'
-        };
-      }
-      
-      // 1. 웹 게시된 CSV URL (최고 등급)
-      if (url.includes('/pub?') && url.includes('output=csv')) {
-        return {
-          isValid: true,
-          type: 'published-csv',
-          message: '✅ 웹 게시 CSV URL (권장)',
-          recommendation: '완벽합니다! 이 형식이 가장 안정적입니다.',
-          cssClass: 'border-green-500'
-        };
-      }
-      
-      // 2. 웹 게시된 일반 URL (2PACX 형식)
-      if (url.includes('/spreadsheets/d/e/2PACX-')) {
-        const hasGid = url.includes('gid=');
-        return {
-          isValid: true,
-          type: 'published-general',
-          message: '🔄 웹 게시 URL (자동 변환됨)',
-          recommendation: hasGid ? 'CSV 형식으로 자동 변환됩니다.' : 'gid 파라미터가 없으면 첫 번째 시트를 사용합니다.',
-          cssClass: 'border-yellow-500'
-        };
-      }
-      
-      // 3. 일반 편집 URL
-      if (url.includes('/spreadsheets/d/') && !url.includes('/e/')) {
-        const sheetIdMatch = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-        if (sheetIdMatch) {
-          return {
-            isValid: true,
-            type: 'edit-url',
-            message: '⚠️ 편집 URL (권한 문제 가능)',
-            recommendation: '웹 게시 CSV 링크 사용을 권장합니다. 권한 문제가 발생할 수 있습니다.',
-            cssClass: 'border-orange-500'
-          };
-        }
-      }
-      
-      return {
-        isValid: false,
-        type: 'invalid',
-        message: '지원되지 않는 URL 형식',
-        recommendation: '웹 게시된 Google Sheets CSV 링크를 사용해주세요',
-        cssClass: 'border-red-500'
-      };
-    }
 
-    // 링크 유효성 검증 결과를 UI에 표시
-    function updateUrlValidationUI(validationResult) {
-      const input = document.getElementById('virtual-sheet-url');
-      const feedbackDiv = document.getElementById('url-feedback');
-      
-      // 입력창 테두리 색상 변경
-      input.className = input.className.replace(/border-\w+-\d+/g, '') + ' ' + validationResult.cssClass;
-      
-      // 피드백 메시지 업데이트
-      if (feedbackDiv) {
-        feedbackDiv.innerHTML = `
-          <div class="text-xs mt-1">
-            <div class="font-medium">${validationResult.message}</div>
-            ${validationResult.recommendation ? `<div class="text-gray-400 mt-1">${validationResult.recommendation}</div>` : ''}
-          </div>
-        `;
-      }
-    }
 
     // Virtual 시트에서 가장 비슷한 시간 찾기 (날짜 제외, 시간만 비교)
     async function findClosestVirtualRow(targetTime, virtualSheetUrl) {
@@ -2553,7 +2484,7 @@
       const handNumber = currentHand;
       const filename = document.getElementById('final-filename').value;
       const summary = document.getElementById('ai-summary').value;
-      const virtualSheetUrl = document.getElementById('virtual-sheet-url').value;
+      const virtualSheetUrl = CONFIG.READ_SHEET_URL;
       const timestamp = parseInt(document.getElementById('hand-timestamp').value);
       
       if (!filename) {
@@ -2689,62 +2620,7 @@
     // 이벤트 리스너
     // ====================================
     
-    // Virtual Sheet URL 입력 필드에 실시간 유효성 검증 추가
-    document.getElementById('virtual-sheet-url').addEventListener('input', (e) => {
-      const url = e.target.value;
-      const validationResult = validateGoogleSheetsUrl(url);
-      updateUrlValidationUI(validationResult);
-      
-      // 로컬 스토리지에 저장 (기존 로직 유지)
-      if (url.trim()) {
-        localStorage.setItem('virtualSheetUrl', url.trim());
-        console.log('💾 Virtual 시트 URL 저장됨');
-      }
-    });
 
-    // URL 입력 필드 포커스 아웃 시 한 번 더 검증
-    document.getElementById('virtual-sheet-url').addEventListener('blur', (e) => {
-      const url = e.target.value.trim();
-      if (url) {
-        console.log('🔍 URL 유효성 최종 검증:', url);
-        const validationResult = validateGoogleSheetsUrl(url);
-        updateUrlValidationUI(validationResult);
-        
-        // 유효하지 않은 URL인 경우 경고
-        if (!validationResult.isValid && validationResult.type !== 'empty') {
-          console.warn('⚠️ 유효하지 않은 URL 형식:', validationResult.message);
-        }
-      }
-    });
-
-    document.getElementById('url-help-btn').addEventListener('click', () => {
-      const helpMessage = `📝 Google Sheets CSV URL 올바른 사용법:
-
-🎯 권장 방법 (가장 안정적):
-1. Google Sheets 파일 열기
-2. 파일 → 웹에 게시
-3. 링크 탭 → "쉼표로 구분된 값(.csv)" 선택
-4. "게시" 버튼 클릭
-5. 생성된 CSV 링크 복사 후 사용
-
-✅ 올바른 URL 형식 예시:
-https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=csv
-
-⚠️ 주의사항:
-- 일반 편집 링크(/edit)는 권한 문제가 발생할 수 있습니다
-- 웹 게시된 CSV 링크를 사용하면 CORS 문제 없이 안정적으로 접근 가능합니다
-
-💡 팁:
-시트가 여러 개인 경우, gid 값으로 특정 시트를 선택할 수 있습니다.
-
-🔍 실시간 검증:
-- 🟢 초록 테두리: 완벽한 웹 게시 CSV URL
-- 🟡 노랑 테두리: 자동 변환 가능한 웹 게시 URL  
-- 🟠 주황 테두리: 편집 URL (권한 문제 가능)
-- 🔴 빨강 테두리: 지원되지 않는 형식`;
-      
-      alert(helpMessage);
-    });
 
     document.getElementById('refresh-btn').addEventListener('click', () => {
       console.log('🔄 수동 새로고침');
@@ -2827,42 +2703,64 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
     });
     
     // Apps Script URL 유효성 검사
-    document.getElementById('apps-script-url').addEventListener('input', (e) => {
-      const validation = validateAppsScriptUrl(e.target.value);
-      updateUrlFeedback('apps-script-url', 'apps-script-url-feedback', validation);
-    });
+    const appsScriptUrlElement = document.getElementById('apps-script-url');
+    if (appsScriptUrlElement) {
+      appsScriptUrlElement.addEventListener('input', (e) => {
+        const validation = validateAppsScriptUrl(e.target.value);
+        updateUrlFeedback('apps-script-url', 'apps-script-url-feedback', validation);
+      });
+    } else {
+      console.error('❌ apps-script-url 요소를 찾을 수 없습니다');
+    }
     
     // ===== Apps Script 관련 이벤트 리스너 =====
     
     // Apps Script 연결 테스트 버튼
-    document.getElementById('test-apps-script').addEventListener('click', async () => {
-      await testAppsScriptConnection();
-    });
+    const testAppsScriptElement = document.getElementById('test-apps-script');
+    if (testAppsScriptElement) {
+      testAppsScriptElement.addEventListener('click', async () => {
+        await testAppsScriptConnection();
+      });
+    } else {
+      console.error('❌ test-apps-script 요소를 찾을 수 없습니다');
+    }
     
     // 시트 업데이트 모달 열기 버튼
-    document.getElementById('open-sheet-update').addEventListener('click', () => {
-      const filenameInput = document.getElementById('final-filename');
-      const summaryTextarea = document.getElementById('ai-summary');
-      const matchedRowInput = document.getElementById('matched-row');
-      
-      // 완료 모달의 데이터를 시트 업데이트 모달로 복사
-      document.getElementById('update-filename').value = filenameInput.value;
-      document.getElementById('update-ai-analysis').value = summaryTextarea.value;
-      document.getElementById('update-hand-number').textContent = currentHand || '-';
-      document.getElementById('update-matched-row').textContent = matchedRowInput.value || '-';
-      document.getElementById('update-matched-time').textContent = new Date().toLocaleTimeString();
-      
-      // 시트 업데이트 모달 표시
-      document.getElementById('sheet-update-modal').classList.remove('hidden');
+    const openSheetUpdateElement = document.getElementById('open-sheet-update');
+    if (openSheetUpdateElement) {
+      openSheetUpdateElement.addEventListener('click', () => {
+        const filenameInput = document.getElementById('final-filename');
+        const summaryTextarea = document.getElementById('ai-summary');
+        const matchedRowInput = document.getElementById('matched-row');
+        
+        // 완료 모달의 데이터를 시트 업데이트 모달로 복사
+        document.getElementById('update-filename').value = filenameInput.value;
+        document.getElementById('update-ai-analysis').value = summaryTextarea.value;
+        document.getElementById('update-hand-number').textContent = currentHand || '-';
+        document.getElementById('update-matched-row').textContent = matchedRowInput.value || '-';
+        document.getElementById('update-matched-time').textContent = new Date().toLocaleTimeString();
+        
+        // 시트 업데이트 모달 표시
+        document.getElementById('sheet-update-modal').classList.remove('hidden');
     });
+    } else {
+      console.error('❌ open-sheet-update 요소를 찾을 수 없습니다');
+    }
     
     // 시트 업데이트 모달 취소
-    document.getElementById('cancel-sheet-update').addEventListener('click', () => {
-      document.getElementById('sheet-update-modal').classList.add('hidden');
-    });
+    const cancelSheetUpdateElement = document.getElementById('cancel-sheet-update');
+    if (cancelSheetUpdateElement) {
+      cancelSheetUpdateElement.addEventListener('click', () => {
+        document.getElementById('sheet-update-modal').classList.add('hidden');
+      });
+    } else {
+      console.error('❌ cancel-sheet-update 요소를 찾을 수 없습니다');
+    }
     
     // 시트 업데이트 실행
-    document.getElementById('confirm-sheet-update').addEventListener('click', async () => {
+    const confirmSheetUpdateElement = document.getElementById('confirm-sheet-update');
+    if (confirmSheetUpdateElement) {
+      confirmSheetUpdateElement.addEventListener('click', async () => {
       const filename = document.getElementById('update-filename').value.trim();
       const aiAnalysis = document.getElementById('update-ai-analysis').value.trim();
       const matchedRowText = document.getElementById('update-matched-row').textContent;
@@ -2923,7 +2821,10 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
         updateBtn.disabled = false;
         updateBtn.textContent = '📊 시트 업데이트';
       }
-    });
+      });
+    } else {
+      console.error('❌ confirm-sheet-update 요소를 찾을 수 없습니다');
+    }
     
     document.getElementById('table-filter').addEventListener('change', updateHandList);
     document.getElementById('status-filter').addEventListener('change', updateHandList);
@@ -2940,24 +2841,22 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
         // Virtual 시트 URL 확인 및 유효성 검증
-        const virtualSheetUrl = document.getElementById('virtual-sheet-url').value;
+        const virtualSheetUrl = CONFIG.READ_SHEET_URL;
         if (!virtualSheetUrl) {
           alert('먼저 Virtual 시트 URL을 상단에 입력해주세요.');
-          document.getElementById('virtual-sheet-url').focus();
+          // Virtual sheet URL은 이제 설정에서 관리됨
           return;
         }
         
-        // URL 유효성 검증
-        const validationResult = validateGoogleSheetsUrl(virtualSheetUrl);
-        if (!validationResult.isValid) {
-          const confirmMessage = `⚠️ URL 유효성 검증 실패\n\n문제: ${validationResult.message}\n해결책: ${validationResult.recommendation}\n\n그래도 계속 진행하시겠습니까?`;
+        // URL 기본 검증
+        if (!virtualSheetUrl.includes('docs.google.com/spreadsheets')) {
+          const confirmMessage = `⚠️ URL 형식 확인\n\nGoogle Sheets URL이 아닌 것 같습니다.\n그래도 계속 진행하시겠습니까?`;
           if (!confirm(confirmMessage)) {
-            document.getElementById('virtual-sheet-url').focus();
             return;
           }
-          console.warn('⚠️ 유효하지 않은 URL로 진행:', validationResult.message);
+          console.warn('⚠️ 비표준 URL로 진행:', virtualSheetUrl);
         } else {
-          console.log('✅ URL 유효성 검증 통과:', validationResult.message);
+          console.log('✅ URL 형식 확인:', virtualSheetUrl.substring(0, 50) + '...');
         }
         
         // 핸드 시간 가져오기
@@ -3005,36 +2904,19 @@ https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=
       }
     }
     
-    // Virtual 시트 URL 저장 및 로드
-    document.getElementById('virtual-sheet-url').addEventListener('change', (e) => {
-      localStorage.setItem('virtual_sheet_url', e.target.value);
-      console.log('💾 Virtual 시트 URL 저장됨');
-    });
+    // Virtual 시트 URL 저장 기능은 설정 모달에서 처리됨
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v8.9.0 - Apps Script 연동 (다중 CSV 접근 방법)');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.1-debug - CORS 수정 및 Virtual 시트 매칭 디버깅');
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
       loadMasterHandList();
       console.log(`📁 기존 마스터 핸드: ${masterHandList.size}개`);
       
-      // Virtual 시트 URL 로드 및 유효성 검증
-      const savedVirtualUrl = localStorage.getItem('virtual_sheet_url');
-      if (savedVirtualUrl) {
-        document.getElementById('virtual-sheet-url').value = savedVirtualUrl;
-        console.log(`💾 Virtual 시트 URL 로드: ${savedVirtualUrl.substring(0, 50)}...`);
-        
-        // 로드된 URL 유효성 검증
-        const validationResult = validateGoogleSheetsUrl(savedVirtualUrl);
-        updateUrlValidationUI(validationResult);
-        console.log(`🔍 로드된 URL 검증 결과: ${validationResult.message}`);
-      } else {
-        // 저장된 URL이 없으면 기본 피드백 메시지 표시
-        const defaultResult = validateGoogleSheetsUrl('');
-        updateUrlValidationUI(defaultResult);
-      }
+      // Virtual 시트 URL은 CONFIG에서 관리됨
+      console.log(`📊 Virtual 시트 설정: ${CONFIG.READ_SHEET_URL ? CONFIG.READ_SHEET_URL.substring(0, 50) + '...' : '미설정'}`);
       
       
       // Apps Script 설정 로드
