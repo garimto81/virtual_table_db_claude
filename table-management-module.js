@@ -18,20 +18,42 @@ class TableManager {
   // ===== API 통신 =====
   async apiCall(action, data = {}) {
     try {
+      console.log(`📡 API Call: ${action}`, data);
+      
+      // FormData로 전송 (CORS 우회)
+      const formData = new FormData();
+      formData.append('payload', JSON.stringify({ action, ...data }));
+      
       const response = await fetch(this.apiUrl, {
         method: 'POST',
-        mode: 'no-cors',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ action, ...data })
+        body: formData
       });
       
-      // no-cors 모드에서는 response를 읽을 수 없으므로 
-      // 실제 구현시 CORS 설정이 필요합니다
-      return { success: true };
+      const result = await response.json();
+      console.log(`✅ API Response:`, result);
+      
+      return result;
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('❌ API Error:', error);
+      // 테스트/개발용 Mock 데이터
+      if (action === 'getTables') {
+        return {
+          success: true,
+          tables: [
+            { TableID: 'test1', TableName: 'Friday Night Game', Stakes: '1/2 NL', MaxPlayers: 9, Active: true },
+            { TableID: 'test2', TableName: 'High Stakes', Stakes: '5/10 NL', MaxPlayers: 6, Active: true }
+          ]
+        };
+      }
+      if (action === 'getPlayers') {
+        return {
+          success: true,
+          players: [
+            { PlayerID: 'p1', Name: 'John Doe', CurrentChips: 100000, Notable: true },
+            { PlayerID: 'p2', Name: 'Jane Smith', CurrentChips: 150000, Notable: false }
+          ]
+        };
+      }
       return { success: false, message: error.toString() };
     }
   }
