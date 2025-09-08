@@ -314,13 +314,7 @@
     console.log(`%c🚀 앱 초기화 시작 - ${VERSION_INFO}`, 'color: #10b981; font-weight: bold');
     console.log('Initialized at', new Date().toISOString());
     
-    // 칩 분석 모듈 초기화
-    if (window.chipAnalyzer && typeof window.chipAnalyzer.init === 'function') {
-      setTimeout(() => {
-        window.chipAnalyzer.init();
-        console.log('✅ AI 칩 분석 모듈 활성화');
-      }, 500);
-    }
+    // 칩 분석 모듈 초기화는 state 객체 생성 후에 진행
     
     // 화면에 버전 표시 업데이트
     const versionDisplay = document.getElementById('version-display');
@@ -373,6 +367,14 @@
       currentAnalyzingPlayer: null,
       stackImages: [] // 현재 촬영 중인 스택 이미지들
     };
+
+    // 칩 분석 모듈 초기화 (state 객체 생성 후)
+    if (typeof initChipAnalyzer === 'function') {
+      setTimeout(() => {
+        initChipAnalyzer();
+        console.log('✅ AI 칩 분석 모듈 활성화');
+      }, 100);
+    }
 
     // ====== CONSTS ======
     const SUITS = { s:'♠', h:'♥', d:'♦', c:'♣' };
