@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.6.1</title>
+  <title>포커 핸드 로거 v2.7.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -50,7 +50,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.6.1</span>
+        <span id="version-display" class="text-gray-400">v2.7.0</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -320,6 +320,7 @@
    * Version: 2.2.0
    * Last Modified: 2025-09-08 KST
    * Changes: 
+   * - v2.7.0: 팔 계산 로직 개선 - 블라인드/안티를 플레이어별 기여액에 포함
    * - v2.6.1: getElements is not defined 오류 수정 - getCamNumber 함수 내 전역 el 객체 사용
    * - v2.6.0: 스마트폰 최적화 테이블 선택 UI - 버튼식 페이지 토글 방식
    * - v2.5.1: 카메라 번호 초기값 로직 개선 - 표시된 값으로 자동 입력
@@ -332,7 +333,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.6.1';
+  const APP_VERSION = 'v2.7.0';
   const VERSION_DATE = '2025-09-08';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -1195,6 +1196,7 @@
     function calculatePlayerContributions() {
       const contributions = {};
       
+      // 1. 먼저 액션 기반 기여액 계산
       ['preflop', 'flop', 'turn', 'river'].forEach(street => {
         const actions = window.state.actionState[street] || [];
         
@@ -1207,6 +1209,33 @@
         });
       });
       
+      // 2. 블라인드와 안티를 해당 플레이어에게 추가
+      const playersInHand = window.state.playersInHand || [];
+      
+      playersInHand.forEach(player => {
+        const playerName = player.name;
+        if (!contributions[playerName]) contributions[playerName] = 0;
+        
+        // 스몰 블라인드 (첫 번째 플레이어)
+        if (player.role === 'SB' || playersInHand.indexOf(player) === 0) {
+          const sbAmount = parseInt(unformatNumber(window.state.actionState.smallBlind) || 0, 10);
+          contributions[playerName] += sbAmount;
+        }
+        
+        // 빅 블라인드 (두 번째 플레이어)
+        if (player.role === 'BB' || playersInHand.indexOf(player) === 1) {
+          const bbAmount = parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
+          contributions[playerName] += bbAmount;
+        }
+        
+        // BB 안티 (모든 플레이어)
+        if (window.state.actionState.hasBBAnte) {
+          const bbAmount = parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
+          contributions[playerName] += bbAmount;
+        }
+      });
+      
+      console.log('📊 플레이어별 기여액 (블라인드/안티 포함):', contributions);
       return contributions;
     }
     
