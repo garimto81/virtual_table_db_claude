@@ -413,8 +413,16 @@ class TableManager {
   }
 }
 
-// 전역 인스턴스 생성
-const tableManager = new TableManager(window.APPS_SCRIPT_URL || '');
+// 전역 인스턴스 생성 - index.html의 APPS_SCRIPT_URL 사용
+let tableManager;
+
+// DOM 로드 후 초기화
+document.addEventListener('DOMContentLoaded', () => {
+  // index.html에 정의된 APPS_SCRIPT_URL 사용
+  const scriptUrl = window.APPS_SCRIPT_URL || 
+    "https://script.google.com/macros/s/AKfycbzWfe_4CAKcMAzzoHzJBstQIC7jQxSVC1BO23nYwlU23Pd5vLPLjfUi-gKyqzDYvPRT/exec";
+  tableManager = new TableManager(scriptUrl);
+});
 
 // ===== 헬퍼 함수들 =====
 function openTableManagement() {
@@ -527,11 +535,4 @@ function updatePlayerChips(playerId, value) {
   tableManager.updatePlayerChips(playerId, chips);
 }
 
-// 초기화
-document.addEventListener('DOMContentLoaded', () => {
-  // 관리 버튼 이벤트 리스너 수정
-  const manageBtn = document.getElementById('manage-players-btn');
-  if (manageBtn) {
-    manageBtn.onclick = openTableManagement;
-  }
-});
+// 초기화 - index.html에서 이벤트 리스너를 설정하므로 여기서는 제거
