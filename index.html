@@ -1988,9 +1988,9 @@ async function sendDataToGoogleSheet(){
         tableUpdatedAt: handUpdatedAt,                        // I열 (YYYY-MM-DD)
         cam: `${state.camPreset.cam1 || ''}+${state.camPreset.cam2 || ''}`, // J열
         camFile01name: state.camPreset.cam1 || '',            // K열
-        camFile01number: String(state.camNumbers.cam1no || ''), // L열 - 문자열로 변환
+        camFile01number: getCamNumber('cam1'), // L열 - 자동 계산된 번호
         camFile02name: state.camPreset.cam2 || '',            // M열
-        camFile02number: String(state.camNumbers.cam2no || ''), // N열 - 문자열로 변환
+        camFile02number: getCamNumber('cam2'), // N열 - 자동 계산된 번호
         lastStreet: state.currentStreet,                      // O열
         lastAction: lastActionDesc,                           // P열
         workStatus: determineWorkStatus()                     // Q열
@@ -2036,6 +2036,30 @@ async function sendDataToGoogleSheet(){
 
       // 4) 기본값
       return '0001';
+    }
+
+    // 카메라 번호만 반환하는 함수 (패딩 없이)
+    function getCamNumber(which) {
+      // 1) 자신의 값 있으면 그걸 반환
+      if (which === 'cam1' && state.camNumbers.cam1no) return state.camNumbers.cam1no;
+      if (which === 'cam2' && state.camNumbers.cam2no) return state.camNumbers.cam2no;
+
+      // 2) 짝의 값 기반 자동 증가
+      if (which === 'cam2' && state.camNumbers.cam1no) {
+        return String((parseInt(state.camNumbers.cam1no, 10) || 0) + 1);
+      }
+      if (which === 'cam1' && state.camNumbers.cam2no) {
+        const v = (parseInt(state.camNumbers.cam2no, 10) || 0) - 1;
+        return String(v < 1 ? 1 : v);
+      }
+
+      // 3) 마지막 입력(세션 기준) +1
+      if (state.lastCamNo != null) {
+        return String((parseInt(state.lastCamNo, 10) || 0) + 1);
+      }
+
+      // 4) 기본값
+      return which === 'cam1' ? '1' : '2';
     }
 
 
