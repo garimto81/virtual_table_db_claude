@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.0.1-debug - CORS 수정 및 디버깅</title>
+  <title>포커 핸드 모니터링 v9.0.2 - Progress Bar 추가 및 기본값 설정</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.0.1-debug</span>
+        <span class="text-xs text-gray-500">v9.0.2</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -550,6 +550,40 @@
     </div>
   </div>
 
+  <!-- Virtual 시트 매칭 진행률 모달 -->
+  <div id="progress-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+      <h2 class="text-lg font-bold mb-4">🔍 Virtual 시트 매칭 중...</h2>
+      <div class="space-y-4">
+        <div class="bg-gray-700 rounded p-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm">진행률</span>
+            <span id="progress-percentage" class="text-sm font-bold">0%</span>
+          </div>
+          <div class="w-full bg-gray-600 rounded-full h-2.5">
+            <div id="progress-bar" class="bg-blue-500 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+        
+        <div class="text-sm space-y-1">
+          <div>📍 현재 행: <span id="current-row" class="font-mono">-</span></div>
+          <div>📊 총 행 수: <span id="total-rows" class="font-mono">-</span></div>
+          <div>⏱️ 남은 시간: <span id="remaining-time" class="font-mono">계산 중...</span></div>
+          <div>🎯 현재 상태: <span id="current-status">시작 중...</span></div>
+        </div>
+        
+        <div class="text-xs text-gray-400 space-y-1">
+          <div>• B열의 시간 데이터를 검색하여 가장 유사한 행을 찾습니다</div>
+          <div>• 30초 타임아웃이 적용됩니다</div>
+        </div>
+      </div>
+      
+      <div class="flex justify-center mt-6">
+        <button id="cancel-progress" class="px-4 py-2 bg-red-600 rounded text-sm hover:bg-red-700">작업 취소</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ====================================
     // 포커 핸드 모니터링 시스템 v8.9.0 - MasterHandList + RecentHandsBuffer
@@ -568,7 +602,7 @@
       
       
       // Apps Script 시트 업데이트 설정
-      READ_SHEET_URL: '', // B열 기준 시간 매칭용 CSV URL
+      READ_SHEET_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=0&single=true&output=csv', // B열 기준 시간 매칭용 기본 Virtual 시트 CSV URL
       WRITE_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // F열(파일명), H열(AI분석) 업데이트용 시트 URL
       SHEET_UPDATE_SCRIPT_URL: '' // 시트 업데이트 전용 Apps Script URL
     };
@@ -1742,6 +1776,17 @@
       console.log(`📋 입력 URL: ${virtualSheetUrl}`);
       console.log(`⏰ 타겟 타임스탬프: ${targetTime} (${new Date(targetTime * 1000)})`);
       
+      // 진행률 모달 표시
+      showProgressModal();
+      let isAborted = false;
+      
+      // 타임아웃 설정 (30초)
+      const timeoutId = setTimeout(() => {
+        isAborted = true;
+        hideProgressModal();
+        console.error('❌ Virtual 시트 매칭 타임아웃 (30초 초과)');
+      }, 30000);
+      
       try {
         let csvUrl = '';
         
@@ -1864,8 +1909,26 @@
         console.log(`🔍 === B열 시간 데이터 매칭 시작 ===`);
         console.log(`🔍 총 ${rows.length}개 행에서 검색 중...`);
         
+        // 진행률 업데이트 - 총 행 수 설정
+        updateProgress(0, rows.length, 0, '시간 데이터 검색 중...');
+        const startTime = Date.now();
+        
         // B열(index 1)만 검색
         for (let i = 0; i < rows.length; i++) {
+          // 중단 신호 확인
+          if (isAborted) {
+            console.log('❌ 작업이 중단되었습니다');
+            break;
+          }
+          
+          // 주기적으로 진행률 업데이트 (매 10행마다)
+          if (i % 10 === 0) {
+            const elapsed = Date.now() - startTime;
+            const estimatedTotal = (elapsed / (i + 1)) * rows.length;
+            const remaining = Math.max(0, estimatedTotal - elapsed);
+            updateProgress(i, rows.length, remaining, `행 ${i+1}/${rows.length} 검사 중...`);
+          }
+          
           const cellValue = rows[i][1]; // B열만 확인
           if (!cellValue || !cellValue.trim()) {
             // 빈 셀은 로그 생략
@@ -1950,6 +2013,14 @@
         }
         
         // 최종 결과 처리 및 반환
+        clearTimeout(timeoutId);
+        hideProgressModal();
+        
+        if (isAborted) {
+          console.error(`❌ === Virtual 시트 매칭 취소 ===`);
+          return null;
+        }
+        
         if (closestRow && minDiff !== Infinity) {
           console.log(`✅ === Virtual 시트 매칭 완료 ===`);
           console.log(`✅ 매칭 성공: 행 ${rowIndex}`);
@@ -1982,6 +2053,9 @@
           return null;
         }
       } catch (error) {
+        clearTimeout(timeoutId);
+        hideProgressModal();
+        
         console.error('❌ === Virtual 시트 매칭 실패 ===');
         console.error('❌ 오류 타입:', error.name || 'Unknown');
         console.error('❌ 오류 메시지:', error.message || '알 수 없는 오류');
@@ -2001,6 +2075,60 @@
         }
         
         return null;
+      }
+    }
+    
+    // 진행률 모달 관리 함수들
+    function showProgressModal() {
+      const modal = document.getElementById('progress-modal');
+      modal.classList.remove('hidden');
+      
+      // 취소 버튼 이벤트 리스너 (한 번만 추가)
+      const cancelBtn = document.getElementById('cancel-progress');
+      cancelBtn.onclick = function() {
+        isAborted = true;
+        hideProgressModal();
+        console.log('🛑 사용자에 의해 작업이 취소되었습니다');
+      };
+    }
+    
+    function hideProgressModal() {
+      const modal = document.getElementById('progress-modal');
+      modal.classList.add('hidden');
+      
+      // 진행률 초기화
+      document.getElementById('progress-bar').style.width = '0%';
+      document.getElementById('progress-percentage').textContent = '0%';
+      document.getElementById('current-row').textContent = '-';
+      document.getElementById('total-rows').textContent = '-';
+      document.getElementById('remaining-time').textContent = '계산 중...';
+      document.getElementById('current-status').textContent = '시작 중...';
+    }
+    
+    function updateProgress(currentRow, totalRows, remainingMs, status) {
+      const percentage = Math.min(100, Math.round((currentRow / totalRows) * 100));
+      
+      // Progress Bar 업데이트
+      document.getElementById('progress-bar').style.width = percentage + '%';
+      document.getElementById('progress-percentage').textContent = percentage + '%';
+      
+      // 정보 업데이트
+      document.getElementById('current-row').textContent = currentRow;
+      document.getElementById('total-rows').textContent = totalRows;
+      document.getElementById('current-status').textContent = status;
+      
+      // 남은 시간 계산 및 표시
+      if (remainingMs > 0) {
+        const remainingSeconds = Math.ceil(remainingMs / 1000);
+        if (remainingSeconds > 60) {
+          const minutes = Math.floor(remainingSeconds / 60);
+          const seconds = remainingSeconds % 60;
+          document.getElementById('remaining-time').textContent = `${minutes}분 ${seconds}초`;
+        } else {
+          document.getElementById('remaining-time').textContent = `${remainingSeconds}초`;
+        }
+      } else {
+        document.getElementById('remaining-time').textContent = '완료 중...';
       }
     }
     
@@ -2908,7 +3036,7 @@
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.1-debug - CORS 수정 및 Virtual 시트 매칭 디버깅');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.2 - Progress Bar 추가 및 기본값 설정');
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
@@ -2927,7 +3055,11 @@
       if (savedReadSheetUrl) {
         CONFIG.READ_SHEET_URL = savedReadSheetUrl;
         document.getElementById('read-sheet-url').value = savedReadSheetUrl;
-        console.log(`📖 읽기 시트 URL 로드됨`);
+        console.log(`📖 읽기 시트 URL 로드됨 (저장된 값)`);
+      } else if (CONFIG.READ_SHEET_URL) {
+        // localStorage에 저장된 값이 없으면 기본값을 UI에 표시
+        document.getElementById('read-sheet-url').value = CONFIG.READ_SHEET_URL;
+        console.log(`📖 읽기 시트 URL 기본값 사용`);
       }
       if (savedWriteSheetUrl) {
         CONFIG.WRITE_SHEET_URL = savedWriteSheetUrl;
