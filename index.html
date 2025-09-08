@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.0.5 - Promise 처리 개선</title>
+  <title>포커 핸드 모니터링 v9.0.6 - AI 분석 함수 및 로그 최적화</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.0.5</span>
+        <span class="text-xs text-gray-500">v9.0.6</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -599,6 +599,7 @@
       REFRESH_INTERVAL: 10000,
       ENABLE_NOTIFICATIONS: true,
       ENABLE_SOUND: true,
+      DEBUG_MODE: false, // 디버그 모드 추가
       
       
       // Apps Script 시트 업데이트 설정
@@ -2467,6 +2468,28 @@
     
     
     // 핸드에서 키 플레이어 찾기
+    // AI 핸드 분석 함수 (추후 구현 예정)
+    async function analyzeHandWithAI(handNumber) {
+      try {
+        debugLog('🤖 AI 분석 시작 - 핸드 #' + handNumber);
+        
+        // TODO: 실제 AI API 연동 구현
+        // 현재는 더미 분석 결과 반환
+        const dummyAnalysis = `핸드 #${handNumber} 분석 결과:
+- 포지션별 레인지 분석 필요
+- 베팅 패턴 검토 필요
+- 액션 시퀀스 분석 필요`;
+        
+        // 실제 구현 시 AI API 호출
+        // const analysis = await callAIAPI(handNumber);
+        
+        return dummyAnalysis;
+      } catch (error) {
+        console.error('AI 분석 오류:', error);
+        return '분석 실패: ' + error.message;
+      }
+    }
+    
     async function getKeyPlayerFromHand(handData) {
       try {
         // Type 시트에서 Notable 플레이어 목록 가져오기
@@ -3075,7 +3098,14 @@
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.5 - Promise 처리 개선');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.6 - AI 분석 함수 추가 및 로그 최적화');
+      
+      // 디버그 로그 함수
+      function debugLog(...args) {
+        if (CONFIG.DEBUG_MODE) {
+          console.log(...args);
+        }
+      }
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
