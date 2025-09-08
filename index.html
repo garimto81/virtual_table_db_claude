@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
-  포커 핸드 모니터링 시스템 - 키 플레이어 분석 버전
-  Version: 8.9.0
-  Last Updated: 2025-09-06
-  Description: Google Sheets URL 실시간 유효성 검증 시스템 추가
+  포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
+  Version: 9.3.0
+  Last Updated: 2025-01-09
+  Description: 시간 표기 수정, 카드 심볼 표시, 3줄 요약 간략화
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.2.0 - Gemini AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.3.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.1.0</span>
+        <span class="text-xs text-gray-500">v9.3.0</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -2604,52 +2604,50 @@
       return `${line1}\n${line2}\n${line3}`;
     }
     
-    // 정확한 3줄 요약 생성 (AI 프롬프트 대신 직접 계산)
+    // 정확한 3줄 요약 생성 (간략하고 명확하게)
     function createPreciseThreeLineSummary(handData) {
       // BB 단위로 팟 계산
       const potInBB = handData.blinds.bb && handData.blinds.bb > 0 ? 
         Math.round((handData.pot / handData.blinds.bb) * 10) / 10 : 
         handData.pot;
       
-      const board = handData.communityCards.join(' ') || '보드 없음';
+      // 카드 문양 변환 함수
+      const convertCardSuits = (cards) => {
+        if (!cards || cards.length === 0) return '??';
+        return cards.map(card => {
+          if (!card || card === '?') return '?';
+          const rank = card.slice(0, -1);
+          const suit = card.slice(-1);
+          const suitSymbol = getSuitSymbol(suit);
+          return rank + suitSymbol;
+        }).join('');
+      };
       
-      // 1줄: 플레이어 대결 구도
+      const board = handData.communityCards ? handData.communityCards.map(card => {
+        if (!card || card === '?') return '?';
+        const rank = card.slice(0, -1);
+        const suit = card.slice(-1);
+        const suitSymbol = getSuitSymbol(suit);
+        return rank + suitSymbol;
+      }).join(' ') : '보드 없음';
+      
+      // 1줄: 플레이어 대결 (간략하게)
       let line1 = '';
       if (handData.players.length >= 2) {
         const player1 = handData.players[0];
         const player2 = handData.players[1];
-        const p1Cards = player1.cards && player1.cards.length >= 2 ? player1.cards.join('') : '??';
-        const p2Cards = player2.cards && player2.cards.length >= 2 ? player2.cards.join('') : '??';
-        line1 = `${player1.name} (${p1Cards}) vs ${player2.name} (${p2Cards})`;
+        const p1Cards = convertCardSuits(player1.cards);
+        const p2Cards = convertCardSuits(player2.cards);
+        line1 = `${player1.name}(${p1Cards}) vs ${player2.name}(${p2Cards})`;
       } else {
-        line1 = '플레이어 정보 불충분';
+        line1 = '플레이어 정보 부족';
       }
       
-      // 2줄: 보드 분석 + 핸드 조합
-      let line2 = `보드 [${board}]`;
-      if (handData.communityCards && handData.communityCards.length >= 5) {
-        const handCombinations = analyzePlayerHands(handData);
-        const boardTexture = analyzeBoardTexture(handData.communityCards);
-        line2 += ` ${boardTexture}, ${handCombinations}`;
-      } else {
-        line2 += ' 불완전한 보드';
-      }
+      // 2줄: 보드만 간단히
+      let line2 = `보드: ${board}`;
       
-      // 3줄: 팟 정보 + 승부 결과
-      let line3 = `팟 (${handData.pot}) ${potInBB}BB`;
-      
-      if (handData.communityCards && handData.communityCards.length >= 5 && handData.players.length >= 2) {
-        const winnerInfo = determineWinner(handData);
-        if (winnerInfo.winner) {
-          line3 += ` - ${winnerInfo.winner.name} 승리 (${winnerInfo.reason})`;
-        } else if (winnerInfo.reason === '동점 (키커 계산 복잡)') {
-          line3 += ` - 결과 불분명 (${winnerInfo.topHand})`;
-        } else {
-          line3 += ' - 결과 정보 없음';
-        }
-      } else {
-        line3 += ' - 결과 정보 없음';
-      }
+      // 3줄: 팟 사이즈만 (BB 환산)
+      let line3 = `팟: ${potInBB}BB`;
       
       return `${line1}\n${line2}\n${line3}`;
     }
@@ -3229,7 +3227,10 @@
       
       // 시간 표시
       const handDate = new Date(timestamp * 1000);
-      const timeString = `${handDate.getHours().toString().padStart(2, '0')}:${handDate.getMinutes().toString().padStart(2, '0')}:${handDate.getSeconds().toString().padStart(2, '0')}`;
+      const hours = String(handDate.getHours()).padStart(2, '0');
+      const minutes = String(handDate.getMinutes()).padStart(2, '0');
+      const seconds = String(handDate.getSeconds()).padStart(2, '0');
+      const timeString = `${hours}:${minutes}:${seconds}`;
       
       // 초기값 설정
       timestampInput.value = timestamp;
@@ -3312,7 +3313,10 @@
       
       // 시간 표시 (날짜 제외, 시간만)
       const handDate = new Date(timestamp * 1000);
-      const timeString = `${handDate.getHours().toString().padStart(2, '0')}:${handDate.getMinutes().toString().padStart(2, '0')}:${handDate.getSeconds().toString().padStart(2, '0')}`;
+      const hours = String(handDate.getHours()).padStart(2, '0');
+      const minutes = String(handDate.getMinutes()).padStart(2, '0');
+      const seconds = String(handDate.getSeconds()).padStart(2, '0');
+      const timeString = `${hours}:${minutes}:${seconds}`;
       
       // 핸드 데이터 가져오기
       const handData = await loadHandData(handNumber);
