@@ -621,7 +621,7 @@
       REFRESH_INTERVAL: 10000,
       ENABLE_NOTIFICATIONS: true,
       ENABLE_SOUND: true,
-      DEBUG_MODE: false, // 디버그 모드 추가
+      DEBUG_MODE: true, // 디버그 모드 활성화
       
       // AI API 설정 (Gemini 전용)
       AI_PROVIDER: 'gemini',
@@ -2499,8 +2499,15 @@
         debugLog('🤖 AI 분석 시작 - 핸드 #' + handNumber);
         
         // Gemini API 키 확인
-        if (!CONFIG.GEMINI_API_KEY) {
+        debugLog('🔑 CONFIG.GEMINI_API_KEY:', CONFIG.GEMINI_API_KEY ? '설정됨 (길이: ' + CONFIG.GEMINI_API_KEY.length + ')' : '설정되지 않음');
+        
+        if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.trim() === '') {
           return '⚠️ Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.';
+        }
+        
+        // API 키 형식 간단 검증
+        if (!CONFIG.GEMINI_API_KEY.startsWith('AIza')) {
+          return '⚠️ Gemini API 키 형식이 올바르지 않습니다. AIza로 시작해야 합니다.';
         }
         
         // 핸드 데이터 로드
@@ -2945,7 +2952,9 @@ Player1 (AK) vs Player2 (QQ)
       CONFIG.SHEET_UPDATE_SCRIPT_URL = document.getElementById('apps-script-url').value;
       
       // Gemini API 키 저장
-      CONFIG.GEMINI_API_KEY = document.getElementById('gemini-api-key').value;
+      const apiKeyInput = document.getElementById('gemini-api-key').value.trim();
+      CONFIG.GEMINI_API_KEY = apiKeyInput;
+      console.log('💾 API 키 저장:', apiKeyInput ? `설정됨 (길이: ${apiKeyInput.length})` : '빈 값');
       
       // Apps Script 설정 localStorage 저장
       localStorage.setItem('read_sheet_url', CONFIG.READ_SHEET_URL);
@@ -3213,11 +3222,19 @@ Player1 (AK) vs Player2 (QQ)
     // localStorage에서 Gemini API 키 로드
     function loadAPIKeys() {
       CONFIG.GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || '';
+      console.log('🔓 API 키 로드:', CONFIG.GEMINI_API_KEY ? `설정됨 (길이: ${CONFIG.GEMINI_API_KEY.length})` : '없음');
     }
     
     // Gemini API 키 저장
     function saveAPIKeys() {
       localStorage.setItem('gemini_api_key', CONFIG.GEMINI_API_KEY);
+    }
+
+    // 디버그 로그 함수
+    function debugLog(...args) {
+      if (CONFIG.DEBUG_MODE) {
+        console.log(...args);
+      }
     }
 
     async function init() {
@@ -3226,13 +3243,6 @@ Player1 (AK) vs Player2 (QQ)
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
-      
-      // 디버그 로그 함수
-      function debugLog(...args) {
-        if (CONFIG.DEBUG_MODE) {
-          console.log(...args);
-        }
-      }
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
