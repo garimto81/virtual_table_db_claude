@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.0.4 - UI 업데이트 버그 수정</title>
+  <title>포커 핸드 모니터링 v9.0.5 - Promise 처리 개선</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.0.4</span>
+        <span class="text-xs text-gray-500">v9.0.5</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -2555,32 +2555,32 @@
       // 모달 표시
       modal.classList.remove('hidden');
       
-      // Virtual 시트 매칭 및 AI 분석 비동기 실행
-      Promise.all([
-        findClosestVirtualRow(timestamp, virtualSheetUrl),
-        analyzeHandWithAI(handNumber)
-      ]).then(([virtualMatch, aiSummary]) => {
+      // 디버깅: 모달과 DOM 요소 상태 확인
+      console.log('🔍 === 모달 표시 직후 DOM 상태 ===');
+      console.log('  모달 표시 상태:', !modal.classList.contains('hidden'));
+      console.log('  matched-row input 존재:', !!matchedRowInput);
+      console.log('  matched-row 현재 값:', matchedRowInput.value);
+      console.log('  ai-summary 존재:', !!summaryTextarea);
+      console.log('  ai-summary 현재 값:', summaryTextarea.value);
+      
+      // Virtual 시트 매칭 및 AI 분석 비동기 실행 - async/await 사용
+      try {
+        console.log('🚀 Virtual 시트 매칭 및 AI 분석 시작...');
+        
+        // 병렬 실행
+        const [virtualMatch, aiSummary] = await Promise.all([
+          findClosestVirtualRow(timestamp, virtualSheetUrl),
+          analyzeHandWithAI(handNumber)
+        ]);
         console.log('✅ Promise.all 완료 - UI 업데이트 시작');
         console.log('📊 virtualMatch:', virtualMatch);
         console.log('📝 aiSummary:', aiSummary);
         
-        // DOM 요소 다시 가져오기 (모달이 이미 표시된 상태에서)
-        const currentModal = document.getElementById('completion-modal');
-        const currentMatchedRowInput = document.getElementById('matched-row');
-        const currentSummaryTextarea = document.getElementById('ai-summary');
-        
-        // 모달이 여전히 표시 중인지 확인
-        if (!currentModal || currentModal.classList.contains('hidden')) {
-          console.warn('⚠️ 모달이 이미 닫혔습니다');
-          return;
-        }
-        
-        if (!currentMatchedRowInput || !currentSummaryTextarea) {
-          console.error('❌ DOM 요소를 찾을 수 없습니다');
-          console.error('matched-row 요소:', currentMatchedRowInput);
-          console.error('ai-summary 요소:', currentSummaryTextarea);
-          return;
-        }
+        // 디버깅: DOM 요소 상태 재확인
+        console.log('🔍 === Promise 완료 후 DOM 상태 ===');
+        console.log('  모달 표시 상태:', !modal.classList.contains('hidden'));
+        console.log('  matched-row input 존재:', !!matchedRowInput);
+        console.log('  matched-row 현재 값:', matchedRowInput.value);
         
         if (virtualMatch && virtualMatch.row) {
           const diffMinutes = Math.floor(virtualMatch.timeDiff / 60);
@@ -2617,40 +2617,28 @@
           
           const matchedRowText = `${accuracyIcon} Row ${virtualMatch.rowIndex} [타겟: ${virtualMatch.targetTime} ↔ 매칭: ${virtualMatch.matchedTime}] (차이: ${timeDiffStr}) - ${accuracyText}`;
           
-          // UI 업데이트 강제 실행
-          currentMatchedRowInput.value = matchedRowText;
-          currentMatchedRowInput.dispatchEvent(new Event('change', { bubbles: true }));
+          // UI 업데이트
+          console.log('📝 matched-row 업데이트 시도...');
+          matchedRowInput.value = matchedRowText;
           
-          console.log('✅ UI 업데이트 시도:', matchedRowText);
-          console.log('✅ 실제 값 확인:', currentMatchedRowInput.value);
-          
-          // 강제 리렌더링 (필요시)
-          requestAnimationFrame(() => {
-            if (currentMatchedRowInput.value !== matchedRowText) {
-              console.warn('⚠️ UI 업데이트 재시도');
-              currentMatchedRowInput.value = matchedRowText;
-            }
-          });
+          console.log('✅ matched-row 업데이트 완료:', matchedRowText);
+          console.log('✅ 실제 값 확인:', matchedRowInput.value);
+          console.log('✅ DOM에 반영 확인:', document.getElementById('matched-row').value);
         } else {
-          currentMatchedRowInput.value = '❌ 매칭되는 행을 찾을 수 없음';
+          matchedRowInput.value = '❌ 매칭되는 행을 찾을 수 없음';
           console.log('❌ 매칭 실패 - UI 업데이트');
         }
         
-        currentSummaryTextarea.value = aiSummary || '분석 실패';
-      }).catch(error => {
-        console.error('❌ Promise.all 에러:', error);
+        // AI 요약 업데이트
+        console.log('📝 ai-summary 업데이트 시도...');
+        summaryTextarea.value = aiSummary || '분석 실패';
+        console.log('✅ ai-summary 업데이트 완료');
         
-        // 에러 발생 시에도 DOM 요소 다시 가져오기
-        const currentMatchedRowInput = document.getElementById('matched-row');
-        const currentSummaryTextarea = document.getElementById('ai-summary');
-        
-        if (currentMatchedRowInput) {
-          currentMatchedRowInput.value = '❌ 오류 발생: ' + error.message;
-        }
-        if (currentSummaryTextarea) {
-          currentSummaryTextarea.value = '분석 실패';
-        }
-      });
+      } catch(error) {
+        console.error('❌ 비동기 처리 오류:', error);
+        matchedRowInput.value = '❌ 오류 발생: ' + error.message;
+        summaryTextarea.value = '분석 실패';
+      }
     }
     
     // 완료 모달 닫기
@@ -3087,7 +3075,7 @@
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.4 - UI 업데이트 버그 수정');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.5 - Promise 처리 개선');
       console.log('='.repeat(60));
       
       // 마스터 핸드 목록 로드
