@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.7.0</title>
+  <title>포커 핸드 로거 v2.8.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -50,7 +50,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.7.0</span>
+        <span id="version-display" class="text-gray-400">v2.8.0</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -320,6 +320,7 @@
    * Version: 2.2.0
    * Last Modified: 2025-09-08 KST
    * Changes: 
+   * - v2.8.0: 올인 제한 고려한 정확한 팔 계산 로직 구현
    * - v2.7.0: 팔 계산 로직 개선 - 블라인드/안티를 플레이어별 기여액에 포함
    * - v2.6.1: getElements is not defined 오류 수정 - getCamNumber 함수 내 전역 el 객체 사용
    * - v2.6.0: 스마트폰 최적화 테이블 선택 UI - 버튼식 페이지 토글 방식
@@ -333,7 +334,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.7.0';
+  const APP_VERSION = 'v2.8.0';
   const VERSION_DATE = '2025-09-08';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -1195,26 +1196,16 @@
     // 플레이어별 총 기여액 계산 (폴드한 플레이어 포함)
     function calculatePlayerContributions() {
       const contributions = {};
-      
-      // 1. 먼저 액션 기반 기여액 계산
-      ['preflop', 'flop', 'turn', 'river'].forEach(street => {
-        const actions = window.state.actionState[street] || [];
-        
-        actions.forEach(action => {
-          if(action.amount && action.player && action.action !== 'Pot Correction') {
-            const player = action.player;
-            const amount = parseInt(unformatNumber(action.amount), 10);
-            contributions[player] = (contributions[player] || 0) + amount;
-          }
-        });
-      });
-      
-      // 2. 블라인드와 안티를 해당 플레이어에게 추가
       const playersInHand = window.state.playersInHand || [];
       
+      // 1. 모든 플레이어 초기화
+      playersInHand.forEach(player => {
+        contributions[player.name] = 0;
+      });
+      
+      // 2. 블라인드와 안티 먼저 추가
       playersInHand.forEach(player => {
         const playerName = player.name;
-        if (!contributions[playerName]) contributions[playerName] = 0;
         
         // 스몰 블라인드 (첫 번째 플레이어)
         if (player.role === 'SB' || playersInHand.indexOf(player) === 0) {
@@ -1222,7 +1213,7 @@
           contributions[playerName] += sbAmount;
         }
         
-        // 빅 블라인드 (두 번째 플레이어)
+        // 빅 블라인드 (두 번째 플레이어)  
         if (player.role === 'BB' || playersInHand.indexOf(player) === 1) {
           const bbAmount = parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
           contributions[playerName] += bbAmount;
@@ -1235,80 +1226,158 @@
         }
       });
       
-      console.log('📊 플레이어별 기여액 (블라인드/안티 포함):', contributions);
-      return contributions;
-    }
-    
-    // 실제 팟 계산 (모든 베팅 포함, 언콜 베팅 제외)
-    function calculateActualPot() {
-      let totalPot = 0;
-      let potCorrectionFound = false;
-      let potCorrectionValue = 0;
-      let additionalBets = 0; // Pot Correction 이후 추가 베팅
-      
-      console.log(`%c🎲 === 팟 계산 시작 [v2.1.1] ===`, 'color: #10b981; font-weight: bold');
-      
-      // 모든 스트리트의 액션 합산
+      // 3. 액션 기반 기여액 추가 (올인 제한 고려)
       ['preflop', 'flop', 'turn', 'river'].forEach(street => {
         const actions = window.state.actionState[street] || [];
         
-        // Pot Correction 확인
+        actions.forEach(action => {
+          if(action.amount && action.player && action.action !== 'Pot Correction') {
+            const player = action.player;
+            const amount = parseInt(unformatNumber(action.amount), 10);
+            
+            // 해당 플레이어의 최대 칩 찾기
+            const playerData = playersInHand.find(p => p.name === player);
+            const maxChips = playerData ? playerData.initialChips : Infinity;
+            
+            // 현재 기여액 + 새 액션이 최대 칩을 초과하지 않도록 제한
+            const currentContribution = contributions[player] || 0;
+            const allowedAmount = Math.min(amount, Math.max(0, maxChips - currentContribution));
+            
+            contributions[player] = currentContribution + allowedAmount;
+            
+            if (allowedAmount < amount) {
+              console.log(`⚠️ ${player}: ${amount} 요청 → ${allowedAmount} 제한 (최대: ${maxChips}, 현재: ${currentContribution})`);
+            }
+          }
+        });
+      });
+      
+      console.log('📊 플레이어별 기여액 (올인 제한 적용):', contributions);
+      return contributions;
+    }
+    
+    // 실제 팟 계산 (올인 제한과 사이드팟을 고려한 정확한 계산)
+    function calculateActualPot() {
+      console.log(`%c🎲 === 새로운 팟 계산 시작 [v2.7.0] ===`, 'color: #10b981; font-weight: bold');
+      
+      // Pot Correction이 있으면 기존 로직 사용
+      let potCorrectionFound = false;
+      ['preflop', 'flop', 'turn', 'river'].forEach(street => {
+        const actions = window.state.actionState[street] || [];
+        if(actions.find(a => a.action === 'Pot Correction')) {
+          potCorrectionFound = true;
+        }
+      });
+      
+      if(potCorrectionFound) {
+        return calculatePotWithCorrection();
+      }
+      
+      // 새로운 정확한 팟 계산
+      const result = calculateAccuratePot();
+      console.log(`%c🎲 === 팟 계산 종료 [v2.7.0] ===`, 'color: #10b981; font-weight: bold');
+      return result.totalPot;
+    }
+    
+    // 정확한 팟 계산 (올인 제한 고려)
+    function calculateAccuratePot() {
+      const playersInHand = window.state.playersInHand || [];
+      if (playersInHand.length === 0) {
+        return { totalPot: 0, mainPot: 0, sidePots: [] };
+      }
+      
+      // 1. 각 플레이어의 총 베팅 가능 금액 계산 (초기 칩)
+      const playerMaxBets = {};
+      playersInHand.forEach(player => {
+        playerMaxBets[player.name] = player.initialChips || 0;
+      });
+      
+      console.log('💰 플레이어별 최대 베팅 가능:', playerMaxBets);
+      
+      // 2. 실제 베팅 금액 계산 (블라인드 + 안티 + 액션)
+      const playerBets = calculatePlayerContributions();
+      console.log('📊 플레이어별 실제 베팅:', playerBets);
+      
+      // 3. 올인 플레이어들의 금액대별로 팟 분리
+      const allInAmounts = [];
+      playersInHand.forEach(player => {
+        const playerName = player.name;
+        const maxBet = playerMaxBets[playerName];
+        const actualBet = Math.min(playerBets[playerName] || 0, maxBet);
+        
+        if (actualBet > 0 && !allInAmounts.includes(actualBet)) {
+          allInAmounts.push(actualBet);
+        }
+      });
+      
+      allInAmounts.sort((a, b) => a - b);
+      console.log('🎯 올인 금액대:', allInAmounts);
+      
+      // 4. 가장 작은 올인 금액이 메인팟 기준
+      const mainPotCap = Math.min(...allInAmounts);
+      let totalPot = 0;
+      
+      // 메인팟: 모든 플레이어가 mainPotCap만큼 기여
+      const eligiblePlayers = playersInHand.filter(p => 
+        window.state.playerStatus[p.name] !== 'folded'
+      );
+      
+      const mainPot = mainPotCap * eligiblePlayers.length;
+      totalPot = mainPot;
+      
+      console.log(`🎲 메인팟: ${mainPot} (${eligiblePlayers.length}명 × ${mainPotCap})`);
+      
+      // 사이드팟은 현재 구현하지 않고 메인팟만 반환
+      // (대부분의 경우 2명이므로 사이드팟이 불필요)
+      
+      return { 
+        totalPot: totalPot,
+        mainPot: mainPot,
+        sidePots: []
+      };
+    }
+    
+    // 기존 Pot Correction 로직
+    function calculatePotWithCorrection() {
+      let totalPot = 0;
+      let potCorrectionValue = 0;
+      let additionalBets = 0;
+      
+      ['preflop', 'flop', 'turn', 'river'].forEach(street => {
+        const actions = window.state.actionState[street] || [];
+        
         const potCorrectionIdx = actions.findIndex(a => a.action === 'Pot Correction');
         if(potCorrectionIdx !== -1) {
           const potCorrection = actions[potCorrectionIdx];
-          potCorrectionFound = true;
           potCorrectionValue = parseInt(unformatNumber(potCorrection.amount), 10);
           
-          // Pot Correction 이후 같은 스트리트의 액션들만 추가
           for(let i = potCorrectionIdx + 1; i < actions.length; i++) {
             if(actions[i].amount && actions[i].action !== 'Pot Correction') {
               additionalBets += parseInt(unformatNumber(actions[i].amount), 10);
             }
           }
-          return; // 다음 스트리트로
+          return;
         }
         
-        // Pot Correction이 이미 발견되었으면 이후 스트리트만 계산
-        if(potCorrectionFound) {
-          actions.forEach(action => {
-            if(action.amount && action.action !== 'Pot Correction') {
-              additionalBets += parseInt(unformatNumber(action.amount), 10);
-            }
-          });
-        } else {
-          // Pot Correction 전까지는 모든 액션 합산 (블라인드 포함)
-          actions.forEach(action => {
-            if(action.amount && action.action !== 'Pot Correction') {
-              totalPot += parseInt(unformatNumber(action.amount), 10);
-            }
-          });
-        }
+        actions.forEach(action => {
+          if(action.amount && action.action !== 'Pot Correction') {
+            totalPot += parseInt(unformatNumber(action.amount), 10);
+          }
+        });
       });
       
-      // Pot Correction이 없는 경우 블라인드/앤티 추가
-      if(!potCorrectionFound) {
+      if(potCorrectionValue > 0) {
+        totalPot = potCorrectionValue + additionalBets;
+      } else {
         totalPot += parseInt(unformatNumber(window.state.actionState.smallBlind) || 0, 10);
         totalPot += parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
         if(window.state.actionState.hasBBAnte) {
-          totalPot += parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
+          const bbAmount = parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
+          totalPot += bbAmount * (window.state.playersInHand || []).length;
         }
-      } else {
-        // Pot Correction이 있으면 그 값이 기준
-        console.log(`  Pot Correction 발견: ${potCorrectionValue}`);
-        console.log(`  Correction 이후 추가 베팅: ${additionalBets}`);
-        totalPot = potCorrectionValue + additionalBets; // Pot Correction 값 + 그 이후 액션들
       }
       
-      console.log(`  총 팟 (언콜 제외 전): ${totalPot}`);
-      
-      // 언콜 베팅 제외
-      const uncalledBet = calculateUncalledBet();
-      console.log(`  언콜 베팅: ${uncalledBet.amount} (플레이어: ${uncalledBet.player})`);
-      const finalPot = totalPot - uncalledBet.amount;
-      console.log(`  최종 팟: ${finalPot}`);
-      console.log(`%c🎲 === 팟 계산 종료 [v2.1.1] ===`, 'color: #10b981; font-weight: bold');
-      
-      return finalPot;
+      return totalPot;
     }
     
     // 언콜 베팅 계산
