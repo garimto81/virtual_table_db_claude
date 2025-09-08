@@ -33,8 +33,8 @@ function renderChipColorSlots() {
   
   container.innerHTML = '';
   
-  for (let i = 0; i < state.maxChips; i++) {
-    const chip = state.chipColors[i];
+  for (let i = 0; i < window.window.state.maxChips; i++) {
+    const chip = window.window.state.chipColors[i];
     const slot = document.createElement('div');
     slot.className = 'chip-color-sample flex items-center justify-center text-xs';
     slot.dataset.slot = i;
@@ -68,12 +68,12 @@ function renderChipValuesList() {
   
   listContainer.innerHTML = '';
   
-  if (state.chipColors.length === 0) {
+  if (window.state.chipColors.length === 0) {
     listContainer.innerHTML = '<p class="text-gray-500 text-sm">등록된 칩이 없습니다.</p>';
     return;
   }
   
-  state.chipColors.forEach((chip, index) => {
+  window.state.chipColors.forEach((chip, index) => {
     const div = document.createElement('div');
     div.className = 'flex items-center gap-2 bg-gray-700 p-2 rounded';
     div.innerHTML = `
@@ -94,7 +94,7 @@ function renderChipValuesList() {
     input.addEventListener('input', (e) => {
       const index = parseInt(e.target.dataset.index);
       const value = parseInt(e.target.value.replace(/\D/g, '')) || 0;
-      state.chipColors[index].value = value;
+      window.state.chipColors[index].value = value;
       saveChipColors();
       renderChipColorSlots();
     });
@@ -103,8 +103,8 @@ function renderChipValuesList() {
   listContainer.querySelectorAll('[data-remove]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const index = parseInt(e.target.dataset.remove);
-      if (confirm(`칩 ${state.chipColors[index].value || ''}을(를) 삭제하시겠습니까?`)) {
-        state.chipColors.splice(index, 1);
+      if (confirm(`칩 ${window.state.chipColors[index].value || ''}을(를) 삭제하시겠습니까?`)) {
+        window.state.chipColors.splice(index, 1);
         saveChipColors();
         renderChipColorSlots();
       }
@@ -167,7 +167,7 @@ function selectChipSlot(slotIndex) {
     console.warn('⚠️ 카메라 API를 지원하지 않습니다. 파일 업로드만 사용 가능합니다.');
   }
   
-  state.currentChipSlot = slotIndex;
+  window.state.currentChipSlot = slotIndex;
   openChipColorModal();
 }
 
@@ -291,7 +291,7 @@ function startFileSelection() {
       const previewImg = document.getElementById('preview-img');
       if (previewImg) {
         previewImg.src = e.target.result;
-        state.tempImageData = e.target.result;
+        window.state.tempImageData = e.target.result;
         console.log('✅ 이미지 미리보기 로드 완료');
       }
     };
@@ -313,14 +313,14 @@ function saveChipFromImage() {
     return;
   }
   
-  if (state.currentChipSlot !== null && state.tempImageData) {
-    if (!state.chipColors[state.currentChipSlot]) {
-      state.chipColors[state.currentChipSlot] = {};
+  if (window.state.currentChipSlot !== null && window.state.tempImageData) {
+    if (!window.state.chipColors[window.state.currentChipSlot]) {
+      window.state.chipColors[window.state.currentChipSlot] = {};
     }
     
-    state.chipColors[state.currentChipSlot].image = state.tempImageData;
-    state.chipColors[state.currentChipSlot].value = chipValue;
-    state.chipColors[state.currentChipSlot].color = '#888'; // 기본 색상
+    window.state.chipColors[window.state.currentChipSlot].image = window.state.tempImageData;
+    window.state.chipColors[window.state.currentChipSlot].value = chipValue;
+    window.state.chipColors[window.state.currentChipSlot].color = '#888'; // 기본 색상
     
     console.log(`✅ 칩 저장 완료: ${chipValue}원`);
     saveChipColors();
@@ -366,13 +366,13 @@ function captureChipPhoto() {
   const chipValue = parseInt(valueInput.value.replace(/\D/g, '')) || 0;
   
   // 칩 정보 저장
-  if (state.currentChipSlot !== null) {
-    if (!state.chipColors[state.currentChipSlot]) {
-      state.chipColors[state.currentChipSlot] = {};
+  if (window.state.currentChipSlot !== null) {
+    if (!window.state.chipColors[window.state.currentChipSlot]) {
+      window.state.chipColors[window.state.currentChipSlot] = {};
     }
-    state.chipColors[state.currentChipSlot].color = color;
-    state.chipColors[state.currentChipSlot].image = imageData;
-    state.chipColors[state.currentChipSlot].value = chipValue;
+    window.state.chipColors[window.state.currentChipSlot].color = color;
+    window.state.chipColors[window.state.currentChipSlot].image = imageData;
+    window.state.chipColors[window.state.currentChipSlot].value = chipValue;
     
     saveChipColors();
     renderChipColorSlots();
@@ -395,13 +395,13 @@ function closeChipColorModal() {
   
   if (valueInput) valueInput.value = '';
   if (modal) modal.classList.add('hidden');
-  state.currentChipSlot = null;
+  window.state.currentChipSlot = null;
 }
 
 // 스택 분석 모달 열기
 async function openStackAnalysisModal(playerName) {
-  state.currentAnalyzingPlayer = playerName;
-  state.stackImages = [];
+  window.state.currentAnalyzingPlayer = playerName;
+  window.state.stackImages = [];
   
   const modal = document.getElementById('stack-analysis-modal');
   if (!modal) return;
@@ -452,7 +452,7 @@ function captureStackPhoto() {
   resizedContext.drawImage(canvas, 0, 0, 800, 600);
   
   const imageData = resizedCanvas.toDataURL('image/jpeg', 0.8);
-  state.stackImages.push(imageData);
+  window.state.stackImages.push(imageData);
   
   // 이미지 프리뷰 추가
   const container = document.getElementById('stack-images-container');
@@ -465,12 +465,12 @@ function captureStackPhoto() {
   container.appendChild(img);
   
   // 분석 버튼 활성화
-  if (state.stackImages.length > 0) {
+  if (window.state.stackImages.length > 0) {
     document.getElementById('analyze-stack-btn').disabled = false;
   }
   
   // 최대 4장까지만 촬영
-  if (state.stackImages.length >= 4) {
+  if (window.state.stackImages.length >= 4) {
     document.getElementById('capture-stack-btn').disabled = true;
     alert('최대 4장까지 촬영 가능합니다.');
   }
@@ -478,7 +478,7 @@ function captureStackPhoto() {
 
 // AI 칩 스택 분석
 async function analyzeChipStack() {
-  if (state.stackImages.length === 0) {
+  if (window.state.stackImages.length === 0) {
     alert('먼저 사진을 촬영해주세요.');
     return;
   }
@@ -488,13 +488,13 @@ async function analyzeChipStack() {
   
   try {
     // 칩 컬러 정보 준비
-    const chipInfo = state.chipColors
+    const chipInfo = window.state.chipColors
       .filter(c => c && c.value)
       .map(c => `${c.value}원 칩`)
       .join(', ');
     
     // Gemini API 호출을 위한 이미지 준비
-    const imageParts = state.stackImages.map(imageData => ({
+    const imageParts = window.state.stackImages.map(imageData => ({
       inline_data: {
         mime_type: "image/jpeg",
         data: imageData.split(',')[1] // base64 부분만 추출
@@ -556,22 +556,22 @@ async function analyzeChipStack() {
       }
       
       // 결과 저장
-      if (!state.playerStacks[state.currentAnalyzingPlayer]) {
-        state.playerStacks[state.currentAnalyzingPlayer] = {};
+      if (!window.state.playerStacks[window.state.currentAnalyzingPlayer]) {
+        window.state.playerStacks[window.state.currentAnalyzingPlayer] = {};
       }
-      state.playerStacks[state.currentAnalyzingPlayer].images = [...state.stackImages];
-      state.playerStacks[state.currentAnalyzingPlayer].estimatedStack = estimatedValue;
-      state.playerStacks[state.currentAnalyzingPlayer].analysis = analysisText;
+      window.state.playerStacks[window.state.currentAnalyzingPlayer].images = [...window.state.stackImages];
+      window.state.playerStacks[window.state.currentAnalyzingPlayer].estimatedStack = estimatedValue;
+      window.state.playerStacks[window.state.currentAnalyzingPlayer].analysis = analysisText;
       
       // 플레이어 칩 업데이트
-      const player = state.playersInHand.find(p => p.name === state.currentAnalyzingPlayer);
+      const player = window.state.playersInHand.find(p => p.name === window.state.currentAnalyzingPlayer);
       if (player) {
         player.chips = estimatedValue.toString();
         renderPlayerDetails();
       }
       
       // 결과 표시
-      alert(`${state.currentAnalyzingPlayer}의 칩 분석 완료!\n\n추정 칩: ${estimatedValue.toLocaleString()}원\n\n${analysisText}`);
+      alert(`${window.state.currentAnalyzingPlayer}의 칩 분석 완료!\n\n추정 칩: ${estimatedValue.toLocaleString()}원\n\n${analysisText}`);
       
       // 모달 닫기
       closeStackAnalysisModal();
@@ -619,15 +619,15 @@ function closeStackAnalysisModal() {
   if (modal) modal.classList.add('hidden');
   
   // 상태 초기화
-  state.currentAnalyzingPlayer = null;
-  state.stackImages = [];
+  window.state.currentAnalyzingPlayer = null;
+  window.state.stackImages = [];
   document.getElementById('capture-stack-btn').disabled = false;
 }
 
 // 칩 컬러 저장
 function saveChipColors() {
-  localStorage.setItem('pokerChipColors', JSON.stringify(state.chipColors));
-  console.log('칩 컬러 저장:', state.chipColors.length, '개');
+  localStorage.setItem('pokerChipColors', JSON.stringify(window.state.chipColors));
+  console.log('칩 컬러 저장:', window.state.chipColors.length, '개');
 }
 
 // 저장된 칩 컬러 로드
@@ -635,12 +635,12 @@ function loadSavedChipColors() {
   const saved = localStorage.getItem('pokerChipColors');
   if (saved) {
     try {
-      state.chipColors = JSON.parse(saved);
-      console.log('칩 컬러 로드:', state.chipColors.length, '개');
+      window.state.chipColors = JSON.parse(saved);
+      console.log('칩 컬러 로드:', window.state.chipColors.length, '개');
       renderChipColorSlots();
     } catch (e) {
       console.error('칩 컬러 로드 실패:', e);
-      state.chipColors = [];
+      window.state.chipColors = [];
     }
   }
 }
@@ -653,13 +653,13 @@ function setupChipAnalysisListeners() {
     if (e.target && e.target.id === 'add-chip-color-btn') {
       console.log('============================================');
       console.log('🎰 칩 추가 버튼 클릭!');
-      console.log('현재 등록된 칩 개수:', state.chipColors.length);
+      console.log('현재 등록된 칩 개수:', window.state.chipColors.length);
       console.log('============================================');
       e.preventDefault();
       e.stopPropagation();
       
-      if (state.chipColors.length < state.maxChips) {
-        const emptySlot = state.chipColors.length;
+      if (window.state.chipColors.length < window.state.maxChips) {
+        const emptySlot = window.state.chipColors.length;
         selectChipSlot(emptySlot);
       } else {
         console.warn('⚠️ 최대 5개까지만 등록 가능');

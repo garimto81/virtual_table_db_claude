@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.4.0</title>
+  <title>포커 핸드 로거 v2.5.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -50,7 +50,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.4.0</span>
+        <span id="version-display" class="text-gray-400">v2.5.0</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -278,6 +278,8 @@
    * Version: 2.2.0
    * Last Modified: 2025-09-08 KST
    * Changes: 
+   * - v2.5.0: IN/OUT 테이블 관리 시스템 및 console 오류 해결
+   * - v2.4.0: 카메라 번호 로딩 개선 및 Type 시트 칩 업데이트 수정
    * - v2.2.0: AI 기반 칩 스택 분석 기능 추가 (Gemini API)
    * - v2.1.1: Pot Correction 로직 개선 - 정확한 팟 설정
    * Author: garimto81 with Claude
@@ -285,7 +287,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.4.0';
+  const APP_VERSION = 'v2.5.0';
   const VERSION_DATE = '2025-09-08';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -328,10 +330,12 @@
     const CSV_TYPE_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv";
     // Apps Script URL - 재배포 후 새 URL로 교체 필요
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec";
+    // 전역 변수로도 설정 (테이블 관리 모듈용)
+    window.APPS_SCRIPT_URL = APPS_SCRIPT_URL;
 
     // ====== STATE ======
     let timeUpdater;
-    const state = {
+    window.state = {
       currentStreet: 'preflop',  // 현재 진행 중인 스트리트
       camNumbers: { cam1no:'', cam2no:'' }, // 파일 넘버 입력이 있다면 여기에 저장
       lastCamNo: null,        // 마지막 입력 추적(연속 증가 기본값 제공용)
@@ -442,9 +446,9 @@
       for(const [v,t] of Object.entries(tzs)){
         const opt=document.createElement('option'); opt.value=v; opt.textContent=t; s.appendChild(opt);
       }
-      s.value=state.selectedTimezone;
+      s.value=window.state.selectedTimezone;
     }
-    function updateTimeDisplay(){ el.timeDisplay.textContent=getFormattedTimeInTimezone(new Date(),state.selectedTimezone); }
+    function updateTimeDisplay(){ el.timeDisplay.textContent=getFormattedTimeInTimezone(new Date(),window.state.selectedTimezone); }
 
     // ====== UTILS ======
     const formatNumber = (val) => val ? new Intl.NumberFormat('en-US').format(String(val).replace(/,/g,'')) : '';
@@ -483,16 +487,16 @@
     // ====== RENDERERS ======
     function renderTableSelection(){
       const s=el.tableSelector; s.innerHTML='<option value="">테이블 선택</option>';
-      state.allTables.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; s.appendChild(o); });
+      window.state.allTables.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; s.appendChild(o); });
     }
     function renderPlayerSelection(){
-      if(!state.selectedTable){
+      if(!window.state.selectedTable){
         el.playerSelectionButtons.innerHTML='<p class="text-gray-500 text-xs">테이블을 먼저 선택해주세요.</p>';
         return;
       }
-      const arr=state.playerDataByTable[state.selectedTable]||[];
+      const arr=window.state.playerDataByTable[window.state.selectedTable]||[];
       el.playerSelectionButtons.innerHTML = arr.map(p=>{
-        const sel=state.playersInHand.some(pp=>pp.name===p.name);
+        const sel=window.state.playersInHand.some(pp=>pp.name===p.name);
         const notable = p.notable ? '⭐' : '';
         return `<button class="btn ${sel?'btn-selected':'bg-gray-600 hover:bg-gray-500'} px-2 py-1 text-xs rounded-md" data-player-name="${p.name}">${notable}${p.name}</button>`;
       }).join('');
@@ -500,7 +504,7 @@
     function renderPlayerDetails(){
       const finalPot = calculateFinalPot();
       
-      el.playerDetailsSection.innerHTML = state.playersInHand.map(p=>{
+      el.playerDetailsSection.innerHTML = window.state.playersInHand.map(p=>{
         const roleClass=(p.role==='winner')?'is-winner':'';
         const winnerBadge = p.role === 'winner' && finalPot > 0 ? 
           `<span class="ml-2 text-amber-300 font-bold text-xs animate-pulse">🏆 +${formatNumber(finalPot)}</span>` : '';
@@ -516,9 +520,9 @@
       }).join('');
     }
     function renderBoard(){
-      const flop=`<div class="card-placeholder h-10 w-24" data-target="board" data-index="0" data-count="3">${[0,1,2].map(i=>state.board[i]?formatCardDisplay(state.board[i]):'').join('') || '<span class="text-gray-400 text-lg">+</span>'}</div>`;
-      const turn=`<div class="card-placeholder h-10 w-8" data-target="board" data-index="3" data-count="1">${state.board[3]?formatCardDisplay(state.board[3]):'<span class="text-gray-400 text-lg">+</span>'}</div>`;
-      const river=`<div class="card-placeholder h-10 w-8" data-target="board" data-index="4" data-count="1">${state.board[4]?formatCardDisplay(state.board[4]):'<span class="text-gray-400 text-lg">+</span>'}</div>`;
+      const flop=`<div class="card-placeholder h-10 w-24" data-target="board" data-index="0" data-count="3">${[0,1,2].map(i=>window.state.board[i]?formatCardDisplay(window.state.board[i]):'').join('') || '<span class="text-gray-400 text-lg">+</span>'}</div>`;
+      const turn=`<div class="card-placeholder h-10 w-8" data-target="board" data-index="3" data-count="1">${window.state.board[3]?formatCardDisplay(window.state.board[3]):'<span class="text-gray-400 text-lg">+</span>'}</div>`;
+      const river=`<div class="card-placeholder h-10 w-8" data-target="board" data-index="4" data-count="1">${window.state.board[4]?formatCardDisplay(window.state.board[4]):'<span class="text-gray-400 text-lg">+</span>'}</div>`;
       el.boardCardPlaceholders.innerHTML = flop+turn+river;
     }
     // 최종 팟 계산 함수
@@ -530,7 +534,7 @@
     function renderWinnerSelection(){
       const finalPot = calculateFinalPot();
       
-      el.winnerButtons.innerHTML = state.playersInHand.map(p=>{
+      el.winnerButtons.innerHTML = window.state.playersInHand.map(p=>{
         const sel=(p.role==='winner');
         const potDisplay = sel && finalPot > 0 ? ` <span class="text-amber-300 font-bold">+${formatNumber(finalPot)}</span>` : '';
         return `<button class="btn ${sel?'btn-selected bg-amber-600':'bg-gray-600 hover:bg-gray-500'} px-2 py-1 text-xs rounded-md set-winner-btn" data-player-name="${p.name}">${p.name}${potDisplay}</button>`;
@@ -541,13 +545,13 @@
       let displayPot=0;  // UI 표시용 팟
       
       el.streetLogsContainer.innerHTML = streets.map(street=>{
-        const logs=state.actionState[street]||[]; 
+        const logs=window.state.actionState[street]||[]; 
         let streetPot=0;
         
         if(street==='preflop'){
-          streetPot += parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
-          streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
-          if(state.actionState.hasBBAnte) streetPot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+          streetPot += parseInt(unformatNumber(window.state.actionState.smallBlind)||0,10);
+          streetPot += parseInt(unformatNumber(window.state.actionState.bigBlind)||0,10);
+          if(window.state.actionState.hasBBAnte) streetPot += parseInt(unformatNumber(window.state.actionState.bigBlind)||0,10);
         }
         
         // Pot Correction이 있는지 확인
@@ -581,12 +585,12 @@
             return `<span class="action-log-entry mr-2"><span class="text-blue-400">Pot</span>${amt}</span>`;
           }
           // 일반 플레이어 액션
-          const player=state.playersInHand.find(p=>p.name===log.player);
+          const player=window.state.playersInHand.find(p=>p.name===log.player);
           const cls=(player?.role==='winner')?'text-amber-400':'text-gray-300';
           const amt=log.amount?` <span class="font-mono text-white">${formatNumber(log.amount)}</span>`:'';
           return `<span class="action-log-entry mr-2"><span class="${cls}">${log.player || 'Unknown'}</span> ${log.action}${amt}</span>`;
         }).join('');
-        const isActive = state.currentStreet === street;
+        const isActive = window.state.currentStreet === street;
         const streetBtnClass = isActive 
           ? 'bg-amber-500 text-black border-2 border-amber-300 shadow-lg' 
           : 'bg-gray-700 text-gray-300 border-2 border-gray-600 hover:bg-gray-600 hover:text-white';
@@ -617,24 +621,24 @@
     function closeModal(node){ node.classList.add('opacity-0'); setTimeout(()=>node.classList.add('hidden'),300); }
 
     function openCardSelector(){
-      const { target, player, index, count } = state.modalState.cardTarget;
+      const { target, player, index, count } = window.state.modalState.cardTarget;
       
       // 현재 선택된 카드들을 초기값으로 설정
       let selected = [];
       if(target === 'playerHand' && player) {
-        const p = state.playersInHand.find(p => p.name === player);
+        const p = window.state.playersInHand.find(p => p.name === player);
         if(p && p.hand) selected = [...p.hand];
       } else if(target === 'board') {
         if(count === 3) { // flop
-          selected = [state.board[0], state.board[1], state.board[2]].filter(Boolean);
+          selected = [window.state.board[0], window.state.board[1], window.state.board[2]].filter(Boolean);
         } else if(index === 3) { // turn
-          if(state.board[3]) selected = [state.board[3]];
+          if(window.state.board[3]) selected = [window.state.board[3]];
         } else if(index === 4) { // river
-          if(state.board[4]) selected = [state.board[4]];
+          if(window.state.board[4]) selected = [window.state.board[4]];
         }
       }
       
-      const used=[...state.playersInHand.flatMap(p=>p.hand||[]), ...state.board].filter(Boolean);
+      const used=[...window.state.playersInHand.flatMap(p=>p.hand||[]), ...window.state.board].filter(Boolean);
       let deckHTML='';
       Object.keys(SUITS).forEach(suitKey=>{
         deckHTML+='<div class="flex justify-center gap-1 mb-1">';
@@ -642,12 +646,12 @@
           const id=`${rank}${suitKey}`;
           // 다른 곳에서 사용 중인 카드 체크 (현재 대상 제외)
           let usedByOthers = false;
-          const othersCards = [...state.playersInHand.flatMap(p => {
+          const othersCards = [...window.state.playersInHand.flatMap(p => {
             if(target === 'playerHand' && p.name === player) return []; // 현재 플레이어 제외
             return p.hand || [];
           })];
           if(target !== 'board') {
-            othersCards.push(...state.board.filter(Boolean));
+            othersCards.push(...window.state.board.filter(Boolean));
           }
           usedByOthers = othersCards.includes(id) && !selected.includes(id);
           
@@ -703,14 +707,14 @@
     }
 
     function openActionPad(street){
-      if(state.playersInHand.length<1){ showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
-      state.modalState.actionPadStreet=street;
+      if(window.state.playersInHand.length<1){ showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
+      window.state.modalState.actionPadStreet=street;
       // 액션 추가 시 해당 스트리트로 자동 전환
-      state.currentStreet = street;
+      window.state.currentStreet = street;
       
       // Folded 플레이어 제외
-      const activePlayers = state.playersInHand.filter(p => 
-        state.playerStatus[p.name] !== 'folded' && state.playerStatus[p.name] !== 'allin'
+      const activePlayers = window.state.playersInHand.filter(p => 
+        window.state.playerStatus[p.name] !== 'folded' && window.state.playerStatus[p.name] !== 'allin'
       );
       
       if(activePlayers.length === 0) {
@@ -737,8 +741,8 @@
     }
 
     function openKeypad(targetInput, options={}){
-      state.modalState.keypadTarget=targetInput;
-      state.modalState.keypadOptions=options;
+      window.state.modalState.keypadTarget=targetInput;
+      window.state.modalState.keypadOptions=options;
       const initial = options.prefill ? options.prefill : (targetInput?targetInput.value:'');
       const html=`<div class="bg-gray-800 rounded-lg p-2 w-full max-w-xs">
         <div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded mb-2 h-12">${initial}</div>
@@ -759,22 +763,22 @@
 
     // ====== SELECTORS & INPUTS ======
     function togglePlayerInHand(name){
-      const i=state.playersInHand.findIndex(p=>p.name===name);
+      const i=window.state.playersInHand.findIndex(p=>p.name===name);
       if(i>-1) {
         // 플레이어 제거
-        state.playersInHand.splice(i,1);
+        window.state.playersInHand.splice(i,1);
         console.log(`➖ ${name} 제거`);
       } else {
         // 플레이어 추가
-        const pool=state.playerDataByTable[state.selectedTable]||[];
+        const pool=window.state.playerDataByTable[window.state.selectedTable]||[];
         const pd=pool.find(p=>p.name===name);
         const chips=pd?pd.chips:'';
         const notable=pd?pd.notable:false;
-        const seat=pd?pd.seat:String(state.playersInHand.length + 1); // Type에서 seat 정보 가져오기
+        const seat=pd?pd.seat:String(window.state.playersInHand.length + 1); // Type에서 seat 정보 가져오기
         
         // 새 플레이어 추가 시 initialChips를 현재 칩으로 설정
         console.log(`➕ ${name} 추가: 시작칩 = 현재칩 = ${chips}, 좌석 = ${seat}`);
-        state.playersInHand.push({
+        window.state.playersInHand.push({
           name, 
           hand:[], 
           chips, 
@@ -791,7 +795,7 @@
       const finalPot = calculateFinalPot();
       
       // 기존 승자 찾기
-      const prevWinner = state.playersInHand.find(p => p.role === 'winner');
+      const prevWinner = window.state.playersInHand.find(p => p.role === 'winner');
       
       // 기존 승자가 있으면 팟 금액 차감
       if(prevWinner && prevWinner.name !== name) {
@@ -801,7 +805,7 @@
       }
       
       // 새 승자 설정
-      const p = state.playersInHand.find(pp => pp.name === name);
+      const p = window.state.playersInHand.find(pp => pp.name === name);
       if(!p) return;
       
       if(p.role === 'winner') {
@@ -816,7 +820,7 @@
         p.role = 'winner';
         
         // 다른 모든 플레이어의 role 해제
-        state.playersInHand.forEach(player => {
+        window.state.playersInHand.forEach(player => {
           if(player.name !== name) player.role = null;
         });
       }
@@ -829,39 +833,39 @@
       renderActionStreets(); // 액션 로그에도 승자 하이라이트 업데이트
     }
     function assignCard(cards){
-      const {target,player,index,count} = state.modalState.cardTarget;
+      const {target,player,index,count} = window.state.modalState.cardTarget;
       if(target==='board'){
         if(!cards || cards.length === 0) {
           // 카드 제거
           if(count === 3) { // flop
-            state.board[0] = null;
-            state.board[1] = null;
-            state.board[2] = null;
+            window.state.board[0] = null;
+            window.state.board[1] = null;
+            window.state.board[2] = null;
           } else if(index === 3) { // turn
-            state.board[3] = null;
+            window.state.board[3] = null;
           } else if(index === 4) { // river
-            state.board[4] = null;
+            window.state.board[4] = null;
           }
         } else {
           // 보드 배열이 충분한 크기인지 확인
-          while(state.board.length <= Math.max(index + count - 1, 4)) {
-            state.board.push(null);
+          while(window.state.board.length <= Math.max(index + count - 1, 4)) {
+            window.state.board.push(null);
           }
           
           // 카드 할당 (기존 카드 유지하면서 새 카드만 업데이트)
           if(count === 3) { // flop: 인덱스 0,1,2
-            state.board[0] = cards[0] || null;
-            state.board[1] = cards[1] || null;
-            state.board[2] = cards[2] || null;
+            window.state.board[0] = cards[0] || null;
+            window.state.board[1] = cards[1] || null;
+            window.state.board[2] = cards[2] || null;
           } else {
             // turn(index=3) 또는 river(index=4): 해당 인덱스만 업데이트
-            state.board[index] = cards[0] || null;
+            window.state.board[index] = cards[0] || null;
           }
         }
         renderBoard();
       }
       else{
-        const p=state.playersInHand.find(pp=>pp.name===player);
+        const p=window.state.playersInHand.find(pp=>pp.name===player);
         if(p){ 
           p.hand = cards || []; // null이면 빈 배열로
           renderPlayerDetails();
@@ -870,17 +874,17 @@
       closeModal(el.cardSelectorModal);
     }
     function addActionToLog(action, amount=null){
-      const { actionPadStreet, actionPadPlayer } = state.modalState;
+      const { actionPadStreet, actionPadPlayer } = window.state.modalState;
       
       // 플레이어 상태 업데이트
       if (action === 'Folds') {
-        state.playerStatus[actionPadPlayer] = 'folded';
+        window.state.playerStatus[actionPadPlayer] = 'folded';
       } else if (action === 'All In') {
-        state.playerStatus[actionPadPlayer] = 'allin';
+        window.state.playerStatus[actionPadPlayer] = 'allin';
       }
       
       if (amount){
-        const p = state.playersInHand.find(pp => pp.name === actionPadPlayer);
+        const p = window.state.playersInHand.find(pp => pp.name === actionPadPlayer);
         if (p){
           const cur = parseInt(unformatNumber(p.chips) || 0, 10);
           const amountToDeduct = parseInt(unformatNumber(amount), 10);
@@ -896,7 +900,7 @@
           p.chipsUpdatedAt = new Date().toISOString(); // ★ 프로그램적 변경도 타임스탬프 기록
         }
       }
-      state.actionState[actionPadStreet].push({
+      window.state.actionState[actionPadStreet].push({
         player: actionPadPlayer,
         action,
         amount,
@@ -911,21 +915,21 @@
     }
 
     function undoLastAction(street){
-      const last=state.actionState[street].pop();
+      const last=window.state.actionState[street].pop();
       if(last&&last.amount){
-        const p=state.playersInHand.find(pp=>pp.name===last.player);
+        const p=window.state.playersInHand.find(pp=>pp.name===last.player);
         if(p){ const cur=parseInt(unformatNumber(p.chips)||0,10); p.chips=(cur+parseInt(unformatNumber(last.amount),10)).toString(); }
       }
       saveActionState(); renderAll();
     }
 
     // ====== PERSIST (localStorage) ======
-    function saveActionState(){ localStorage.setItem('phl_v46_state', JSON.stringify(state.actionState)); }
-    function loadActionState(){ const s=localStorage.getItem('phl_v46_state'); if(s) state.actionState={...state.actionState, ...JSON.parse(s)}; }
+    function saveActionState(){ localStorage.setItem('phl_v46_state', JSON.stringify(window.state.actionState)); }
+    function loadActionState(){ const s=localStorage.getItem('phl_v46_state'); if(s) window.state.actionState={...window.state.actionState, ...JSON.parse(s)}; }
 
     // ====== SMART CHECK/CALL ======
     function getSmartCheckCallAction(player, street) {
-      const actions = state.actionState[street];
+      const actions = window.state.actionState[street];
       let lastBet = null;
       let requiredAmt = 0;
       
@@ -938,14 +942,14 @@
         }
       }
       
-      const p = state.playersInHand.find(pp => pp.name === player);
+      const p = window.state.playersInHand.find(pp => pp.name === player);
       const playerChips = p ? parseInt(unformatNumber(p.chips), 10) : 0;
       
       if(!lastBet) {
         // 현재 스트리트에 베팅 없음 → CHECK
         if(street === 'preflop') {
           // 프리플랍에서 베팅 없으면 빅블라인드 콜
-          requiredAmt = unformatNumber(state.actionState.bigBlind);
+          requiredAmt = unformatNumber(window.state.actionState.bigBlind);
           if(playerChips <= parseInt(requiredAmt, 10)) {
             return { action: 'All In', amount: p.chips, label: `All-in ${formatNumber(p.chips)}` };
           }
@@ -968,12 +972,12 @@
     
     // ====== STREET COMPLETE CHECK ======
     function checkStreetComplete(street) {
-      const actions = state.actionState[street];
-      const activePlayers = state.playersInHand.filter(p => 
-        state.playerStatus[p.name] !== 'folded'
+      const actions = window.state.actionState[street];
+      const activePlayers = window.state.playersInHand.filter(p => 
+        window.state.playerStatus[p.name] !== 'folded'
       );
       const bettingPlayers = activePlayers.filter(p =>
-        state.playerStatus[p.name] !== 'allin'
+        window.state.playerStatus[p.name] !== 'allin'
       );
       
       // 1. 핸드 종료 체크
@@ -1033,7 +1037,7 @@
       const contributions = {};
       
       ['preflop', 'flop', 'turn', 'river'].forEach(street => {
-        const actions = state.actionState[street] || [];
+        const actions = window.state.actionState[street] || [];
         
         actions.forEach(action => {
           if(action.amount && action.player && action.action !== 'Pot Correction') {
@@ -1058,7 +1062,7 @@
       
       // 모든 스트리트의 액션 합산
       ['preflop', 'flop', 'turn', 'river'].forEach(street => {
-        const actions = state.actionState[street] || [];
+        const actions = window.state.actionState[street] || [];
         
         // Pot Correction 확인
         const potCorrectionIdx = actions.findIndex(a => a.action === 'Pot Correction');
@@ -1095,10 +1099,10 @@
       
       // Pot Correction이 없는 경우 블라인드/앤티 추가
       if(!potCorrectionFound) {
-        totalPot += parseInt(unformatNumber(state.actionState.smallBlind) || 0, 10);
-        totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
-        if(state.actionState.hasBBAnte) {
-          totalPot += parseInt(unformatNumber(state.actionState.bigBlind) || 0, 10);
+        totalPot += parseInt(unformatNumber(window.state.actionState.smallBlind) || 0, 10);
+        totalPot += parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
+        if(window.state.actionState.hasBBAnte) {
+          totalPot += parseInt(unformatNumber(window.state.actionState.bigBlind) || 0, 10);
         }
       } else {
         // Pot Correction이 있으면 그 값이 기준
@@ -1122,8 +1126,8 @@
     // 언콜 베팅 계산
     function calculateUncalledBet() {
       const contributions = calculatePlayerContributions();
-      const activePlayers = state.playersInHand.filter(p => 
-        state.playerStatus[p.name] !== 'folded'
+      const activePlayers = window.state.playersInHand.filter(p => 
+        window.state.playerStatus[p.name] !== 'folded'
       );
       
       // 활성 플레이어가 1명일 때만 언콜 베팅 계산
@@ -1159,7 +1163,7 @@
       
       // 모든 스트리트 순회
       ['preflop','flop','turn','river'].forEach(st=> {
-        const actions = state.actionState[st];
+        const actions = window.state.actionState[st];
         
         // Pot Correction 찾기
         const correctionIdx = actions.findIndex(a => a.action === 'Pot Correction');
@@ -1192,10 +1196,10 @@
       
       // Pot Correction이 없으면 블라인드/앤티 추가
       if(!potCorrectionFound) {
-        pot += parseInt(unformatNumber(state.actionState.smallBlind)||0,10);
-        pot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
-        if(state.actionState.hasBBAnte) {
-          pot += parseInt(unformatNumber(state.actionState.bigBlind)||0,10);
+        pot += parseInt(unformatNumber(window.state.actionState.smallBlind)||0,10);
+        pot += parseInt(unformatNumber(window.state.actionState.bigBlind)||0,10);
+        if(window.state.actionState.hasBBAnte) {
+          pot += parseInt(unformatNumber(window.state.actionState.bigBlind)||0,10);
         }
       } else {
         // Pot Correction 값이 기준
@@ -1219,32 +1223,32 @@
       const header=rows[0];
       const A2=(rows[1]&&rows[1][0])?String(rows[1][0]).trim():'';
       const A3=(rows[2]&&rows[2][0])?String(rows[2][0]).trim():'';
-      state.camPreset.cam1=A2||'Cam1';
-      state.camPreset.cam2=A3||'Cam2';
+      window.state.camPreset.cam1=A2||'Cam1';
+      window.state.camPreset.cam2=A3||'Cam2';
       // localStorage에서 마지막 카메라 번호 읽어서 표시
       const lastCam1No = localStorage.getItem('pokerHandLogger_lastCam1');
       const lastCam2No = localStorage.getItem('pokerHandLogger_lastCam2');
       
       console.log(`🎞️ 카메라 버튼 초기화:`);
-      console.log(`  ${state.camPreset.cam1} 저장된 번호: ${lastCam1No || '없음'}`);
-      console.log(`  ${state.camPreset.cam2} 저장된 번호: ${lastCam2No || '없음'}`);
+      console.log(`  ${window.state.camPreset.cam1} 저장된 번호: ${lastCam1No || '없음'}`);
+      console.log(`  ${window.state.camPreset.cam2} 저장된 번호: ${lastCam2No || '없음'}`);
       
       if(lastCam1No) {
         const nextNo = parseInt(lastCam1No, 10) + 1;
-        el.cam1.textContent = `${state.camPreset.cam1}${pad4(nextNo)}`;
-        console.log(`  → ${state.camPreset.cam1} 표시: ${pad4(nextNo)}`);
+        el.cam1.textContent = `${window.state.camPreset.cam1}${pad4(nextNo)}`;
+        console.log(`  → ${window.state.camPreset.cam1} 표시: ${pad4(nextNo)}`);
       } else {
-        el.cam1.textContent = `${state.camPreset.cam1}0001`;
-        console.log(`  → ${state.camPreset.cam1} 표시: 0001 (초기값)`);
+        el.cam1.textContent = `${window.state.camPreset.cam1}0001`;
+        console.log(`  → ${window.state.camPreset.cam1} 표시: 0001 (초기값)`);
       }
       
       if(lastCam2No) {
         const nextNo = parseInt(lastCam2No, 10) + 1;
-        el.cam2.textContent = `${state.camPreset.cam2}${pad4(nextNo)}`;
-        console.log(`  → ${state.camPreset.cam2} 표시: ${pad4(nextNo)}`);
+        el.cam2.textContent = `${window.state.camPreset.cam2}${pad4(nextNo)}`;
+        console.log(`  → ${window.state.camPreset.cam2} 표시: ${pad4(nextNo)}`);
       } else {
-        el.cam2.textContent = `${state.camPreset.cam2}0001`;
-        console.log(`  → ${state.camPreset.cam2} 표시: 0001 (초기값)`);
+        el.cam2.textContent = `${window.state.camPreset.cam2}0001`;
+        console.log(`  → ${window.state.camPreset.cam2} 표시: 0001 (초기값)`);
       }
 
       const byTable={};
@@ -1271,8 +1275,8 @@
           }
         }
       }
-      state.playerDataByTable=byTable;
-      state.allTables=Object.keys(byTable).sort();
+      window.state.playerDataByTable=byTable;
+      window.state.allTables=Object.keys(byTable).sort();
     }
 
     function buildIndexFromCsv(rows){
@@ -1289,10 +1293,10 @@
         };
         if(item.handNumber) out.push(item);
       }
-      state.indexRows=out;
+      window.state.indexRows=out;
       // 최신 우선 정렬
       out.sort((a,b)=> a.handUpdatedAt<b.handUpdatedAt?1:-1);
-      state.allHandNumbers = [...new Set(out.map(x=>x.handNumber))];
+      window.state.allHandNumbers = [...new Set(out.map(x=>x.handNumber))];
     }
 
     // 파싱: Hand CSV → 특정 handNumber의 "가장 최근 updatedAt" 블록
@@ -1313,12 +1317,12 @@
       // Index에서 최신 updatedAt 기준 블록 범위 찾기
       let updatedAt=preferDate||null;
       if(!updatedAt){
-        const candidates=state.indexRows.filter(x=>x.handNumber===String(handNumber));
+        const candidates=window.state.indexRows.filter(x=>x.handNumber===String(handNumber));
         candidates.sort((a,b)=> a.handUpdatedAt<b.handUpdatedAt?1:-1);
         updatedAt=candidates[0]?.handUpdatedAt||null;
       }
       let startRowIdx=-1, endRowIdx=-1;
-      const idxRow=state.indexRows.find(x=>x.handNumber===String(handNumber) && x.handUpdatedAt===updatedAt);
+      const idxRow=window.state.indexRows.find(x=>x.handNumber===String(handNumber) && x.handUpdatedAt===updatedAt);
       if(idxRow){ startRowIdx=idxRow.startRow-1; endRowIdx=idxRow.endRow-1; }
       else{
         const last=starts[starts.length-1].r;
@@ -1425,18 +1429,18 @@
         ]);
         if(typeRows.length) buildTypeFromCsv(typeRows);
         if(idxRows.length) buildIndexFromCsv(idxRows);
-        state.actionState.handNumber = (state.allHandNumbers.length>0? Math.max(...state.allHandNumbers.map(n=>parseInt(n,10)||0)) + 1 : 1).toString();
-        el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
-        el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
+        window.state.actionState.handNumber = (window.state.allHandNumbers.length>0? Math.max(...window.state.allHandNumbers.map(n=>parseInt(n,10)||0)) + 1 : 1).toString();
+        el.handNumberDisplay.textContent = `#${window.state.actionState.handNumber}`;
+        el.dataStamp.textContent = `IDX rows: ${window.state.indexRows.length}`;
         
         // Index에서 마지막 카메라 번호 찾기 및 localStorage 동기화
         logMessage('📷 카메라 번호 데이터 분석 시작...');
         
-        if(state.indexRows.length > 0) {
-          logMessage(`📊 총 ${state.indexRows.length}개의 핸드 데이터 검색 중...`);
+        if(window.state.indexRows.length > 0) {
+          logMessage(`📊 총 ${window.state.indexRows.length}개의 핸드 데이터 검색 중...`);
           
           // 가장 최근 핸드 찾기 (핸드 번호 기준 내림차순)
-          const sortedRows = state.indexRows.slice().sort((a,b) => {
+          const sortedRows = window.state.indexRows.slice().sort((a,b) => {
             const numA = parseInt(a.handNumber, 10) || 0;
             const numB = parseInt(b.handNumber, 10) || 0;
             return numB - numA;
@@ -1466,16 +1470,16 @@
           
           if(maxCam1 > 0) {
             localStorage.setItem('pokerHandLogger_lastCam1', String(maxCam1));
-            logMessage(`✅ ${state.camPreset.cam1} 마지막 번호: ${maxCam1} → 다음 번호: ${pad4(maxCam1 + 1)}`);
+            logMessage(`✅ ${window.state.camPreset.cam1} 마지막 번호: ${maxCam1} → 다음 번호: ${pad4(maxCam1 + 1)}`);
           } else {
-            logMessage(`⚠️ ${state.camPreset.cam1} 번호 데이터 없음 → 0001부터 시작`);
+            logMessage(`⚠️ ${window.state.camPreset.cam1} 번호 데이터 없음 → 0001부터 시작`);
           }
           
           if(maxCam2 > 0) {
             localStorage.setItem('pokerHandLogger_lastCam2', String(maxCam2));
-            logMessage(`✅ ${state.camPreset.cam2} 마지막 번호: ${maxCam2} → 다음 번호: ${pad4(maxCam2 + 1)}`);
+            logMessage(`✅ ${window.state.camPreset.cam2} 마지막 번호: ${maxCam2} → 다음 번호: ${pad4(maxCam2 + 1)}`);
           } else {
-            logMessage(`⚠️ ${state.camPreset.cam2} 번호 데이터 없음 → 0001부터 시작`);
+            logMessage(`⚠️ ${window.state.camPreset.cam2} 번호 데이터 없음 → 0001부터 시작`);
           }
         } else {
           logMessage('⚠️ Index 데이터가 비어있음 → 카메라 번호 0001부터 시작');
@@ -1493,16 +1497,16 @@
     // ====== LOAD HAND MODAL ======
     function openLoadHandModal(){
       console.log('📂 Load Hand 모달 열기 시도...');
-      console.log('📋 Index 행 개수:', state.indexRows.length);
+      console.log('📋 Index 행 개수:', window.state.indexRows.length);
       
-      if(!state.indexRows.length){
+      if(!window.state.indexRows.length){
         console.error('❌ Index 데이터 없음');
         showFeedback('Index 데이터가 없습니다. CSV 게시와 URL을 확인하세요.', true);
         return;
       }
       
       // 핸드 번호 기준 내림차순 정렬 (최신 핸드가 위로)
-      const items = state.indexRows.slice().sort((a,b)=> {
+      const items = window.state.indexRows.slice().sort((a,b)=> {
         const numA = parseInt(a.handNumber, 10) || 0;
         const numB = parseInt(b.handNumber, 10) || 0;
         return numB - numA; // 내림차순
@@ -1559,10 +1563,10 @@
       // onclick 대신 별도의 이벤트 리스너 사용
     }
     async function ensureHandCsv(){
-      if(state.handCsvCache) return state.handCsvCache;
+      if(window.state.handCsvCache) return window.state.handCsvCache;
       logMessage('Hand CSV 다운로드 중...');
       const rows = await fetchCsv(CSV_HAND_URL + `&cb=${Date.now()}`);
-      state.handCsvCache = rows;
+      window.state.handCsvCache = rows;
       logMessage(`Hand CSV 로드 완료 (rows=${rows.length})`);
       return rows;
     }
@@ -1583,12 +1587,12 @@
         }
 
         // 상태 초기화
-        state.playersInHand=[];
-        state.board = data.board||[];
-        state.playerStatus = {}; // 플레이어 상태 초기화 추가
+        window.state.playersInHand=[];
+        window.state.board = data.board||[];
+        window.state.playerStatus = {}; // 플레이어 상태 초기화 추가
         
-        state.actionState = {
-          ...state.actionState,
+        window.state.actionState = {
+          ...window.state.actionState,
           handNumber: String(handNumber),
           smallBlind: data.smallBlind || '',
           bigBlind: data.bigBlind || '',
@@ -1598,10 +1602,10 @@
           turn: data.actions?.turn||[],
           river: data.actions?.river||[],
         };
-        state.selectedTable = data.table || '';
-        el.tableSelector.value = state.selectedTable;
+        window.state.selectedTable = data.table || '';
+        el.tableSelector.value = window.state.selectedTable;
 
-        state.playersInHand = (data.players||[]).map(p=>({
+        window.state.playersInHand = (data.players||[]).map(p=>({
           name:p.name, hand:p.hand||[], chips:p.finalChips, initialChips:p.initialChips, role:p.role||null
         }));
         
@@ -1609,20 +1613,20 @@
         ['preflop', 'flop', 'turn', 'river'].forEach(street => {
           (data.actions?.[street] || []).forEach(action => {
             if(action.player && action.action === 'Folds') {
-              state.playerStatus[action.player] = 'folded';
+              window.state.playerStatus[action.player] = 'folded';
             } else if(action.player && action.action === 'All In') {
-              state.playerStatus[action.player] = 'allin';
+              window.state.playerStatus[action.player] = 'allin';
             }
           });
         });
 
         el.handNumberDisplay.textContent = `#${handNumber}`;
-        el.smallBlindInput.value = formatNumber(state.actionState.smallBlind);
-        el.bigBlindInput.value = formatNumber(state.actionState.bigBlind);
-        el.bbAnteCheckbox.checked = state.actionState.hasBBAnte;
+        el.smallBlindInput.value = formatNumber(window.state.actionState.smallBlind);
+        el.bigBlindInput.value = formatNumber(window.state.actionState.bigBlind);
+        el.bbAnteCheckbox.checked = window.state.actionState.hasBBAnte;
 
         // currentStreet 결정: Index에서 저장된 값 우선, 없으면 액션으로 판단
-        const indexRow = state.indexRows.find(r => r.handNumber === String(handNumber));
+        const indexRow = window.state.indexRows.find(r => r.handNumber === String(handNumber));
         console.log(`🔍 핸드 #${handNumber} 로드 중...`);
         console.log('📋 Index 행 데이터:', indexRow);
         
@@ -1635,12 +1639,12 @@
             
             // 카메라1 정보 업데이트
             if(indexRow.cam1) {
-              state.camPreset.cam1 = indexRow.cam1;
+              window.state.camPreset.cam1 = indexRow.cam1;
               console.log(`📷 카메라1 프리셋 업데이트: ${indexRow.cam1}`);
             }
             if(indexRow.cam1no) {
-              state.camNumbers.cam1no = indexRow.cam1no;
-              el.cam1.textContent = state.camPreset.cam1 + pad4(indexRow.cam1no);
+              window.state.camNumbers.cam1no = indexRow.cam1no;
+              el.cam1.textContent = window.state.camPreset.cam1 + pad4(indexRow.cam1no);
             }
           }
           
@@ -1651,21 +1655,21 @@
             
             // 카메라2 정보 업데이트
             if(indexRow.cam2) {
-              state.camPreset.cam2 = indexRow.cam2;
+              window.state.camPreset.cam2 = indexRow.cam2;
               console.log(`📷 카메라2 프리셋 업데이트: ${indexRow.cam2}`);
             }
             if(indexRow.cam2no) {
-              state.camNumbers.cam2no = indexRow.cam2no;
-              el.cam2.textContent = state.camPreset.cam2 + pad4(indexRow.cam2no);
+              window.state.camNumbers.cam2no = indexRow.cam2no;
+              el.cam2.textContent = window.state.camPreset.cam2 + pad4(indexRow.cam2no);
             }
           }
           
           console.log('📊 로드 후 카메라 상태:');
-          console.log(`   - cam1: ${state.camPreset.cam1}${pad4(state.camNumbers.cam1no || '0')}`);
-          console.log(`   - cam2: ${state.camPreset.cam2}${pad4(state.camNumbers.cam2no || '0')}`);
+          console.log(`   - cam1: ${window.state.camPreset.cam1}${pad4(window.state.camNumbers.cam1no || '0')}`);
+          console.log(`   - cam2: ${window.state.camPreset.cam2}${pad4(window.state.camNumbers.cam2no || '0')}`);
           
           if(indexRow.lastStreet) {
-            state.currentStreet = indexRow.lastStreet;
+            window.state.currentStreet = indexRow.lastStreet;
           }
           
           // 작업 상태 표시
@@ -1679,14 +1683,14 @@
           }
         } else {
           // 기존 로직: 액션으로 판단
-          if(state.actionState.river.length > 0) {
-            state.currentStreet = 'river';
-          } else if(state.actionState.turn.length > 0) {
-            state.currentStreet = 'turn';
-          } else if(state.actionState.flop.length > 0) {
-            state.currentStreet = 'flop';
+          if(window.state.actionState.river.length > 0) {
+            window.state.currentStreet = 'river';
+          } else if(window.state.actionState.turn.length > 0) {
+            window.state.currentStreet = 'turn';
+          } else if(window.state.actionState.flop.length > 0) {
+            window.state.currentStreet = 'flop';
           } else {
-            state.currentStreet = 'preflop';
+            window.state.currentStreet = 'preflop';
           }
         }
 
@@ -1716,10 +1720,10 @@
       const push=(arr)=>{ const a=[no, ...arr]; while(a.length<18) a.push(''); out.push(a); no++; };
 
       const epochSec = Math.floor(Date.now()/1000);
-      const sb = unformatNumber(state.actionState.smallBlind)||'0';
-      const bb = unformatNumber(state.actionState.bigBlind)||'0';
-      const ante = state.actionState.hasBBAnte ? bb : '0';
-      const table = state.selectedTable || '';
+      const sb = unformatNumber(window.state.actionState.smallBlind)||'0';
+      const bb = unformatNumber(window.state.actionState.bigBlind)||'0';
+      const ante = window.state.actionState.hasBBAnte ? bb : '0';
+      const table = window.state.selectedTable || '';
       const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
 
       // GAME / PAYOUTS - E열(인덱스 4)에 날짜 추가
@@ -1728,14 +1732,14 @@
       push(['PAYOUTS']);
 
       // HAND: C no, D code, G ante, I SB, J BB, R table
-      const handDate = formatISODateInTZ(new Date(), state.selectedTimezone); // yyyy-MM-dd
+      const handDate = formatISODateInTZ(new Date(), window.state.selectedTimezone); // yyyy-MM-dd
       
       // HAND: C no, D code, G ante, I SB, J BB, R table
       push(['HAND',
-        String(state.actionState.handNumber),
+        String(window.state.actionState.handNumber),
         epochSec,
         'HOLDEM',
-        state.actionState.hasBBAnte ? 'BB_ANTE':'NO_ANTE',
+        window.state.actionState.hasBBAnte ? 'BB_ANTE':'NO_ANTE',
         ante,
         handDate, // ★ 여기(H) 칸에 날짜를 넣도록 약속 (Apps Script도 이 칸은 날짜로 쓰게)
         sb,       // I
@@ -1745,7 +1749,7 @@
       ]);
 
       // PLAYERS
-      const players = state.playersInHand.map((p,i)=>({
+      const players = window.state.playersInHand.map((p,i)=>({
         ...p, 
         seat: p.seat || (i+1)  // Type에서 가져온 seat 정보가 있으면 사용, 없으면 인덱스+1
       }));
@@ -1827,13 +1831,13 @@
         if(t==='BET/RAISES') t='RAISE TO';
         push(['EVENT', t, seat, amt, '' ]);
       };
-      state.actionState.preflop.forEach(addEv);
-      if(state.board.length>=3){ push(['EVENT','BOARD',1,state.board[0],'' ]); push(['EVENT','BOARD',1,state.board[1],'' ]); push(['EVENT','BOARD',1,state.board[2],'' ]); }
-      state.actionState.flop.forEach(addEv);
-      if(state.board.length>=4){ push(['EVENT','BOARD',1,state.board[3],'' ]); }
-      state.actionState.turn.forEach(addEv);
-      if(state.board.length>=5){ push(['EVENT','BOARD',1,state.board[4],'' ]); }
-      state.actionState.river.forEach(addEv);
+      window.state.actionState.preflop.forEach(addEv);
+      if(window.state.board.length>=3){ push(['EVENT','BOARD',1,window.state.board[0],'' ]); push(['EVENT','BOARD',1,window.state.board[1],'' ]); push(['EVENT','BOARD',1,window.state.board[2],'' ]); }
+      window.state.actionState.flop.forEach(addEv);
+      if(window.state.board.length>=4){ push(['EVENT','BOARD',1,window.state.board[3],'' ]); }
+      window.state.actionState.turn.forEach(addEv);
+      if(window.state.board.length>=5){ push(['EVENT','BOARD',1,window.state.board[4],'' ]); }
+      window.state.actionState.river.forEach(addEv);
 
       // 마지막 번호행(선택)
       out.push([no]); 
@@ -1846,7 +1850,7 @@ async function sendDataToGoogleSheet(){
   if (isSending) return;     // 중복 전송 가드
   isSending = true;
 
-  if (state.playersInHand.filter(p=>p.role==='winner').length===0){
+  if (window.state.playersInHand.filter(p=>p.role==='winner').length===0){
     showFeedback('승자를 선택해야 합니다.', true);
     isSending = false;
     return;
@@ -1885,9 +1889,9 @@ async function sendDataToGoogleSheet(){
       logMessage(`⚠️ 핸드 #${json.handNumber}는 이미 기록되어 있습니다.`);
       showFeedback('⚠️ 중복된 핸드입니다', true);
       // 중복인 경우에도 핸드 번호를 증가시켜야 함
-      const currentNo = parseInt(state.actionState.handNumber, 10) || 0;
-      state.actionState.handNumber = String(currentNo + 1);
-      el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
+      const currentNo = parseInt(window.state.actionState.handNumber, 10) || 0;
+      window.state.actionState.handNumber = String(currentNo + 1);
+      el.handNumberDisplay.textContent = `#${window.state.actionState.handNumber}`;
       
       // 중복이어도 시트에는 기록됐으므로 새 핸드로 재설정
       await resetApp();
@@ -1912,7 +1916,7 @@ async function sendDataToGoogleSheet(){
         if(CSV_INDEX_URL.includes('http')){
           const idxRows = await fetchCsv(CSV_INDEX_URL + `&cb=${Date.now()}`);
           buildIndexFromCsv(idxRows);
-          el.dataStamp.textContent = `IDX rows: ${state.indexRows.length}`;
+          el.dataStamp.textContent = `IDX rows: ${window.state.indexRows.length}`;
         }
       }catch(_){ /* noop */ }
       
@@ -1942,20 +1946,20 @@ async function sendDataToGoogleSheet(){
       return new Date().toISOString();
     }
     function buildIndexMeta(){
-      const handNumber = String(state.actionState.handNumber);
+      const handNumber = String(window.state.actionState.handNumber);
       const handUpdatedAt = new Date().toISOString().split('T')[0]; // YYYY-MM-DD 형식
-      const table = state.selectedTable || '';
+      const table = window.state.selectedTable || '';
       
       // 카메라 정보 로깅
       console.log('📦 Index 메타데이터 빌드:');
-      console.log(`  cam1: ${state.camPreset.cam1} / 번호: ${state.camNumbers.cam1no}`);
-      console.log(`  cam2: ${state.camPreset.cam2} / 번호: ${state.camNumbers.cam2no}`);
+      console.log(`  cam1: ${window.state.camPreset.cam1} / 번호: ${window.state.camNumbers.cam1no}`);
+      console.log(`  cam2: ${window.state.camPreset.cam2} / 번호: ${window.state.camNumbers.cam2no}`);
       
       // 마지막 액션 찾기
       let lastActionDesc = '';
       const streets = ['river', 'turn', 'flop', 'preflop'];
       for(const st of streets) {
-        const actions = state.actionState[st];
+        const actions = window.state.actionState[st];
         if(actions.length > 0) {
           const last = actions[actions.length - 1];
           lastActionDesc = `${last.player} ${last.action} ${last.amount || ''}`.trim();
@@ -1966,11 +1970,11 @@ async function sendDataToGoogleSheet(){
       // 작업 상태 판단
       function determineWorkStatus() {
         // 승자가 선택되었으면 '완료'
-        if(state.playersInHand.some(p => p.role === 'winner')) {
+        if(window.state.playersInHand.some(p => p.role === 'winner')) {
           return '완료';
         }
         // 리버까지 갔으면 '검토필요'
-        if(state.currentStreet === 'river' && state.actionState.river.length > 0) {
+        if(window.state.currentStreet === 'river' && window.state.actionState.river.length > 0) {
           return '검토필요';
         }
         return '진행중';
@@ -1986,12 +1990,12 @@ async function sendDataToGoogleSheet(){
         label: 'HOLDEM',                                      // G열
         table,                                                 // H열
         tableUpdatedAt: handUpdatedAt,                        // I열 (YYYY-MM-DD)
-        cam: `${state.camPreset.cam1 || ''}+${state.camPreset.cam2 || ''}`, // J열
-        camFile01name: state.camPreset.cam1 || '',            // K열
+        cam: `${window.state.camPreset.cam1 || ''}+${window.state.camPreset.cam2 || ''}`, // J열
+        camFile01name: window.state.camPreset.cam1 || '',            // K열
         camFile01number: getCamNumber('cam1'), // L열 - 자동 계산된 번호
-        camFile02name: state.camPreset.cam2 || '',            // M열
+        camFile02name: window.state.camPreset.cam2 || '',            // M열
         camFile02number: getCamNumber('cam2'), // N열 - 자동 계산된 번호
-        lastStreet: state.currentStreet,                      // O열
+        lastStreet: window.state.currentStreet,                      // O열
         lastAction: lastActionDesc,                           // P열
         workStatus: determineWorkStatus()                     // Q열
       };
@@ -1999,8 +2003,8 @@ async function sendDataToGoogleSheet(){
 
     function buildTypeUpdates(){
       // 이번 핸드 동안 칩이 수정된 플레이어만 추려서 Type에 updatedAt 기록
-      const table = state.selectedTable || '';
-      return state.playersInHand
+      const table = window.state.selectedTable || '';
+      return window.state.playersInHand
         .filter(p => p.chipsUpdatedAt) // 수정된 케이스만
         .map((p, index) => ({
           player: p.name,
@@ -2017,21 +2021,21 @@ async function sendDataToGoogleSheet(){
     // ====== CAM PREFILL ======
     function computeCamPrefill(which){
       // 1) 자신의 값 있으면 그걸 표시
-      if (which==='cam1' && state.camNumbers.cam1no) return pad4(state.camNumbers.cam1no);
-      if (which==='cam2' && state.camNumbers.cam2no) return pad4(state.camNumbers.cam2no);
+      if (which==='cam1' && window.state.camNumbers.cam1no) return pad4(window.state.camNumbers.cam1no);
+      if (which==='cam2' && window.state.camNumbers.cam2no) return pad4(window.state.camNumbers.cam2no);
 
       // 2) 짝의 값 기반 자동 증가
-      if (which==='cam2' && state.camNumbers.cam1no){
-        return pad4((parseInt(state.camNumbers.cam1no,10)||0)+1);
+      if (which==='cam2' && window.state.camNumbers.cam1no){
+        return pad4((parseInt(window.state.camNumbers.cam1no,10)||0)+1);
       }
-      if (which==='cam1' && state.camNumbers.cam2no){
-        const v = (parseInt(state.camNumbers.cam2no,10)||0)-1;
+      if (which==='cam1' && window.state.camNumbers.cam2no){
+        const v = (parseInt(window.state.camNumbers.cam2no,10)||0)-1;
         return pad4(v<0?0:v);
       }
 
       // 3) 마지막 입력(세션 기준) +1
-      if (state.lastCamNo!=null){
-        return pad4((parseInt(state.lastCamNo,10)||0)+1);
+      if (window.state.lastCamNo!=null){
+        return pad4((parseInt(window.state.lastCamNo,10)||0)+1);
       }
 
       // 4) 기본값
@@ -2041,21 +2045,21 @@ async function sendDataToGoogleSheet(){
     // 카메라 번호만 반환하는 함수 (패딩 없이)
     function getCamNumber(which) {
       // 1) 자신의 값 있으면 그걸 반환
-      if (which === 'cam1' && state.camNumbers.cam1no) return state.camNumbers.cam1no;
-      if (which === 'cam2' && state.camNumbers.cam2no) return state.camNumbers.cam2no;
+      if (which === 'cam1' && window.state.camNumbers.cam1no) return window.state.camNumbers.cam1no;
+      if (which === 'cam2' && window.state.camNumbers.cam2no) return window.state.camNumbers.cam2no;
 
       // 2) 짝의 값 기반 자동 증가
-      if (which === 'cam2' && state.camNumbers.cam1no) {
-        return String((parseInt(state.camNumbers.cam1no, 10) || 0) + 1);
+      if (which === 'cam2' && window.state.camNumbers.cam1no) {
+        return String((parseInt(window.state.camNumbers.cam1no, 10) || 0) + 1);
       }
-      if (which === 'cam1' && state.camNumbers.cam2no) {
-        const v = (parseInt(state.camNumbers.cam2no, 10) || 0) - 1;
+      if (which === 'cam1' && window.state.camNumbers.cam2no) {
+        const v = (parseInt(window.state.camNumbers.cam2no, 10) || 0) - 1;
         return String(v < 1 ? 1 : v);
       }
 
       // 3) 마지막 입력(세션 기준) +1
-      if (state.lastCamNo != null) {
-        return String((parseInt(state.lastCamNo, 10) || 0) + 1);
+      if (window.state.lastCamNo != null) {
+        return String((parseInt(window.state.lastCamNo, 10) || 0) + 1);
       }
 
       // 4) 기본값
@@ -2069,7 +2073,7 @@ async function sendDataToGoogleSheet(){
       
       // 각 스트리트별 플레이어 기여액 계산
       ['preflop', 'flop', 'turn', 'river'].forEach(street => {
-        state.actionState[street].forEach(action => {
+        window.state.actionState[street].forEach(action => {
           if(action.amount && action.player) {
             contributions[action.player] = (contributions[action.player] || 0) + 
                                           parseInt(unformatNumber(action.amount), 10);
@@ -2078,13 +2082,13 @@ async function sendDataToGoogleSheet(){
       });
       
       // 올인 플레이어 정렬 (금액 오름차순)
-      const allInPlayers = state.playersInHand
-        .filter(p => state.playerStatus[p.name] === 'allin')
+      const allInPlayers = window.state.playersInHand
+        .filter(p => window.state.playerStatus[p.name] === 'allin')
         .map(p => ({ name: p.name, amount: contributions[p.name] || 0 }))
         .sort((a, b) => a.amount - b.amount);
       
-      const activePlayers = state.playersInHand
-        .filter(p => state.playerStatus[p.name] !== 'folded')
+      const activePlayers = window.state.playersInHand
+        .filter(p => window.state.playerStatus[p.name] !== 'folded')
         .map(p => p.name);
       
       const pots = [];
@@ -2134,7 +2138,7 @@ async function sendDataToGoogleSheet(){
       
       if(autoIncrement) {
         // 시트 전송 직후: 현재 핸드 번호를 그대로 사용 (이미 전송된 번호)
-        lastNo = parseInt(state.actionState.handNumber, 10) || 0;
+        lastNo = parseInt(window.state.actionState.handNumber, 10) || 0;
         console.log('🔄 시트 전송 완료 - 다음 핸드로 자동 증가:', lastNo, '→', lastNo + 1);
       } else if(reloadIndex) {
         // 새로고침이나 수동 재설정: Index를 다시 로드하여 최신 핸드 번호 가져오기
@@ -2147,26 +2151,26 @@ async function sendDataToGoogleSheet(){
           console.error('Index 재로드 실패:', err);
         }
         
-        lastNo = state.indexRows.length
-          ? Math.max(...state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
+        lastNo = window.state.indexRows.length
+          ? Math.max(...window.state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
           : 0;
         console.log('🔄 Index 재로드 - 마지막 핸드:', lastNo, '→ 다음:', lastNo + 1);
       } else {
         // Index 재로드 없이 현재 상태 유지
-        lastNo = state.indexRows.length
-          ? Math.max(...state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
+        lastNo = window.state.indexRows.length
+          ? Math.max(...window.state.indexRows.map(r=>parseInt(r.handNumber,10)||0))
           : 0;
       }
       
       // 마지막 카메라 번호 저장 및 다음 번호 준비
-      const lastCam1 = state.camNumbers.cam1no;
-      const lastCam2 = state.camNumbers.cam2no;
+      const lastCam1 = window.state.camNumbers.cam1no;
+      const lastCam2 = window.state.camNumbers.cam2no;
       
       // 플레이어 유지하면서 새 핸드 시작
       console.log('🔄 새 핸드 시작 - 플레이어 초기화');
       
       // 기존 플레이어들의 현재 칩을 다음 핸드의 시작칩으로 설정
-      state.playersInHand.forEach(p => {
+      window.state.playersInHand.forEach(p => {
         // 현재 칩을 시작칩으로 재설정
         p.initialChips = p.chips;
         p.hand = [];  // 핸드 카드 초기화
@@ -2174,14 +2178,14 @@ async function sendDataToGoogleSheet(){
         console.log(`  ${p.name}: 시작칩 = ${p.initialChips} (현재칩 유지)`);
       });
       
-      state.board = [];
-      state.playerStatus = {}; // 플레이어 상태 초기화
-      state.currentStreet = 'preflop'; // 스트리트 초기화
-      state.actionState = {
+      window.state.board = [];
+      window.state.playerStatus = {}; // 플레이어 상태 초기화
+      window.state.currentStreet = 'preflop'; // 스트리트 초기화
+      window.state.actionState = {
         handNumber: String(lastNo + 1),
-        smallBlind: state.actionState.smallBlind,
-        bigBlind: state.actionState.bigBlind,
-        hasBBAnte: state.actionState.hasBBAnte,
+        smallBlind: window.state.actionState.smallBlind,
+        bigBlind: window.state.actionState.bigBlind,
+        hasBBAnte: window.state.actionState.hasBBAnte,
         preflop: [], flop: [], turn: [], river: [],
       };
       
@@ -2200,24 +2204,24 @@ async function sendDataToGoogleSheet(){
       const cam1Base = savedCam1 || lastCam1 || '0';
       const currentNum1 = parseInt(cam1Base, 10) || 0;
       const nextCam1 = currentNum1 > 0 ? currentNum1 + 1 : 1;
-      state.camNumbers.cam1no = String(nextCam1);
-      state.lastCamNo = String(nextCam1);
-      el.cam1.textContent = `${state.camPreset.cam1}${pad4(nextCam1)}`;
+      window.state.camNumbers.cam1no = String(nextCam1);
+      window.state.lastCamNo = String(nextCam1);
+      el.cam1.textContent = `${window.state.camPreset.cam1}${pad4(nextCam1)}`;
       localStorage.setItem('pokerHandLogger_lastCam1', String(nextCam1));
-      console.log(`  → ${state.camPreset.cam1} 다음 번호: ${nextCam1}`);
+      console.log(`  → ${window.state.camPreset.cam1} 다음 번호: ${nextCam1}`);
       
       // cam2 처리: 저장된 번호 또는 현재 번호에서 +1
       const cam2Base = savedCam2 || lastCam2 || '0';
       const currentNum2 = parseInt(cam2Base, 10) || 0;
       const nextCam2 = currentNum2 > 0 ? currentNum2 + 1 : 1;
-      state.camNumbers.cam2no = String(nextCam2);
-      state.lastCamNo = String(nextCam2);
-      el.cam2.textContent = `${state.camPreset.cam2}${pad4(nextCam2)}`;
+      window.state.camNumbers.cam2no = String(nextCam2);
+      window.state.lastCamNo = String(nextCam2);
+      el.cam2.textContent = `${window.state.camPreset.cam2}${pad4(nextCam2)}`;
       localStorage.setItem('pokerHandLogger_lastCam2', String(nextCam2));
-      console.log(`  → ${state.camPreset.cam2} 다음 번호: ${nextCam2}`);
+      console.log(`  → ${window.state.camPreset.cam2} 다음 번호: ${nextCam2}`);
       
       renderAll(); saveActionState();
-      el.handNumberDisplay.textContent = `#${state.actionState.handNumber}`;
+      el.handNumberDisplay.textContent = `#${window.state.actionState.handNumber}`;
     }
     function showFeedback(msg,isErr=false){
       el.feedbackMessage.textContent = msg;
@@ -2255,13 +2259,13 @@ async function sendDataToGoogleSheet(){
         }
       });
 
-      el.tableSelector.onchange = (e)=>{ state.selectedTable=e.target.value; state.playersInHand=[]; renderAll(); };
-      el.timezoneSelector.onchange = (e)=>{ state.selectedTimezone=e.target.value; updateTimeDisplay(); renderAll(); };
+      el.tableSelector.onchange = (e)=>{ window.state.selectedTable=e.target.value; window.state.playersInHand=[]; renderAll(); };
+      el.timezoneSelector.onchange = (e)=>{ window.state.selectedTimezone=e.target.value; updateTimeDisplay(); renderAll(); };
       
       // Smart Mode 토글
       document.getElementById('smart-mode-toggle').onchange = (e) => {
-        state.smartCheckCall = e.target.checked;
-        showFeedback(state.smartCheckCall ? 'Smart Mode 활성화' : 'Smart Mode 비활성화');
+        window.state.smartCheckCall = e.target.checked;
+        showFeedback(window.state.smartCheckCall ? 'Smart Mode 활성화' : 'Smart Mode 비활성화');
       };
 
       // 플레이어 선택/해제
@@ -2278,7 +2282,7 @@ async function sendDataToGoogleSheet(){
         const playerCard = e.target.closest('.player-card');
         if(!playerCard) return;
         if(cardPlaceholder){
-          state.modalState.cardTarget = { target:'playerHand', player:cardPlaceholder.dataset.playerName, count:parseInt(cardPlaceholder.dataset.count) };
+          window.state.modalState.cardTarget = { target:'playerHand', player:cardPlaceholder.dataset.playerName, count:parseInt(cardPlaceholder.dataset.count) };
           openCardSelector();
         }else if(keypadBtn){
           const input = playerCard.querySelector('.player-chip-input');
@@ -2296,7 +2300,7 @@ async function sendDataToGoogleSheet(){
       el.playerDetailsSection.addEventListener('input', (e)=>{
         if(!e.target.classList.contains('player-chip-input')) return;
         const parent = e.target.closest('.player-card');
-        const player = state.playersInHand.find(p=>p.name===parent.dataset.playerName);
+        const player = window.state.playersInHand.find(p=>p.name===parent.dataset.playerName);
         const raw = unformatNumber(e.target.value);
         e.target.value = formatNumber(raw);
         
@@ -2318,7 +2322,7 @@ async function sendDataToGoogleSheet(){
       // 보드 카드 선택
       el.boardCardPlaceholders.addEventListener('click', (e)=>{
         const ph = e.target.closest('.card-placeholder'); if(!ph) return;
-        state.modalState.cardTarget = { target:'board', index:parseInt(ph.dataset.index), count:parseInt(ph.dataset.count) };
+        window.state.modalState.cardTarget = { target:'board', index:parseInt(ph.dataset.index), count:parseInt(ph.dataset.count) };
         openCardSelector();
       });
 
@@ -2341,13 +2345,13 @@ async function sendDataToGoogleSheet(){
         const potBtn = e.target.closest('.pot-keypad-btn');
         
         if(streetBtn) {
-          state.currentStreet = streetBtn.dataset.street;
+          window.state.currentStreet = streetBtn.dataset.street;
           renderActionStreets(); // 하이라이트 업데이트
         }
         if(addBtn) openActionPad(addBtn.dataset.street);
         if(undoBtn) undoLastAction(undoBtn.dataset.street);
         if(potBtn){
-          state.modalState.actionPadStreet = potBtn.dataset.street;
+          window.state.modalState.actionPadStreet = potBtn.dataset.street;
           openKeypad(null, { purpose:'pot', currentPot: potBtn.dataset.currentPot });
         }
       });
@@ -2364,23 +2368,23 @@ async function sendDataToGoogleSheet(){
         if(btn.id==='close-action-pad'){ closeModal(el.actionPadModal); return; }
         const modal = el.actionPadModal;
         if(btn.parentElement.id==='action-pad-players'){
-          state.modalState.actionPadPlayer = btn.dataset.playerName;
+          window.state.modalState.actionPadPlayer = btn.dataset.playerName;
           modal.querySelector('#action-pad-players').classList.add('hidden');
           modal.querySelector('#action-pad-actions').classList.remove('hidden');
           
           // 스마트 Check/Call 버튼 업데이트
-          if(state.smartCheckCall) {
+          if(window.state.smartCheckCall) {
             const smartBtn = modal.querySelector('#smart-check-call-btn');
-            const smartAction = getSmartCheckCallAction(btn.dataset.playerName, state.modalState.actionPadStreet);
+            const smartAction = getSmartCheckCallAction(btn.dataset.playerName, window.state.modalState.actionPadStreet);
             smartBtn.querySelector('.action-label').textContent = smartAction.label;
             smartBtn.dataset.smartAction = JSON.stringify(smartAction);
           }
         }else if(btn.parentElement.id==='action-pad-actions'){
           const action = btn.dataset.action;
           if(action==='Bet/Raises'){
-            const st = state.modalState.actionPadStreet;
-            const hasBet = state.actionState[st].some(a=>/BET|RAISE/i.test(a.action||''));
-            state.modalState.actionPadCurrentAction = hasBet ? 'Raises' : 'Bets';
+            const st = window.state.modalState.actionPadStreet;
+            const hasBet = window.state.actionState[st].some(a=>/BET|RAISE/i.test(a.action||''));
+            window.state.modalState.actionPadCurrentAction = hasBet ? 'Raises' : 'Bets';
             closeModal(el.actionPadModal); openKeypad(null, { purpose:'bet' });
           }else if(action==='SmartCheckCall'){
             // 스마트 Check/Call 처리
@@ -2390,25 +2394,25 @@ async function sendDataToGoogleSheet(){
               addActionToLog(smartAction.action, smartAction.amount);
             }
           }else if(action==='All In'){
-            const p = state.playersInHand.find(pp=>pp.name===state.modalState.actionPadPlayer);
+            const p = window.state.playersInHand.find(pp=>pp.name===window.state.modalState.actionPadPlayer);
             if(p) addActionToLog('All In', p.chips);
           }else if(action==='Calls'){
-            const st = state.modalState.actionPadStreet;
-            const p = state.playersInHand.find(pp=>pp.name===state.modalState.actionPadPlayer);
+            const st = window.state.modalState.actionPadStreet;
+            const p = window.state.playersInHand.find(pp=>pp.name===window.state.modalState.actionPadPlayer);
             
             // 현재 스트리트와 이전 스트리트에서 마지막 베팅/레이즈 찾기
             let lastBet = null;
             let requiredAmt = 0;
             
             // 현재 스트리트에서 찾기
-            lastBet = [...state.actionState[st]].reverse().find(a=>/BET|RAISE|All In/i.test(a.action||''));
+            lastBet = [...window.state.actionState[st]].reverse().find(a=>/BET|RAISE|All In/i.test(a.action||''));
             
             if(!lastBet && st !== 'preflop') {
               // 현재 스트리트에 베팅이 없으면 이전 스트리트 확인
               const streetOrder = ['preflop', 'flop', 'turn', 'river'];
               const currentIdx = streetOrder.indexOf(st);
               for(let i = currentIdx - 1; i >= 0; i--) {
-                lastBet = [...state.actionState[streetOrder[i]]].reverse().find(a=>/BET|RAISE|All In/i.test(a.action||''));
+                lastBet = [...window.state.actionState[streetOrder[i]]].reverse().find(a=>/BET|RAISE|All In/i.test(a.action||''));
                 if(lastBet) break;
               }
             }
@@ -2418,7 +2422,7 @@ async function sendDataToGoogleSheet(){
               requiredAmt = lastBet.amount;
             } else if(st === 'preflop') {
               // 프리플랍에서 아무도 베팅하지 않았으면 빅블라인드 콜
-              requiredAmt = unformatNumber(state.actionState.bigBlind);
+              requiredAmt = unformatNumber(window.state.actionState.bigBlind);
             } else {
               // 포스트플랍에서 베팅이 없으면 체크해야 함
               showFeedback('베팅이 없어 체크를 선택해주세요', true);
@@ -2461,35 +2465,35 @@ async function sendDataToGoogleSheet(){
         const key = btn.textContent;
         if(btn.id==='keypad-confirm'){
           const finalAmt = unformatNumber(display.textContent);
-          const { purpose, currentPot } = state.modalState.keypadOptions;
+          const { purpose, currentPot } = window.state.modalState.keypadOptions;
           if(purpose==='cam'){
-            const which = state.modalState.keypadOptions.cam; // 'cam1'|'cam2'
+            const which = window.state.modalState.keypadOptions.cam; // 'cam1'|'cam2'
             const padded = pad4(finalAmt);
             const numValue = String(finalAmt); // 숫자만 저장 (0007 → 7)
             if (which==='cam1'){
-              state.camNumbers.cam1no = numValue; // 숫자로 저장
-              state.lastCamNo = numValue;
-              el.cam1.textContent = `${state.camPreset.cam1}${padded}`; // 표시는 패딩된 형태로
+              window.state.camNumbers.cam1no = numValue; // 숫자로 저장
+              window.state.lastCamNo = numValue;
+              el.cam1.textContent = `${window.state.camPreset.cam1}${padded}`; // 표시는 패딩된 형태로
               localStorage.setItem('pokerHandLogger_lastCam1', numValue); // localStorage에 숫자로 저장
-              showFeedback(`${state.camPreset.cam1 || 'Cam1'}${padded} 입력됨`);
-              console.log(`📷 cam1 저장: ${state.camPreset.cam1}=${numValue}`);
+              showFeedback(`${window.state.camPreset.cam1 || 'Cam1'}${padded} 입력됨`);
+              console.log(`📷 cam1 저장: ${window.state.camPreset.cam1}=${numValue}`);
             }else if (which==='cam2'){
-              state.camNumbers.cam2no = numValue; // 숫자로 저장
-              state.lastCamNo = numValue;
-              el.cam2.textContent = `${state.camPreset.cam2}${padded}`; // 표시는 패딩된 형태로
+              window.state.camNumbers.cam2no = numValue; // 숫자로 저장
+              window.state.lastCamNo = numValue;
+              el.cam2.textContent = `${window.state.camPreset.cam2}${padded}`; // 표시는 패딩된 형태로
               localStorage.setItem('pokerHandLogger_lastCam2', numValue); // localStorage에 숫자로 저장
-              console.log(`📷 cam2 저장: ${state.camPreset.cam2}=${numValue}`);
-              showFeedback(`${state.camPreset.cam2 || 'Cam2'}${padded} 입력됨`);
+              console.log(`📷 cam2 저장: ${window.state.camPreset.cam2}=${numValue}`);
+              showFeedback(`${window.state.camPreset.cam2 || 'Cam2'}${padded} 입력됨`);
             }
           }else if(purpose==='bet'){
-            if(finalAmt) addActionToLog(state.modalState.actionPadCurrentAction, finalAmt);
+            if(finalAmt) addActionToLog(window.state.modalState.actionPadCurrentAction, finalAmt);
           }else if(purpose==='pot'){
             // Pot correction: 입력한 값 그대로 저장 (이전 팟 크기를 빼지 않음)
             const potSize = finalAmt; // 포맷된 값 그대로 사용
             if(potSize){
-              const st = state.modalState.actionPadStreet;
+              const st = window.state.modalState.actionPadStreet;
               // Pot Correction은 player 없이 저장 (시스템 액션)
-              state.actionState[st].push({ 
+              window.state.actionState[st].push({ 
                 action:'Pot Correction', 
                 amount:potSize,  // 포맷된 값 그대로 저장
                 timestamp:new Date().toISOString() 
@@ -2497,9 +2501,9 @@ async function sendDataToGoogleSheet(){
               saveActionState(); renderAll();
             }
           }else if(purpose==='input'){
-            if(state.modalState.keypadTarget){
-              state.modalState.keypadTarget.value = display.textContent;
-              state.modalState.keypadTarget.dispatchEvent(new Event('input',{bubbles:true}));
+            if(window.state.modalState.keypadTarget){
+              window.state.modalState.keypadTarget.value = display.textContent;
+              window.state.modalState.keypadTarget.dispatchEvent(new Event('input',{bubbles:true}));
             }
           }
           closeModal(el.keypadModal);
@@ -2518,11 +2522,11 @@ async function sendDataToGoogleSheet(){
           const fmt = formatNumber(raw);
           if(e.target.value!==fmt) e.target.value=fmt;
           const k = toCamelCase(e.target.id.replace('-input','')); // small-blind-input -> smallBlind
-          if(k in state.actionState) state.actionState[k]=raw;
+          if(k in window.state.actionState) window.state.actionState[k]=raw;
           saveActionState();
         });
       });
-      el.bbAnteCheckbox.onchange = (e)=>{ state.actionState.hasBBAnte = e.target.checked; saveActionState(); renderAll(); };
+      el.bbAnteCheckbox.onchange = (e)=>{ window.state.actionState.hasBBAnte = e.target.checked; saveActionState(); renderAll(); };
 
       // Load Hand 모달 내부 클릭
       el.loadHandModal.addEventListener('click', (e)=>{
