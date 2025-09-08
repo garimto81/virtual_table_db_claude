@@ -2595,11 +2595,16 @@
     
     // 분석 프롬프트 생성
     function createAnalysisPrompt(handData) {
-      // BB 단위로 팟 계산
-      const potInBB = handData.blinds.bb ? Math.round(handData.pot / handData.blinds.bb) : handData.pot;
+      // BB 단위로 팟 계산 (정확한 빅블라인드 대비 계산)
+      const potInBB = handData.blinds.bb && handData.blinds.bb > 0 ? 
+        Math.round((handData.pot / handData.blinds.bb) * 10) / 10 : // 소수점 1자리까지
+        handData.pot;
       
       // 보드 텍스처 분석을 위한 카드 정리
       const board = handData.communityCards.join(' ') || '보드 없음';
+      
+      // 플레이어별 핸드 조합 분석 추가
+      const handCombinations = analyzePlayerHands(handData);
       
       // 승자와 패자 찾기 (간단한 로직 - 실제 데이터에서 개선 필요)
       const winner = handData.winner || handData.players[0];
@@ -2613,6 +2618,7 @@
 ${handData.players.map(p => `- ${p.name}: 카드 ${p.cards.join('')}, 스택 ${p.chips}`).join('\n')}
 
 보드: ${board}
+핸드 조합 분석: ${handCombinations}
 총 팟: ${handData.pot} (${potInBB}BB)
 
 다음 형식으로 정확히 3줄로 요약하세요:
@@ -2753,6 +2759,176 @@ Player1 (AK) vs Player2 (QQ)
         // 오류 시 첫 번째 플레이어 반환
         return handData.players[0];
       }
+    }
+    
+    // 원클릭 핸드 완료 처리 통합 함수
+    async function processHandCompletion(handNumber, timestamp, virtualSheetUrl) {
+      showNotification('🔄 핸드 완료 처리를 시작합니다...', 'info');
+      
+      try {
+        // 1. 핸드 데이터 로드
+        const handData = await loadHandData(handNumber);
+        if (!handData) {
+          throw new Error('핸드 데이터를 로드할 수 없습니다');
+        }
+        
+        // 2. Virtual 시트 매칭 진행
+        showNotification('🔍 Virtual 시트에서 매칭 중...', 'info');
+        const { matchedRow, isExactMatch } = await findMatchingRowInVirtualSheet(virtualSheetUrl, timestamp);
+        
+        if (!matchedRow) {
+          throw new Error('Virtual 시트에서 매칭되는 행을 찾을 수 없습니다');
+        }
+        
+        // 3. 키 플레이어 식별
+        const keyPlayer = await getKeyPlayerFromHand(handData);
+        
+        // 4. 파일명 자동 생성
+        let filename = `${handNumber}`;
+        if (keyPlayer) {
+          filename += `_${keyPlayer.name}`;
+          if (keyPlayer.cards && keyPlayer.cards.length > 0) {
+            filename += `_${keyPlayer.cards.join('').replace(/[\s]/g, '')}`;
+          }
+          
+          const opponent = handData.players.find(p => p.name !== keyPlayer.name);
+          if (opponent) {
+            filename += `_${opponent.name}`;
+            if (opponent.cards && opponent.cards.length > 0) {
+              filename += `_${opponent.cards.join('').replace(/[\s]/g, '')}`;
+            }
+          }
+        }
+        
+        // 5. AI 핸드 분석 실행
+        showNotification('🤖 AI로 핸드 분석 중...', 'info');
+        const aiSummary = await analyzeHandWithAI(handData);
+        
+        // 6. 핸드 조합 결과 분석 추가
+        const handAnalysis = analyzePlayerHands(handData);
+        
+        // 7. Apps Script를 통한 시트 업데이트
+        showNotification('📝 시트 업데이트 중...', 'info');
+        await updateHandInSheet(handNumber, {
+          filename: filename,
+          aiSummary: aiSummary,
+          handAnalysis: handAnalysis,
+          virtualRow: matchedRow.row,
+          isExactMatch: isExactMatch
+        });
+        
+        // 8. 로컬 상태 업데이트
+        const handIndex = allHands.findIndex(h => h.handNumber === handNumber);
+        if (handIndex !== -1) {
+          allHands[handIndex].handEdit = true;
+          allHands[handIndex].handEditTime = new Date().toISOString();
+        }
+        
+        // 9. UI 업데이트
+        updateHandStatus(true);
+        updateHandList();
+        updateStats();
+        
+        showNotification('✅ 핸드 완료 처리가 성공적으로 완료되었습니다!', 'success');
+        console.log('✅ 핸드 완료:', { handNumber, filename, aiSummary, handAnalysis });
+        
+      } catch (error) {
+        throw error; // 상위 함수에서 처리
+      }
+    }
+    
+    // 플레이어 핸드 조합 분석 함수
+    function analyzePlayerHands(handData) {
+      if (!handData.communityCards || handData.communityCards.length === 0) {
+        return '보드 카드 없음 - 핸드 조합 분석 불가';
+      }
+      
+      const board = handData.communityCards;
+      const analyses = [];
+      
+      handData.players.forEach(player => {
+        if (player.cards && player.cards.length >= 2) {
+          const combination = evaluateHandStrength(player.cards, board);
+          analyses.push(`${player.name}: ${combination}`);
+        }
+      });
+      
+      return analyses.join(' | ');
+    }
+    
+    // 핸드 강도 평가 함수 (간단한 버전)
+    function evaluateHandStrength(playerCards, board) {
+      const allCards = [...playerCards, ...board];
+      
+      // 간단한 패턴 매칭 (실제 포커 룰 적용 시 더 복잡함)
+      if (allCards.length < 5) return '불완전한 핸드';
+      
+      // 카드를 랭크와 수트로 분리
+      const ranks = allCards.map(card => {
+        const rank = card.slice(0, -1);
+        return rank === 'A' ? 14 : rank === 'K' ? 13 : rank === 'Q' ? 12 : rank === 'J' ? 11 : parseInt(rank);
+      });
+      
+      const suits = allCards.map(card => card.slice(-1));
+      const rankCounts = {};
+      const suitCounts = {};
+      
+      ranks.forEach(rank => rankCounts[rank] = (rankCounts[rank] || 0) + 1);
+      suits.forEach(suit => suitCounts[suit] = (suitCounts[suit] || 0) + 1);
+      
+      // 플러시 체크
+      const isFlush = Object.values(suitCounts).some(count => count >= 5);
+      
+      // 페어 체크
+      const pairs = Object.values(rankCounts).filter(count => count >= 2);
+      const highPairRank = Object.keys(rankCounts).find(rank => rankCounts[rank] >= 2);
+      
+      if (pairs.length >= 2) return '투페어+';
+      if (pairs.length === 1) return `페어 (${highPairRank === '14' ? 'A' : highPairRank === '13' ? 'K' : highPairRank === '12' ? 'Q' : highPairRank === '11' ? 'J' : highPairRank})`;
+      if (isFlush) return '플러시';
+      
+      // 높은 카드
+      const highCard = Math.max(...ranks);
+      const highCardName = highCard === 14 ? 'A' : highCard === 13 ? 'K' : highCard === 12 ? 'Q' : highCard === 11 ? 'J' : highCard.toString();
+      return `${highCardName} 하이`;
+    }
+    
+    // 시트 업데이트 함수 (Apps Script 호출)
+    async function updateHandInSheet(handNumber, data) {
+      const payload = {
+        action: 'updateHand',
+        handNumber: handNumber,
+        handEdit: true,
+        handEditTime: new Date().toISOString(),
+        filename: data.filename,
+        aiSummary: data.aiSummary,
+        handAnalysis: data.handAnalysis,
+        virtualRow: data.virtualRow,
+        isExactMatch: data.isExactMatch
+      };
+      
+      console.log('📤 Apps Script로 핸드 업데이트 전송:', payload);
+      
+      const formData = new FormData();
+      formData.append('payload', JSON.stringify(payload));
+      
+      const response = await fetch(CONFIG.APPS_SCRIPT_URL + '?_t=' + Date.now(), {
+        method: 'POST',
+        body: formData,
+        cache: 'no-cache'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Apps Script 요청 실패: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      if (!result.success) {
+        throw new Error(result.error || 'Apps Script 처리 실패');
+      }
+      
+      console.log('✅ 시트 업데이트 성공:', result);
+      return result;
     }
     
     
@@ -3286,32 +3462,37 @@ Player1 (AK) vs Player2 (QQ)
     
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
-        // Virtual 시트 URL 확인 및 유효성 검증
-        const virtualSheetUrl = CONFIG.READ_SHEET_URL;
-        if (!virtualSheetUrl) {
-          alert('먼저 Virtual 시트 URL을 상단에 입력해주세요.');
-          // Virtual sheet URL은 이제 설정에서 관리됨
-          return;
-        }
+        // 버튼 비활성화로 중복 클릭 방지
+        const completeBtn = document.getElementById('complete-btn');
+        const originalText = completeBtn.textContent;
+        completeBtn.disabled = true;
+        completeBtn.textContent = '처리 중...';
         
-        // URL 기본 검증
-        if (!virtualSheetUrl.includes('docs.google.com/spreadsheets')) {
-          const confirmMessage = `⚠️ URL 형식 확인\n\nGoogle Sheets URL이 아닌 것 같습니다.\n그래도 계속 진행하시겠습니까?`;
-          if (!confirm(confirmMessage)) {
+        try {
+          // Virtual 시트 URL 확인
+          const virtualSheetUrl = CONFIG.READ_SHEET_URL;
+          if (!virtualSheetUrl) {
+            alert('먼저 설정에서 Virtual 시트 URL을 입력해주세요.');
             return;
           }
-          console.warn('⚠️ 비표준 URL로 진행:', virtualSheetUrl);
-        } else {
-          console.log('✅ URL 형식 확인:', virtualSheetUrl.substring(0, 50) + '...');
-        }
-        
-        // 핸드 시간 가져오기
-        const handTime = await getHandTimestamp(currentHand);
-        if (handTime) {
-          // 모달 표시
-          showCompletionModal(currentHand, handTime, virtualSheetUrl);
-        } else {
-          alert('핸드 시간 정보를 가져올 수 없습니다.');
+          
+          // 핸드 시간 가져오기
+          const handTime = await getHandTimestamp(currentHand);
+          if (!handTime) {
+            alert('핸드 시간 정보를 가져올 수 없습니다.');
+            return;
+          }
+          
+          // 자동으로 모든 과정 처리
+          await processHandCompletion(currentHand, handTime, virtualSheetUrl);
+          
+        } catch (error) {
+          console.error('❌ 핸드 완료 처리 오류:', error);
+          showNotification('❌ 처리 중 오류가 발생했습니다: ' + error.message, 'error');
+        } finally {
+          // 버튼 상태 복원
+          completeBtn.disabled = false;
+          completeBtn.textContent = originalText;
         }
       }
     });
