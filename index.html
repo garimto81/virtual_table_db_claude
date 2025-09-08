@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.3.5
+  Version: 9.4.0
   Last Updated: 2025-01-09
-  Description: Index Sheet 연동 기능 추가 (A열 검색, E열 업데이트)
+  Description: Apps Script 분리 및 이중 시트 시스템
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.3.5 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.4.0 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.3.5</span>
+        <span class="text-xs text-gray-500">v9.4.0</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -531,15 +531,41 @@
             </div>
           </div>
           <div class="mb-3">
-            <label class="block text-xs mb-1">📋 Index Sheet URL</label>
-            <input type="text" id="index-sheet-url" 
+            <label class="block text-xs mb-1">📊 Data Sheet URL</label>
+            <input type="text" id="data-sheet-url" 
                    class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
-                   placeholder="Index 시트 URL..."
-                   title="A열에서 핸드 번호를 찾아 E열을 업데이트할 Index 시트 URL">
-            <div id="index-sheet-url-feedback" class="text-xs mt-1 text-gray-400">
-              ✅ A열 검색, E열 업데이트
+                   placeholder="Virtual_Table_Data 시트 URL..."
+                   title="Virtual_Table_Data 시트 URL (A열 검색, E열 업데이트)">
+            <div id="data-sheet-url-feedback" class="text-xs mt-1 text-gray-400">
+              ✅ Virtual_Table_Data (A열 검색, E열 업데이트)
             </div>
           </div>
+          <div class="mb-3">
+            <label class="block text-xs mb-1">🎯 Cue Sheet Script URL</label>
+            <input type="text" id="cue-sheet-script-url" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
+                   placeholder="큐 시트 전용 Apps Script URL..."
+                   title="CUE SHEET 업데이트 전용 Apps Script URL (F열, H열)">
+            <div id="cue-sheet-script-url-feedback" class="text-xs mt-1 text-gray-400">
+              ✅ CUE SHEET (F열 파일명, H열 AI분석)
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="block text-xs mb-1">📋 Data Sheet Script URL</label>
+            <input type="text" id="data-sheet-script-url" 
+                   class="w-full bg-gray-700 rounded px-3 py-1 text-sm border-2 border-gray-600" 
+                   placeholder="데이터 시트 전용 Apps Script URL..."
+                   title="Virtual_Table_Data 업데이트 전용 Apps Script URL (A열 검색, E열 업데이트)">
+            <div id="data-sheet-script-url-feedback" class="text-xs mt-1 text-gray-400">
+              ✅ Virtual_Table_Data (A열 검색, E열 업데이트)
+            </div>
+          </div>
+          <button id="test-cue-script" class="w-full px-4 py-2 bg-blue-600 rounded text-sm hover:bg-blue-700 transition mb-1">
+            🧪 큐 시트 Script 연결 테스트
+          </button>
+          <button id="test-data-script" class="w-full px-4 py-2 bg-purple-600 rounded text-sm hover:bg-purple-700 transition mb-2">
+            🧪 데이터 시트 Script 연결 테스트
+          </button>
           <button id="test-apps-script" class="w-full px-4 py-2 bg-green-600 rounded text-sm hover:bg-green-700 transition mb-2">
             🧪 Apps Script 연결 테스트
           </button>
@@ -621,7 +647,7 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v9.3.5 - Gemini AI 분석 시스템
+    // 포커 핸드 모니터링 시스템 v9.4.0 - Gemini AI 분석 시스템
     // ====================================
     
     const CONFIG = {
@@ -643,8 +669,12 @@
       // Apps Script 시트 업데이트 설정
       READ_SHEET_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=0&single=true&output=csv', // B열 기준 시간 매칭용 기본 Virtual 시트 CSV URL
       WRITE_SHEET_URL: 'https://docs.google.com/spreadsheets/d/1M-LM2KkwLNOTygtrPVdnYLqqBoz4MmZvbglUaptSYqE/edit?gid=561799849#gid=561799849', // F열(파일명), H열(AI분석) 업데이트용 시트 URL
-      INDEX_SHEET_URL: '', // A열에서 핸드 번호 찾아 E열 업데이트용 Index 시트 URL
-      SHEET_UPDATE_SCRIPT_URL: '' // 시트 업데이트 전용 Apps Script URL
+      DATA_SHEET_URL: '', // Virtual_Table_Data 시트 URL (A열 검색, E열 업데이트)
+      
+      // 분리된 Apps Script URLs
+      CUE_SHEET_SCRIPT_URL: '', // 큐 시트 전용 Apps Script URL (F열, H열 업데이트)
+      DATA_SHEET_SCRIPT_URL: '', // 데이터 시트 전용 Apps Script URL (A열 검색, E열 업데이트)
+      SHEET_UPDATE_SCRIPT_URL: '' // 호환성 유지용 (기존 설정)
     };
     
     // 전역 상태
@@ -2436,6 +2466,104 @@
         testBtn.textContent = originalText;
       }
     }
+    
+    // 큐 시트 스크립트 연결 테스트
+    async function testCueSheetScriptConnection() {
+      const scriptUrl = CONFIG.CUE_SHEET_SCRIPT_URL;
+      
+      if (!scriptUrl || scriptUrl.trim() === '') {
+        alert('⚠️ 큐 시트 스크립트 URL이 설정되지 않았습니다.\n\n설정 단계:\n1. 설정 버튼 클릭\n2. "Cue Sheet Script URL" 필드에 URL 입력\n3. 설정 저장 후 다시 테스트');
+        return false;
+      }
+      
+      const testBtn = document.getElementById('test-cue-script');
+      const originalText = testBtn.textContent;
+      testBtn.disabled = true;
+      testBtn.textContent = '테스트 중...';
+      
+      try {
+        const response = await fetch(scriptUrl + '?_t=' + Date.now(), {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          redirect: 'follow'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ 큐 시트 스크립트 연결 성공:', data);
+          
+          const isCorrectType = data.sheet_type === 'cue_sheet_only';
+          const hasFeatures = data.features && data.features.includes('Cue Sheet Update');
+          
+          if (isCorrectType && hasFeatures) {
+            alert(`✅ 큐 시트 스크립트 연결 성공!\n\n🎯 서비스: ${data.service}\n📊 상태: ${data.status}\n📈 버전: ${data.version}\n🛠️ 시트 타입: 큐 시트 전용`);
+          } else {
+            alert(`⚠️ 큐 시트 전용 스크립트가 아닙니다.\n\n현재 스크립트: ${data.service}\n기대되는 타입: cue_sheet_only\n실제 타입: ${data.sheet_type || '미확인'}`);
+          }
+          
+          return true;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+      } catch (error) {
+        console.error('❌ 큐 시트 스크립트 연결 오류:', error);
+        alert(`❌ 큐 시트 스크립트 연결 실패\n\n오류: ${error.message}\n\n해결책:\n• 큐 시트 전용 Apps Script 배포 확인\n• URL이 /exec로 끝나는지 확인\n• 웹앱 권한 설정 확인`);
+        return false;
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = originalText;
+      }
+    }
+    
+    // 데이터 시트 스크립트 연결 테스트
+    async function testDataSheetScriptConnection() {
+      const scriptUrl = CONFIG.DATA_SHEET_SCRIPT_URL;
+      
+      if (!scriptUrl || scriptUrl.trim() === '') {
+        alert('⚠️ 데이터 시트 스크립트 URL이 설정되지 않았습니다.\n\n설정 단계:\n1. 설정 버튼 클릭\n2. "Data Sheet Script URL" 필드에 URL 입력\n3. 설정 저장 후 다시 테스트');
+        return false;
+      }
+      
+      const testBtn = document.getElementById('test-data-script');
+      const originalText = testBtn.textContent;
+      testBtn.disabled = true;
+      testBtn.textContent = '테스트 중...';
+      
+      try {
+        const response = await fetch(scriptUrl + '?_t=' + Date.now(), {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          redirect: 'follow'
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ 데이터 시트 스크립트 연결 성공:', data);
+          
+          // v59 또는 updateDataSheetFilename 기능이 있는지 확인
+          const hasCorrectVersion = data.version && (data.version.includes('v59') || data.version.includes('inout'));
+          
+          if (hasCorrectVersion) {
+            alert(`✅ 데이터 시트 스크립트 연결 성공!\n\n📋 서비스: Virtual_Table_Data 관리\n📊 상태: ${data.status}\n📈 버전: ${data.version}\n🛠️ 기능: A열 검색, E열 업데이트`);
+          } else {
+            alert(`⚠️ 데이터 시트 전용 스크립트인지 확인해주세요.\n\n현재 버전: ${data.version || '미확인'}\n기대되는 버전: v59 또는 inout 포함`);
+          }
+          
+          return true;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+      } catch (error) {
+        console.error('❌ 데이터 시트 스크립트 연결 오류:', error);
+        alert(`❌ 데이터 시트 스크립트 연결 실패\n\n오류: ${error.message}\n\n해결책:\n• 기존 v59 Apps Script에 updateDataSheetFilename 함수 추가 확인\n• URL이 /exec로 끝나는지 확인\n• 웹앱 권한 설정 확인`);
+        return false;
+      } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = originalText;
+      }
+    }
 
     // Gemini API 연결 테스트
     async function testGeminiAPIConnection() {
@@ -3722,7 +3850,9 @@
       CONFIG.READ_SHEET_URL = document.getElementById('read-sheet-url').value;
       CONFIG.WRITE_SHEET_URL = document.getElementById('write-sheet-url').value;
       CONFIG.SHEET_UPDATE_SCRIPT_URL = document.getElementById('apps-script-url').value;
-      CONFIG.INDEX_SHEET_URL = document.getElementById('index-sheet-url').value;
+      CONFIG.DATA_SHEET_URL = document.getElementById('data-sheet-url').value;
+      CONFIG.CUE_SHEET_SCRIPT_URL = document.getElementById('cue-sheet-script-url').value;
+      CONFIG.DATA_SHEET_SCRIPT_URL = document.getElementById('data-sheet-script-url').value;
       
       // Gemini API 키 저장
       const apiKeyInput = document.getElementById('gemini-api-key').value.trim();
@@ -3740,7 +3870,9 @@
       localStorage.setItem('read_sheet_url', CONFIG.READ_SHEET_URL);
       localStorage.setItem('write_sheet_url', CONFIG.WRITE_SHEET_URL);
       localStorage.setItem('sheet_update_script_url', CONFIG.SHEET_UPDATE_SCRIPT_URL);
-      localStorage.setItem('index_sheet_url', CONFIG.INDEX_SHEET_URL);
+      localStorage.setItem('data_sheet_url', CONFIG.DATA_SHEET_URL);
+      localStorage.setItem('cue_sheet_script_url', CONFIG.CUE_SHEET_SCRIPT_URL);
+      localStorage.setItem('data_sheet_script_url', CONFIG.DATA_SHEET_SCRIPT_URL);
       
       // AI API 키 localStorage 저장
       saveAPIKeys();
@@ -3807,20 +3939,62 @@
       console.error('❌ apps-script-url 요소를 찾을 수 없습니다');
     }
     
-    // Index Sheet URL 유효성 검사
-    const indexSheetUrlElement = document.getElementById('index-sheet-url');
-    if (indexSheetUrlElement) {
-      indexSheetUrlElement.addEventListener('input', (e) => {
+    // Data Sheet URL 유효성 검사
+    const dataSheetUrlElement = document.getElementById('data-sheet-url');
+    if (dataSheetUrlElement) {
+      dataSheetUrlElement.addEventListener('input', (e) => {
         const validation = validateSheetUrl(e.target.value);
-        updateUrlFeedback('index-sheet-url', 'index-sheet-url-feedback', validation);
+        updateUrlFeedback('data-sheet-url', 'data-sheet-url-feedback', validation);
       });
     } else {
-      console.error('❌ index-sheet-url 요소를 찾을 수 없습니다');
+      console.error('❌ data-sheet-url 요소를 찾을 수 없습니다');
+    }
+    
+    // Cue Sheet Script URL 유효성 검사
+    const cueSheetScriptUrlElement = document.getElementById('cue-sheet-script-url');
+    if (cueSheetScriptUrlElement) {
+      cueSheetScriptUrlElement.addEventListener('input', (e) => {
+        const validation = validateAppsScriptUrl(e.target.value);
+        updateUrlFeedback('cue-sheet-script-url', 'cue-sheet-script-url-feedback', validation);
+      });
+    } else {
+      console.error('❌ cue-sheet-script-url 요소를 찾을 수 없습니다');
+    }
+    
+    // Data Sheet Script URL 유효성 검사
+    const dataSheetScriptUrlElement = document.getElementById('data-sheet-script-url');
+    if (dataSheetScriptUrlElement) {
+      dataSheetScriptUrlElement.addEventListener('input', (e) => {
+        const validation = validateAppsScriptUrl(e.target.value);
+        updateUrlFeedback('data-sheet-script-url', 'data-sheet-script-url-feedback', validation);
+      });
+    } else {
+      console.error('❌ data-sheet-script-url 요소를 찾을 수 없습니다');
     }
     
     // ===== Apps Script 관련 이벤트 리스너 =====
     
-    // Apps Script 연결 테스트 버튼
+    // Cue Sheet Script 연결 테스트 버튼
+    const testCueScriptElement = document.getElementById('test-cue-script');
+    if (testCueScriptElement) {
+      testCueScriptElement.addEventListener('click', async () => {
+        await testCueSheetScriptConnection();
+      });
+    } else {
+      console.error('❌ test-cue-script 요소를 찾을 수 없습니다');
+    }
+    
+    // Data Sheet Script 연결 테스트 버튼
+    const testDataScriptElement = document.getElementById('test-data-script');
+    if (testDataScriptElement) {
+      testDataScriptElement.addEventListener('click', async () => {
+        await testDataSheetScriptConnection();
+      });
+    } else {
+      console.error('❌ test-data-script 요소를 찾을 수 없습니다');
+    }
+    
+    // Apps Script 연결 테스트 버튼 (호환성 유지)
     const testAppsScriptElement = document.getElementById('test-apps-script');
     if (testAppsScriptElement) {
       testAppsScriptElement.addEventListener('click', async () => {
@@ -4061,7 +4235,7 @@
 
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.3.5 - Gemini AI 분석 시스템');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.4.0 - Gemini AI 분석 시스템');
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
@@ -4100,12 +4274,27 @@
         console.log(`🔗 Apps Script URL 로드됨`);
       }
       
-      // Index Sheet URL 로드
-      const savedIndexSheetUrl = localStorage.getItem('index_sheet_url');
-      if (savedIndexSheetUrl) {
-        CONFIG.INDEX_SHEET_URL = savedIndexSheetUrl;
-        document.getElementById('index-sheet-url').value = savedIndexSheetUrl;
-        console.log(`📋 Index Sheet URL 로드됨`);
+      // 새로운 시트 및 스크립트 URL 로드
+      const savedDataSheetUrl = localStorage.getItem('data_sheet_url');
+      const savedCueSheetScriptUrl = localStorage.getItem('cue_sheet_script_url');
+      const savedDataSheetScriptUrl = localStorage.getItem('data_sheet_script_url');
+      
+      if (savedDataSheetUrl) {
+        CONFIG.DATA_SHEET_URL = savedDataSheetUrl;
+        document.getElementById('data-sheet-url').value = savedDataSheetUrl;
+        console.log(`📊 데이터 시트 URL 로드됨`);
+      }
+      
+      if (savedCueSheetScriptUrl) {
+        CONFIG.CUE_SHEET_SCRIPT_URL = savedCueSheetScriptUrl;
+        document.getElementById('cue-sheet-script-url').value = savedCueSheetScriptUrl;
+        console.log(`🎯 큐 시트 스크립트 URL 로드됨`);
+      }
+      
+      if (savedDataSheetScriptUrl) {
+        CONFIG.DATA_SHEET_SCRIPT_URL = savedDataSheetScriptUrl;
+        document.getElementById('data-sheet-script-url').value = savedDataSheetScriptUrl;
+        console.log(`📋 데이터 시트 스크립트 URL 로드됨`);
       }
       
       // 최근 핸드 버퍼 상태 확인

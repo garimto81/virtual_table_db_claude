@@ -12,7 +12,7 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
 - 테이블 관리
 - 플레이어 인증 및 관리
 - 핸드 기록 및 추적
-- **포커 핸드 모니터링 시스템 (v9.3.5)**
+- **포커 핸드 모니터링 시스템 (v9.4.0)**
   - 실시간 포커 핸드 모니터링
   - Virtual 시트 연동 및 시간 기반 매칭
   - 키 플레이어 중심 분석
@@ -53,32 +53,38 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
 
 ---
 
-## 최신 업데이트 (v9.3.5 - 2025-01-09)
+## 최신 업데이트 (v9.4.0 - 2025-01-09)
 
-### 🆕 **Index Sheet 연동 기능 추가 (v9.3.5)**
+### 🔄 **Apps Script 분리 및 이중 시트 시스템 (v9.4.0)**
 
-**핵심 기능**: A열에서 핸드 번호를 찾아 E열을 업데이트하는 Index Sheet 연동
+**핵심 기능**: 큐 시트와 데이터 시트를 각각 별도 Apps Script로 분리 처리
 
 #### 주요 변경사항:
-1. **Index Sheet URL 설정 추가**
-   - 설정 패널에 Index Sheet URL 입력 필드 추가
-   - Google Sheets URL 유효성 검증
-   - localStorage 자동 저장/로드
+1. **Apps Script 분리 아키텍처**
+   - **큐 시트 전용 Apps Script**: CUE SHEET의 F열(파일명), H열(AI분석) 업데이트
+   - **데이터 시트 전용 Apps Script**: Virtual_Table_Data의 A열 검색, E열 업데이트
+   - 각 시트의 서로 다른 ID로 인한 완전 분리 구조
 
-2. **Apps Script 업데이트**
-   - `updateIndexSheet` 함수 추가: A열 검색, E열 업데이트
-   - 핸드 번호 검색 로직: A열에서 부분 일치 검색
-   - 에러 핸들링 및 로그 기능 강화
+2. **이중 시트 관리 시스템**
+   - **큐 시트 (CUE SHEET)**: F열 파일명, H열 AI분석 - 시간 매칭 방식
+   - **데이터 시트 (Virtual_Table_Data)**: A열 핸드번호 검색, E열 파일명 - 번호 매칭 방식
+   - 독립적인 URL 설정 및 테스트 기능
 
-3. **시트 업데이트 로직 개선**
-   - `updateHandInSheet` 함수에 `indexSheetUrl` 매개변수 추가
-   - Virtual 시트와 Index 시트 동시 업데이트
-   - 설정값 검증 및 오류 처리
+3. **설정 UI 확장**
+   - Data Sheet URL 입력 필드 추가
+   - Cue Sheet Script URL 입력 필드 추가  
+   - Data Sheet Script URL 입력 필드 추가
+   - 각각의 연결 테스트 버튼과 유효성 검증
+
+4. **기존 Apps Script 연동 가이드**
+   - 제공된 v59 Apps Script에 `updateDataSheetFilename` 함수 추가 필요
+   - `DataSheetUpdater_addon.gs` 파일의 함수를 기존 스크립트에 통합
 
 #### 사용법:
-1. 설정 → Apps Script 시트 연동 → Index Sheet URL 입력
-2. 핸드 클릭 시 자동으로 Index 시트의 A열에서 핸드 번호 검색
-3. 검색된 행의 E열에 파일명 자동 업데이트
+1. **큐 시트 설정**: CueSheetUpdater.gs를 새 Apps Script로 배포
+2. **데이터 시트 설정**: 기존 v59 Apps Script에 addon 함수 추가 후 재배포  
+3. 설정에서 각각의 시트 URL과 스크립트 URL 입력
+4. 연결 테스트로 각 스크립트 정상 동작 확인
 
 ### 🔧 **이전 핫픽스: Apps Script async/await 구문 오류 수정 (v9.3.4)**
 

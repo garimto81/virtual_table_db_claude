@@ -1,8 +1,9 @@
 /****************************************************
- * Virtual Table Sheet Updater - Apps Script v1.1
+ * Virtual Table Sheet Updater - Apps Script v9.3.5
  * 
  * 기능:
  * - Virtual 시트의 F열(파일명), H열(AI분석) 업데이트
+ * - Index 시트의 A열 검색, E열 업데이트
  * - B열 시간 기준으로 매칭된 행에 데이터 업데이트
  * - CORS 정책 우회를 통한 안전한 시트 접근
  * - Gemini AI를 통한 포커 핸드 자동 분석
@@ -21,10 +22,11 @@ function doGet(e) {
     status: 'ok',
     method: 'GET',
     time: new Date().toISOString(),
-    version: 'v1.1',
+    version: 'v9.3.5',
     service: 'Virtual Table Sheet Updater',
-    features: ['Sheet Update', 'Gemini AI Analysis', 'Auto Analysis'],
-    gemini_enabled: !!GEMINI_API_KEY
+    features: ['Virtual Sheet Update', 'Index Sheet Update', 'Gemini AI Analysis', 'A Column Search', 'E Column Update'],
+    gemini_enabled: !!GEMINI_API_KEY,
+    index_sheet_support: true
   })).setMimeType(ContentService.MimeType.JSON);
 }
 
