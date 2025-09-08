@@ -2856,45 +2856,132 @@ Player1 (AK) vs Player2 (QQ)
       return analyses.join(' | ');
     }
     
-    // 핸드 강도 평가 함수 (간단한 버전)
+    // 정확한 포커 핸드 강도 평가 함수
     function evaluateHandStrength(playerCards, board) {
       const allCards = [...playerCards, ...board];
       
-      // 간단한 패턴 매칭 (실제 포커 룰 적용 시 더 복잡함)
       if (allCards.length < 5) return '불완전한 핸드';
       
-      // 카드를 랭크와 수트로 분리
-      const ranks = allCards.map(card => {
+      // 카드를 랭크와 수트로 파싱
+      const parsedCards = allCards.map(card => {
         const rank = card.slice(0, -1);
-        return rank === 'A' ? 14 : rank === 'K' ? 13 : rank === 'Q' ? 12 : rank === 'J' ? 11 : parseInt(rank);
-      });
+        const suit = card.slice(-1);
+        let numRank = parseInt(rank);
+        if (rank === 'J') numRank = 11;
+        else if (rank === 'Q') numRank = 12;
+        else if (rank === 'K') numRank = 13;
+        else if (rank === 'A') numRank = 14;
+        return { rank: numRank, suit: suit, original: card };
+      }).sort((a, b) => b.rank - a.rank); // 높은 순으로 정렬
       
-      const suits = allCards.map(card => card.slice(-1));
+      // 5장 조합으로 가능한 모든 핸드 평가
+      const bestHand = getBestPokerHand(parsedCards);
+      return bestHand;
+    }
+    
+    // 최고의 포커 핸드 찾기 (7장 중 5장 조합)
+    function getBestPokerHand(cards) {
+      if (cards.length < 5) return '불완전한 핸드';
+      
+      // 7장이 있다면 5장 조합을 모두 계산해야 하지만, 여기서는 간소화
+      const hand5 = cards.slice(0, 5);
+      
+      const ranks = hand5.map(c => c.rank).sort((a, b) => b - a);
+      const suits = hand5.map(c => c.suit);
       const rankCounts = {};
       const suitCounts = {};
       
       ranks.forEach(rank => rankCounts[rank] = (rankCounts[rank] || 0) + 1);
       suits.forEach(suit => suitCounts[suit] = (suitCounts[suit] || 0) + 1);
       
-      // 플러시 체크
+      const pairs = Object.keys(rankCounts).filter(rank => rankCounts[rank] >= 2);
+      const threeOfAKind = Object.keys(rankCounts).filter(rank => rankCounts[rank] >= 3);
+      const fourOfAKind = Object.keys(rankCounts).filter(rank => rankCounts[rank] >= 4);
+      
       const isFlush = Object.values(suitCounts).some(count => count >= 5);
+      const isStraight = checkStraight(ranks);
       
-      // 페어 체크
-      const pairs = Object.values(rankCounts).filter(count => count >= 2);
-      const highPairRank = Object.keys(rankCounts).find(rank => rankCounts[rank] >= 2);
+      // 핸드 랭킹 판정
+      if (isStraight && isFlush) {
+        if (ranks[0] === 14 && ranks[1] === 13) return '로얄 플러시';
+        return `스트레이트 플러시 (${getRankName(ranks[0])} 하이)`;
+      }
       
-      if (pairs.length >= 2) return '투페어+';
-      if (pairs.length === 1) return `페어 (${highPairRank === '14' ? 'A' : highPairRank === '13' ? 'K' : highPairRank === '12' ? 'Q' : highPairRank === '11' ? 'J' : highPairRank})`;
-      if (isFlush) return '플러시';
+      if (fourOfAKind.length > 0) {
+        return `포카드 (${getRankName(parseInt(fourOfAKind[0]))})`;
+      }
       
-      // 높은 카드
-      const highCard = Math.max(...ranks);
-      const highCardName = highCard === 14 ? 'A' : highCard === 13 ? 'K' : highCard === 12 ? 'Q' : highCard === 11 ? 'J' : highCard.toString();
-      return `${highCardName} 하이`;
+      if (threeOfAKind.length > 0 && pairs.length >= 2) {
+        return `풀하우스 (${getRankName(parseInt(threeOfAKind[0]))} over ${getRankName(parseInt(pairs.find(p => p !== threeOfAKind[0])))})`;
+      }
+      
+      if (isFlush) {
+        return `플러시 (${getRankName(ranks[0])} 하이)`;
+      }
+      
+      if (isStraight) {
+        return `스트레이트 (${getRankName(ranks[0])} 하이)`;
+      }
+      
+      if (threeOfAKind.length > 0) {
+        return `트리플 (${getRankName(parseInt(threeOfAKind[0]))})`;
+      }
+      
+      if (pairs.length >= 2) {
+        const sortedPairs = pairs.map(p => parseInt(p)).sort((a, b) => b - a);
+        return `투페어 (${getRankName(sortedPairs[0])}, ${getRankName(sortedPairs[1])})`;
+      }
+      
+      if (pairs.length === 1) {
+        return `원페어 (${getRankName(parseInt(pairs[0]))})`;
+      }
+      
+      return `${getRankName(ranks[0])} 하이`;
+    }
+    
+    // 스트레이트 체크
+    function checkStraight(ranks) {
+      const uniqueRanks = [...new Set(ranks)].sort((a, b) => b - a);
+      if (uniqueRanks.length < 5) return false;
+      
+      // 일반 스트레이트 체크
+      for (let i = 0; i < uniqueRanks.length - 4; i++) {
+        let consecutive = true;
+        for (let j = 1; j < 5; j++) {
+          if (uniqueRanks[i] - j !== uniqueRanks[i + j]) {
+            consecutive = false;
+            break;
+          }
+        }
+        if (consecutive) return true;
+      }
+      
+      // A-2-3-4-5 스트레이트 체크
+      if (uniqueRanks.includes(14) && uniqueRanks.includes(5) && uniqueRanks.includes(4) && uniqueRanks.includes(3) && uniqueRanks.includes(2)) {
+        return true;
+      }
+      
+      return false;
+    }
+    
+    // 랭크를 문자로 변환
+    function getRankName(rank) {
+      if (rank === 14) return 'A';
+      if (rank === 13) return 'K';
+      if (rank === 12) return 'Q';
+      if (rank === 11) return 'J';
+      return rank.toString();
     }
     
     // 시트 업데이트 함수 (Apps Script 호출)
     async function updateHandInSheet(handNumber, data) {
+      // 올바른 Apps Script URL 사용
+      const scriptUrl = CONFIG.SHEET_UPDATE_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL;
+      
+      if (!scriptUrl) {
+        throw new Error('Apps Script URL이 설정되지 않았습니다. 설정에서 URL을 입력해주세요.');
+      }
+      
       const payload = {
         action: 'updateHand',
         handNumber: handNumber,
@@ -2908,27 +2995,38 @@ Player1 (AK) vs Player2 (QQ)
       };
       
       console.log('📤 Apps Script로 핸드 업데이트 전송:', payload);
+      console.log('📤 사용 중인 Apps Script URL:', scriptUrl);
       
-      const formData = new FormData();
-      formData.append('payload', JSON.stringify(payload));
-      
-      const response = await fetch(CONFIG.APPS_SCRIPT_URL + '?_t=' + Date.now(), {
-        method: 'POST',
-        body: formData,
-        cache: 'no-cache'
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Apps Script 요청 실패: ${response.status}`);
+      try {
+        const formData = new FormData();
+        formData.append('payload', JSON.stringify(payload));
+        
+        const response = await fetch(scriptUrl + '?_t=' + Date.now(), {
+          method: 'POST',
+          body: formData,
+          cache: 'no-cache'
+        });
+        
+        console.log(`📊 응답 상태: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          throw new Error(`Apps Script 요청 실패: HTTP ${response.status} ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('📦 Apps Script 응답:', result);
+        
+        if (!result.success && result.status !== 'success') {
+          throw new Error(result.error || result.message || 'Apps Script 처리 실패');
+        }
+        
+        console.log('✅ 시트 업데이트 성공:', result);
+        return result;
+        
+      } catch (error) {
+        console.error('❌ 시트 업데이트 오류:', error);
+        throw error;
       }
-      
-      const result = await response.json();
-      if (!result.success) {
-        throw new Error(result.error || 'Apps Script 처리 실패');
-      }
-      
-      console.log('✅ 시트 업데이트 성공:', result);
-      return result;
     }
     
     
