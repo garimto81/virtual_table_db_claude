@@ -3210,19 +3210,19 @@ Player1 (AK) vs Player2 (QQ)
     
     // Virtual 시트 URL 저장 기능은 설정 모달에서 처리됨
     
+    // localStorage에서 Gemini API 키 로드
+    function loadAPIKeys() {
+      CONFIG.GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || '';
+    }
+    
+    // Gemini API 키 저장
+    function saveAPIKeys() {
+      localStorage.setItem('gemini_api_key', CONFIG.GEMINI_API_KEY);
+    }
+
     async function init() {
       console.log('='.repeat(60));
       console.log('🚀 포커 핸드 모니터링 시스템 v9.1.0 - Apps Script URL 업데이트');
-      
-      // localStorage에서 Gemini API 키 로드
-      function loadAPIKeys() {
-        CONFIG.GEMINI_API_KEY = localStorage.getItem('gemini_api_key') || '';
-      }
-      
-      // Gemini API 키 저장
-      function saveAPIKeys() {
-        localStorage.setItem('gemini_api_key', CONFIG.GEMINI_API_KEY);
-      }
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
