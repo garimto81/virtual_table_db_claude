@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.1.0 - Apps Script URL 업데이트</title>
+  <title>포커 핸드 모니터링 v9.2.0 - Gemini AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -611,7 +611,7 @@
 
   <script>
     // ====================================
-    // 포커 핸드 모니터링 시스템 v8.9.0 - MasterHandList + RecentHandsBuffer
+    // 포커 핸드 모니터링 시스템 v9.2.0 - Gemini AI 분석 시스템
     // ====================================
     
     const CONFIG = {
@@ -624,7 +624,7 @@
       REFRESH_INTERVAL: 10000,
       ENABLE_NOTIFICATIONS: true,
       ENABLE_SOUND: true,
-      DEBUG_MODE: true, // 디버그 모드 활성화
+      DEBUG_MODE: false, // 운영 환경용
       
       // AI API 설정 (Gemini 전용)
       AI_PROVIDER: 'gemini',
@@ -3342,7 +3342,7 @@ Player1 (AK) vs Player2 (QQ)
 
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.1.0 - Apps Script URL 업데이트');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.2.0 - Gemini AI 분석 시스템');
       
       // 초기화 시 AI 키 로드
       loadAPIKeys();
