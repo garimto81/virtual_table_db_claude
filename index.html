@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.6.0</title>
+  <title>포커 핸드 로거 v2.6.1</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -50,7 +50,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.6.0</span>
+        <span id="version-display" class="text-gray-400">v2.6.1</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -320,6 +320,7 @@
    * Version: 2.2.0
    * Last Modified: 2025-09-08 KST
    * Changes: 
+   * - v2.6.1: getElements is not defined 오류 수정 - getCamNumber 함수 내 전역 el 객체 사용
    * - v2.6.0: 스마트폰 최적화 테이블 선택 UI - 버튼식 페이지 토글 방식
    * - v2.5.1: 카메라 번호 초기값 로직 개선 - 표시된 값으로 자동 입력
    * - v2.5.0: IN/OUT 테이블 관리 시스템 및 console 오류 해결
@@ -331,7 +332,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.6.0';
+  const APP_VERSION = 'v2.6.1';
   const VERSION_DATE = '2025-09-08';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -2222,7 +2223,6 @@ async function sendDataToGoogleSheet(){
 
       // 4) 현재 표시된 카메라 값에서 패딩을 제거한 숫자값 반환
       // computeCamPrefill과 같은 로직이지만 순환참조를 피하기 위해 직접 구현
-      const el = getElements();
       if (which === 'cam1' && el.cam1) {
         const displayText = el.cam1.textContent || '';
         const match = displayText.match(/(\d+)$/); // 마지막 숫자들 추출
