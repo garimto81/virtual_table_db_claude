@@ -3189,8 +3189,90 @@
       }
     }
     
+    // 개선된 완료 모달 표시 (처리 과정 실시간 확인)
+    async function showImprovedCompletionModal(handNumber, timestamp, virtualSheetUrl) {
+      const modal = document.getElementById('completion-modal');
+      const timestampInput = document.getElementById('hand-timestamp');
+      const filenameInput = document.getElementById('final-filename');
+      const summaryTextarea = document.getElementById('ai-summary');
+      const matchedRowInput = document.getElementById('matched-row');
+      
+      // 시간 표시
+      const handDate = new Date(timestamp * 1000);
+      const timeString = `${handDate.getHours().toString().padStart(2, '0')}:${handDate.getMinutes().toString().padStart(2, '0')}:${handDate.getSeconds().toString().padStart(2, '0')}`;
+      
+      // 초기값 설정
+      timestampInput.value = timestamp;
+      filenameInput.value = `처리 중...`;
+      summaryTextarea.value = `🔄 처리 중...\n\n1. 핸드 데이터 로드 중...\n2. Virtual 시트 매칭 대기\n3. AI 분석 대기\n4. 파일명 생성 대기`;
+      matchedRowInput.value = `핸드 시간: ${timeString} - 매칭 대기 중`;
+      
+      modal.classList.remove('hidden');
+      
+      try {
+        // 1단계: 핸드 데이터 로드
+        summaryTextarea.value = `🔄 1/4 핸드 데이터 로드 중...\n\n핸드 #${handNumber} 데이터를 가져오고 있습니다.`;
+        const handData = await loadHandData(handNumber);
+        if (!handData) {
+          throw new Error('핸드 데이터를 로드할 수 없습니다');
+        }
+        
+        // 2단계: Virtual 시트 매칭
+        summaryTextarea.value = `🔍 2/4 Virtual 시트 매칭 중...\n\n시간: ${timeString}\nVirtual 시트에서 매칭되는 행을 찾고 있습니다...`;
+        const { matchedRow, isExactMatch } = await findMatchingRowInVirtualSheet(virtualSheetUrl, timestamp);
+        
+        if (!matchedRow) {
+          throw new Error('Virtual 시트에서 매칭되는 행을 찾을 수 없습니다');
+        }
+        
+        matchedRowInput.value = `매칭 성공: ${matchedRow.row}행 (${isExactMatch ? '정확' : '근사'} 매칭)`;
+        
+        // 3단계: AI 분석 (정확한 계산)
+        summaryTextarea.value = `🤖 3/4 핸드 분석 중...\n\n플레이어 카드와 보드 조합을 분석하고 있습니다...\n승부 결과를 계산 중...`;
+        const aiSummary = await analyzeHandWithAI(handNumber);
+        
+        // 4단계: 파일명 생성
+        summaryTextarea.value = `📝 4/4 파일명 생성 중...\n\n키 플레이어를 식별하고 파일명을 생성하고 있습니다...`;
+        const keyPlayer = await getKeyPlayerFromHand(handData);
+        
+        let filename = `${handNumber}`;
+        if (keyPlayer) {
+          filename += `_${keyPlayer.name}`;
+          if (keyPlayer.cards && keyPlayer.cards.length > 0) {
+            filename += `_${keyPlayer.cards.join('').replace(/[\s]/g, '')}`;
+          }
+          
+          const opponent = handData.players.find(p => p.name !== keyPlayer.name);
+          if (opponent) {
+            filename += `_${opponent.name}`;
+            if (opponent.cards && opponent.cards.length > 0) {
+              filename += `_${opponent.cards.join('').replace(/[\s]/g, '')}`;
+            }
+          }
+        }
+        
+        // 최종 결과 표시
+        filenameInput.value = filename;
+        summaryTextarea.value = aiSummary;
+        
+        console.log('✅ 모든 처리 완료:', {
+          handNumber,
+          filename,
+          aiSummary,
+          matchedRow: matchedRow.row,
+          isExactMatch
+        });
+        
+      } catch(error) {
+        console.error('❌ 처리 오류:', error);
+        matchedRowInput.value = '❌ 오류 발생: ' + error.message;
+        summaryTextarea.value = `❌ 처리 실패\n\n오류: ${error.message}\n\n다시 시도해주세요.`;
+        filenameInput.value = `오류_${handNumber}`;
+      }
+    }
     
-    // 완료 모달 표시
+    
+    // 기존 완료 모달 표시 (백업용)
     async function showCompletionModal(handNumber, timestamp, virtualSheetUrl) {
       const modal = document.getElementById('completion-modal');
       const timestampInput = document.getElementById('hand-timestamp');
@@ -3332,31 +3414,66 @@
       document.getElementById('completion-modal').classList.add('hidden');
     });
     
-    // 완료 처리 확인
+    // 완료 처리 확인 (개선된 버전)
     document.getElementById('confirm-completion').addEventListener('click', async () => {
       const handNumber = currentHand;
       const filename = document.getElementById('final-filename').value;
       const summary = document.getElementById('ai-summary').value;
-      const virtualSheetUrl = CONFIG.READ_SHEET_URL;
-      const timestamp = parseInt(document.getElementById('hand-timestamp').value);
+      const matchedRowInfo = document.getElementById('matched-row').value;
       
-      if (!filename) {
-        alert('파일명을 입력해주세요.');
+      if (!filename || filename.includes('처리 중') || filename.includes('오류')) {
+        alert('처리가 완료될 때까지 기다려주시거나, 처리에 실패한 경우 다시 시도해주세요.');
         return;
       }
       
+      if (!summary || summary.includes('처리 중') || summary.includes('처리 실패')) {
+        alert('핸드 분석이 완료될 때까지 기다려주시거나, 실패한 경우 다시 시도해주세요.');
+        return;
+      }
+      
+      // 확인 버튼 비활성화
+      const confirmBtn = document.getElementById('confirm-completion');
+      const originalText = confirmBtn.textContent;
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = '업데이트 중...';
+      
       try {
-        // Virtual 시트 업데이트 (이 부분은 Google Apps Script에 추가 기능 필요)
-        // 일단 기본 handEdit 상태만 업데이트
-        await updateHandEditStatus(handNumber, true);
+        // Apps Script를 통한 시트 업데이트
+        await updateHandInSheet(handNumber, {
+          filename: filename,
+          aiSummary: summary,
+          handAnalysis: '처리 완료',
+          virtualRow: matchedRowInfo,
+          isExactMatch: true
+        });
+        
+        // 로컬 상태 업데이트
+        const handIndex = allHands.findIndex(h => h.handNumber === handNumber);
+        if (handIndex !== -1) {
+          allHands[handIndex].handEdit = true;
+          allHands[handIndex].handEditTime = new Date().toISOString();
+        }
+        
+        // UI 업데이트
+        updateHandStatus(true);
+        updateHandList();
+        updateStats();
         
         // 모달 닫기
         document.getElementById('completion-modal').classList.add('hidden');
         
-        alert(`✅ 핸드 #${handNumber} 편집 완료\n\n파일명: ${filename}\n요약: ${summary.substring(0, 50)}...`);
+        // 성공 알림
+        showNotification(`✅ 핸드 #${handNumber} 편집 완료!`, 'success');
+        alert(`✅ 핸드 #${handNumber} 편집 완료\n\n파일명: ${filename}\n요약: ${summary.substring(0, 100)}...`);
+        
       } catch (error) {
-        console.error('완료 처리 오류:', error);
-        alert('완료 처리 중 오류가 발생했습니다.');
+        console.error('❌ 완료 처리 오류:', error);
+        showNotification('❌ 시트 업데이트 실패: ' + error.message, 'error');
+        alert(`❌ 완료 처리 중 오류 발생\n\n${error.message}\n\n다시 시도해주세요.`);
+      } finally {
+        // 버튼 상태 복원
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = originalText;
       }
     });
     
@@ -3720,37 +3837,31 @@
     
     document.getElementById('complete-btn').addEventListener('click', async () => {
       if (currentHand) {
-        // 버튼 비활성화로 중복 클릭 방지
-        const completeBtn = document.getElementById('complete-btn');
-        const originalText = completeBtn.textContent;
-        completeBtn.disabled = true;
-        completeBtn.textContent = '처리 중...';
+        // Virtual 시트 URL 확인 및 유효성 검증
+        const virtualSheetUrl = CONFIG.READ_SHEET_URL;
+        if (!virtualSheetUrl) {
+          alert('먼저 설정에서 Virtual 시트 URL을 입력해주세요.');
+          return;
+        }
         
-        try {
-          // Virtual 시트 URL 확인
-          const virtualSheetUrl = CONFIG.READ_SHEET_URL;
-          if (!virtualSheetUrl) {
-            alert('먼저 설정에서 Virtual 시트 URL을 입력해주세요.');
+        // URL 기본 검증
+        if (!virtualSheetUrl.includes('docs.google.com/spreadsheets')) {
+          const confirmMessage = `⚠️ URL 형식 확인\n\nGoogle Sheets URL이 아닌 것 같습니다.\n그래도 계속 진행하시겠습니까?`;
+          if (!confirm(confirmMessage)) {
             return;
           }
-          
-          // 핸드 시간 가져오기
-          const handTime = await getHandTimestamp(currentHand);
-          if (!handTime) {
-            alert('핸드 시간 정보를 가져올 수 없습니다.');
-            return;
-          }
-          
-          // 자동으로 모든 과정 처리
-          await processHandCompletion(currentHand, handTime, virtualSheetUrl);
-          
-        } catch (error) {
-          console.error('❌ 핸드 완료 처리 오류:', error);
-          showNotification('❌ 처리 중 오류가 발생했습니다: ' + error.message, 'error');
-        } finally {
-          // 버튼 상태 복원
-          completeBtn.disabled = false;
-          completeBtn.textContent = originalText;
+          console.warn('⚠️ 비표준 URL로 진행:', virtualSheetUrl);
+        } else {
+          console.log('✅ URL 형식 확인:', virtualSheetUrl.substring(0, 50) + '...');
+        }
+        
+        // 핸드 시간 가져오기
+        const handTime = await getHandTimestamp(currentHand);
+        if (handTime) {
+          // 개선된 완료 모달 표시
+          showImprovedCompletionModal(currentHand, handTime, virtualSheetUrl);
+        } else {
+          alert('핸드 시간 정보를 가져올 수 없습니다.');
         }
       }
     });
