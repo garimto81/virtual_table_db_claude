@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>테이블 관리 시스템 테스트</title>
+  <script src="https://cdn-tailwindcss.vercel.app/"></script>
+  <style>
+    html, body { 
+      height: 100vh; 
+      background: #111827; 
+      color: white;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .modal { 
+      transition: opacity 0.3s ease; 
+      backdrop-filter: blur(4px); 
+    }
+  </style>
+</head>
+<body class="bg-gray-900 text-white p-4">
+  <div class="max-w-6xl mx-auto">
+    <h1 class="text-2xl font-bold mb-4">📊 테이블 관리 시스템 테스트</h1>
+    
+    <!-- 테스트 컨트롤 -->
+    <div class="bg-gray-800 p-4 rounded-lg mb-4">
+      <h2 class="text-lg font-bold mb-2">테스트 컨트롤</h2>
+      <div class="flex gap-2 flex-wrap">
+        <button onclick="testInitializeSheets()" class="btn bg-green-600 px-4 py-2 rounded">
+          1. 시트 초기화
+        </button>
+        <button onclick="testCreateTable()" class="btn bg-blue-600 px-4 py-2 rounded">
+          2. 테이블 생성
+        </button>
+        <button onclick="testAddPlayers()" class="btn bg-purple-600 px-4 py-2 rounded">
+          3. 플레이어 추가
+        </button>
+        <button onclick="testLoadData()" class="btn bg-yellow-600 px-4 py-2 rounded">
+          4. 데이터 로드
+        </button>
+        <button onclick="openTableManagement()" class="btn bg-pink-600 px-4 py-2 rounded">
+          5. 관리 UI 열기
+        </button>
+      </div>
+    </div>
+
+    <!-- 상태 표시 -->
+    <div class="bg-gray-800 p-4 rounded-lg mb-4">
+      <h2 class="text-lg font-bold mb-2">현재 상태</h2>
+      <div id="status-display" class="space-y-2">
+        <div>API URL: <span id="api-url" class="text-yellow-400">Not Set</span></div>
+        <div>테이블 수: <span id="table-count" class="text-green-400">0</span></div>
+        <div>플레이어 수: <span id="player-count" class="text-blue-400">0</span></div>
+        <div>현재 테이블: <span id="current-table" class="text-purple-400">None</span></div>
+      </div>
+    </div>
+
+    <!-- 데이터 표시 -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-gray-800 p-4 rounded-lg">
+        <h2 class="text-lg font-bold mb-2">테이블 목록</h2>
+        <div id="tables-data" class="text-sm space-y-1 max-h-64 overflow-y-auto">
+          <p class="text-gray-500">데이터 없음</p>
+        </div>
+      </div>
+      
+      <div class="bg-gray-800 p-4 rounded-lg">
+        <h2 class="text-lg font-bold mb-2">플레이어 목록</h2>
+        <div id="players-data" class="text-sm space-y-1 max-h-64 overflow-y-auto">
+          <p class="text-gray-500">데이터 없음</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 로그 -->
+    <div class="bg-gray-800 p-4 rounded-lg mt-4">
+      <h2 class="text-lg font-bold mb-2">실행 로그</h2>
+      <div id="log-output" class="font-mono text-xs bg-black p-2 rounded h-48 overflow-y-auto">
+        <div class="text-gray-400">테스트를 시작하려면 위 버튼을 순서대로 클릭하세요</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 테이블 관리 모듈 로드 -->
+  <script src="table-management-module.js"></script>
+  
+  <script>
+    // Apps Script URL 설정 (실제 URL로 교체 필요)
+    const APPS_SCRIPT_URL = 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+    
+    // 전역 state 객체 (index.html과 호환)
+    const state = {
+      playersInHand: []
+    };
+    
+    // 렌더링 함수 스텁 (index.html과 호환)
+    function renderPlayerSelection() {
+      log('renderPlayerSelection called');
+    }
+    
+    function renderPlayerDetails() {
+      log('renderPlayerDetails called');
+    }
+    
+    // 로그 함수
+    function log(message, type = 'info') {
+      const logOutput = document.getElementById('log-output');
+      const time = new Date().toLocaleTimeString();
+      const color = type === 'error' ? 'text-red-400' : 
+                    type === 'success' ? 'text-green-400' : 
+                    type === 'warning' ? 'text-yellow-400' : 'text-gray-300';
+      
+      logOutput.innerHTML += `
+        <div class="${color}">[${time}] ${message}</div>
+      `;
+      logOutput.scrollTop = logOutput.scrollHeight;
+    }
+    
+    // 테스트 함수들
+    async function testInitializeSheets() {
+      log('시트 초기화 시작...');
+      
+      try {
+        // 실제로는 Apps Script에서 initializeSheets() 호출
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'initializeSheets' })
+        });
+        
+        log('시트 초기화 완료', 'success');
+      } catch (error) {
+        log('시트 초기화 실패: ' + error.message, 'error');
+      }
+    }
+    
+    async function testCreateTable() {
+      log('테이블 생성 시작...');
+      
+      const tables = [
+        { name: 'Friday Night Game', stakes: '1/2 NL', maxPlayers: 9 },
+        { name: 'High Stakes Table', stakes: '5/10 NL', maxPlayers: 6 },
+        { name: 'Tournament Practice', stakes: 'Tournament', maxPlayers: 10 }
+      ];
+      
+      for (const table of tables) {
+        const result = await tableManager.createTable(table.name, table.stakes, table.maxPlayers);
+        if (result.success) {
+          log(`테이블 생성: ${table.name}`, 'success');
+        } else {
+          log(`테이블 생성 실패: ${table.name}`, 'error');
+        }
+      }
+      
+      updateStatus();
+    }
+    
+    async function testAddPlayers() {
+      log('플레이어 추가 시작...');
+      
+      // 먼저 테이블을 선택
+      await tableManager.loadTables();
+      if (tableManager.tables.length > 0) {
+        await tableManager.selectTable(tableManager.tables[0].TableID);
+        log(`테이블 선택: ${tableManager.tables[0].TableName}`, 'success');
+      }
+      
+      const players = [
+        { name: 'John Doe', chips: 100000, seat: 1, notable: true },
+        { name: 'Jane Smith', chips: 150000, seat: 2, notable: false },
+        { name: 'Mike Johnson', chips: 80000, seat: 3, notable: false },
+        { name: 'Sarah Williams', chips: 200000, seat: 4, notable: true },
+        { name: 'Tom Brown', chips: 120000, seat: 5, notable: false }
+      ];
+      
+      for (const player of players) {
+        const result = await tableManager.addPlayerToCurrentTable(
+          player.name, 
+          player.chips, 
+          player.seat, 
+          player.notable
+        );
+        if (result.success) {
+          log(`플레이어 추가: ${player.name} (${player.chips} 칩)`, 'success');
+        } else {
+          log(`플레이어 추가 실패: ${player.name}`, 'error');
+        }
+      }
+      
+      updateStatus();
+    }
+    
+    async function testLoadData() {
+      log('데이터 로드 시작...');
+      
+      await tableManager.loadTables();
+      await tableManager.loadPlayers();
+      
+      log(`테이블 ${tableManager.tables.length}개 로드됨`, 'success');
+      log(`플레이어 ${tableManager.players.length}명 로드됨`, 'success');
+      
+      displayData();
+      updateStatus();
+    }
+    
+    function displayData() {
+      // 테이블 데이터 표시
+      const tablesDiv = document.getElementById('tables-data');
+      if (tableManager.tables.length > 0) {
+        tablesDiv.innerHTML = tableManager.tables.map(table => `
+          <div class="bg-gray-700 p-2 rounded">
+            <div class="font-bold">${table.TableName}</div>
+            <div class="text-xs text-gray-400">
+              ${table.Stakes} | 최대 ${table.MaxPlayers}명
+            </div>
+          </div>
+        `).join('');
+      }
+      
+      // 플레이어 데이터 표시
+      const playersDiv = document.getElementById('players-data');
+      if (tableManager.players.length > 0) {
+        playersDiv.innerHTML = tableManager.players.map(player => `
+          <div class="bg-gray-700 p-2 rounded">
+            <div class="font-bold">
+              ${player.Notable ? '⭐' : ''} ${player.Name}
+            </div>
+            <div class="text-xs text-gray-400">
+              칩: ${formatNumber(player.CurrentChips || 0)}
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+    
+    function updateStatus() {
+      document.getElementById('api-url').textContent = APPS_SCRIPT_URL || 'Not Set';
+      document.getElementById('table-count').textContent = tableManager.tables.length;
+      document.getElementById('player-count').textContent = tableManager.players.length;
+      document.getElementById('current-table').textContent = 
+        tableManager.currentTable ? tableManager.currentTable.TableName : 'None';
+    }
+    
+    function formatNumber(num) {
+      return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    
+    // 페이지 로드 시 초기화
+    window.addEventListener('DOMContentLoaded', () => {
+      log('테스트 페이지 로드 완료');
+      tableManager.apiUrl = APPS_SCRIPT_URL;
+      updateStatus();
+    });
+  </script>
+</body>
+</html>

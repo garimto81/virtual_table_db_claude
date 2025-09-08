@@ -1,6 +1,6 @@
 # 🎰 포커 핸드 로거 (Poker Hand Logger)
 
-[![Version](https://img.shields.io/badge/version-v2.3.0-green)](https://github.com/garimto81/virtual_data_claude)
+[![Version](https://img.shields.io/badge/version-v2.4.0-green)](https://github.com/garimto81/virtual_data_claude)
 [![Status](https://img.shields.io/badge/status-stable-success)](https://garimto81.github.io/virtual_data_claude/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -90,15 +90,16 @@ virtual_data_claude/
 
 ## 📊 버전 정보
 
-### 현재 버전: v2.3.0 (2025-01-05)
-- ✅ 안정적인 프로덕션 버전
-- ✅ 모든 기능 정상 작동
-- ✅ 모바일 최적화 완료
+### 현재 버전: v2.4.0 (2025-01-08)
+- ✅ 테이블 관리 시스템 추가
+- ✅ 플레이어 데이터베이스 구현
+- ✅ 실시간 칩 수정 기능
 
 ### 최근 업데이트
-- 칩 등록 UI/UX 개선
-- 카메라/파일 선택 옵션
-- 모바일 터치 인터페이스
+- 테이블 생성 및 관리
+- 플레이어 등록 시스템
+- 노터블 플레이어 표시
+- 빠른 칩 조정 버튼
 
 ## ⚠️ 알려진 이슈
 
