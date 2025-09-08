@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.3.1
+  Version: 9.3.2
   Last Updated: 2025-01-09
-  Description: 시트 업데이트 모달 매칭 행 정보 전달 버그 수정
+  Description: 핸드 시간 표시 형식 개선 (시:분:초 포맷)
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.3.1 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.3.2 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.3.1</span>
+        <span class="text-xs text-gray-500">v9.3.2</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -396,7 +396,7 @@
                  readonly>
         </div>
         <div>
-          <label class="block text-sm mb-2">매칭된 Virtual 시트 행</label>
+          <label class="block text-sm mb-2">매칭된 Virtual 시트 행 (시간 정보)</label>
           <input type="text" id="matched-row" 
                  class="w-full bg-gray-700 rounded px-3 py-2 text-sm" 
                  readonly>
@@ -1459,11 +1459,20 @@
         };
         const streetColor = streetColors[hand.lastStreet?.toLowerCase()] || 'text-gray-400';
         
-        // 시간 표시 포맷
-        const time = hand.handUpdatedAt ? new Date(hand.handUpdatedAt).toLocaleTimeString('ko-KR', {
-          hour: '2-digit',
-          minute: '2-digit'
-        }) : '-';
+        // 시간 표시 포맷 (시:분:초)
+        let time = '-';
+        if (hand.handUpdatedAt) {
+          // timestamp인 경우 변환
+          const timestamp = typeof hand.handUpdatedAt === 'string' ? 
+            Date.parse(hand.handUpdatedAt) : hand.handUpdatedAt;
+          const handDate = new Date(timestamp);
+          if (!isNaN(handDate.getTime())) {
+            const h = String(handDate.getHours()).padStart(2, '0');
+            const m = String(handDate.getMinutes()).padStart(2, '0');
+            const s = String(handDate.getSeconds()).padStart(2, '0');
+            time = `${h}:${m}:${s}`;
+          }
+        }
         
         // 카메라 파일명 정보 (이미 변환된 형태)
         const camFilesText = hand.camFiles && hand.camFiles.length > 0 ? 
@@ -1485,7 +1494,7 @@
           </div>
           <div class="flex items-center justify-between text-xs mt-1">
             <span class="text-gray-500">${hand.lastAction || '-'}</span>
-            <span class="text-gray-500">${time}</span>
+            <span class="text-gray-500 font-mono">${time}</span>
           </div>
           <div class="text-xs text-blue-300 mt-1 truncate" title="${hand.camFiles?.join(', ') || ''}">
             📹 ${camFilesText}
@@ -3239,7 +3248,7 @@
       timestampInput.value = timestamp;
       filenameInput.value = `처리 중...`;
       summaryTextarea.value = `🔄 처리 중...\n\n1. 핸드 데이터 로드 중...\n2. Virtual 시트 매칭 대기\n3. AI 분석 대기\n4. 파일명 생성 대기`;
-      matchedRowInput.value = `핸드 시간: ${timeString} - 매칭 대기 중`;
+      matchedRowInput.value = `핸드 시간: ${timeString} - 매칭 대기 중...`;
       
       modal.classList.remove('hidden');
       
@@ -3259,12 +3268,26 @@
           throw new Error('Virtual 시트에서 매칭되는 행을 찾을 수 없습니다');
         }
         
-        matchedRowInput.value = `매칭 성공: ${matchedRow.row}행 (${isExactMatch ? '정확' : '근사'} 매칭)`;
+        // 매칭된 시간 포맷팅
+        let matchedTimeStr = matchedRow.time || '';
+        if (matchedTimeStr && !matchedTimeStr.includes(':')) {
+          // 숫자만 있으면 timestamp로 간주하고 변환
+          const matchedDate = new Date(parseInt(matchedTimeStr) * 1000);
+          if (!isNaN(matchedDate.getTime())) {
+            const h = String(matchedDate.getHours()).padStart(2, '0');
+            const m = String(matchedDate.getMinutes()).padStart(2, '0');
+            const s = String(matchedDate.getSeconds()).padStart(2, '0');
+            matchedTimeStr = `${h}:${m}:${s}`;
+          }
+        }
+        
+        matchedRowInput.value = `매칭: ${matchedRow.row}행 [핸드 ${timeString} ↔ 시트 ${matchedTimeStr}] (${isExactMatch ? '정확' : '근사'} 매칭)`;
         // 매칭된 행 정보 저장
         window.currentMatchedRowData = {
           row: matchedRow.row,
           isExactMatch: isExactMatch,
-          time: matchedRow.time
+          time: matchedRow.time,
+          formattedTime: matchedTimeStr
         };
         
         // 3단계: AI 분석 (정확한 계산)
@@ -3426,7 +3449,33 @@
               accuracyText = '매칭 상태 불명';
           }
           
-          const matchedRowText = `${accuracyIcon} Row ${virtualMatch.rowIndex} [타겟: ${virtualMatch.targetTime} ↔ 매칭: ${virtualMatch.matchedTime}] (차이: ${timeDiffStr}) - ${accuracyText}`;
+          // 시간 포맷팅
+          let targetTimeFormatted = virtualMatch.targetTime;
+          let matchedTimeFormatted = virtualMatch.matchedTime;
+          
+          // 타겟 시간 포맷팅 (timestamp인 경우)
+          if (targetTimeFormatted && !targetTimeFormatted.includes(':')) {
+            const targetDate = new Date(parseInt(targetTimeFormatted) * 1000);
+            if (!isNaN(targetDate.getTime())) {
+              const h = String(targetDate.getHours()).padStart(2, '0');
+              const m = String(targetDate.getMinutes()).padStart(2, '0');
+              const s = String(targetDate.getSeconds()).padStart(2, '0');
+              targetTimeFormatted = `${h}:${m}:${s}`;
+            }
+          }
+          
+          // 매칭 시간 포맷팅 (이미 HH:MM:SS 형식일 수 있음)
+          if (matchedTimeFormatted && matchedTimeFormatted.match(/^\d+$/)) {
+            const matchedDate = new Date(parseInt(matchedTimeFormatted) * 1000);
+            if (!isNaN(matchedDate.getTime())) {
+              const h = String(matchedDate.getHours()).padStart(2, '0');
+              const m = String(matchedDate.getMinutes()).padStart(2, '0');
+              const s = String(matchedDate.getSeconds()).padStart(2, '0');
+              matchedTimeFormatted = `${h}:${m}:${s}`;
+            }
+          }
+          
+          const matchedRowText = `${accuracyIcon} Row ${virtualMatch.rowIndex} [핸드 ${targetTimeFormatted} ↔ 시트 ${matchedTimeFormatted}] (차이: ${timeDiffStr}) - ${accuracyText}`;
           
           // UI 업데이트
           console.log('📝 matched-row 업데이트 시도...');
@@ -3780,11 +3829,16 @@
         
         // 매칭된 행 정보 표시
         if (window.currentMatchedRowData) {
-          document.getElementById('update-matched-row').textContent = `Row ${window.currentMatchedRowData.row} (${window.currentMatchedRowData.isExactMatch ? '정확' : '근사'} 매칭)`;
+          const timeInfo = window.currentMatchedRowData.formattedTime ? 
+            ` [시간: ${window.currentMatchedRowData.formattedTime}]` : '';
+          document.getElementById('update-matched-row').textContent = 
+            `Row ${window.currentMatchedRowData.row}${timeInfo} (${window.currentMatchedRowData.isExactMatch ? '정확' : '근사'} 매칭)`;
         } else {
           document.getElementById('update-matched-row').textContent = matchedRowInput.value || '-';
         }
-        document.getElementById('update-matched-time').textContent = new Date().toLocaleTimeString();
+        const now = new Date();
+        const nowTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        document.getElementById('update-matched-time').textContent = nowTimeStr;
         
         // 시트 업데이트 모달 표시
         document.getElementById('sheet-update-modal').classList.remove('hidden');
