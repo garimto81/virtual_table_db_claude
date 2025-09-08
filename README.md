@@ -55,20 +55,23 @@ Supabase를 활용한 가상 테이블 토너먼트 시스템
 
 ## 최신 업데이트 (v9.3.3 - 2025-01-09)
 
-### 🔧 **핫픽스: Apps Script updateHand 액션 오류 수정 (v9.3.3)**
+### 🔧 **핫픽스: Apps Script 호환성 문제 해결 (v9.3.3)**
 
 **✅ 완료된 주요 수정사항:**
 
-1. **Apps Script updateHand 액션 지원 추가** ✓
-   - Apps Script에서 `updateHand` 액션이 지원되지 않아 발생하는 "지원되지 않는 액션" 오류 수정
-   - `handleHandUpdate()` 함수 추가: updateHand 액션을 updateSheet 형식으로 변환하여 처리
-   - 기존 `handleSheetUpdate()` 함수 재사용으로 코드 중복 방지
+1. **Apps Script 호환성 문제 해결** ✓
+   - 배포된 Apps Script에서 `updateHand` 액션 미지원으로 인한 "지원되지 않는 액션" 오류 수정
+   - 기존 `updateSheet` 액션을 사용하도록 코드 수정 (즉시 해결)
    - 데이터 구조 자동 변환: `handNumber`, `virtualRow`, `aiSummary` → `rowNumber`, `aiAnalysis` 등
 
-2. **데이터 전송 구조 최적화** ✓
+2. **데이터 전송 구조 최적화** ✅
    - `updateHandInSheet()` 함수에서 `sheetUrl` 누락 문제 해결
    - `CONFIG.WRITE_SHEET_URL`을 자동으로 포함하여 전송
    - 필수 필드 검증 로직 강화
+
+3. **Apps Script 배포 가이드 추가** 📋
+   - 로컬 코드 수정 후 실제 배포가 필요함을 명확히 문서화
+   - `apps-script/README.md`에 배포 체크리스트 및 트러블슈팅 추가
 
 ### 🎆 **이전 업데이트 상황 (v9.3.2 - 2025-01-09 완료)**
 

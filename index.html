@@ -3150,17 +3150,15 @@
         throw new Error('Apps Script URL이 설정되지 않았습니다. 설정에서 URL을 입력해주세요.');
       }
       
+      // Apps Script의 기존 updateSheet 액션 사용 (임시 해결책)
       const payload = {
-        action: 'updateHand',
+        action: 'updateSheet',
+        sheetUrl: data.sheetUrl,
+        rowNumber: data.virtualRow ? data.virtualRow.row : null,
         handNumber: handNumber,
-        handEdit: true,
-        handEditTime: new Date().toISOString(),
         filename: data.filename,
-        aiSummary: data.aiSummary,
-        handAnalysis: data.handAnalysis,
-        virtualRow: data.virtualRow ? data.virtualRow.row : null,
-        isExactMatch: data.isExactMatch,
-        sheetUrl: data.sheetUrl
+        aiAnalysis: data.aiSummary || data.handAnalysis || '처리 완료',
+        timestamp: new Date().toISOString()
       };
       
       console.log('📤 Apps Script로 핸드 업데이트 전송:', payload);
