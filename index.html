@@ -2419,11 +2419,7 @@
 
     // Gemini API 연결 테스트
     async function testGeminiAPIConnection() {
-      // 현재 입력된 API 키 가져오기
-      const apiKeyInput = document.getElementById('gemini-api-key').value.trim();
-      
       console.log('🧪 Gemini API 테스트 시작');
-      console.log('🔑 입력된 API 키:', apiKeyInput ? `설정됨 (길이: ${apiKeyInput.length})` : '없음');
       
       // 테스트 버튼 상태 변경
       const testBtn = document.getElementById('test-gemini-api');
@@ -2432,14 +2428,25 @@
       testBtn.textContent = '🔄 API 테스트 중...';
       
       try {
+        // 먼저 현재 입력값을 CONFIG에 임시 저장
+        const apiKeyInput = document.getElementById('gemini-api-key').value.trim();
+        if (apiKeyInput) {
+          CONFIG.GEMINI_API_KEY = apiKeyInput;
+          console.log('💾 입력된 API 키를 CONFIG에 임시 저장:', apiKeyInput.length + '글자');
+        }
+        
+        // CONFIG에서 API 키 가져오기 (저장된 값 또는 방금 입력한 값)
+        const apiKeyToTest = CONFIG.GEMINI_API_KEY;
+        console.log('🔑 테스트할 API 키:', apiKeyToTest ? `설정됨 (길이: ${apiKeyToTest.length})` : '없음');
+        
         // API 키 기본 검증
-        if (!apiKeyInput) {
-          alert('⚠️ API 키를 입력해주세요.');
+        if (!apiKeyToTest || apiKeyToTest.trim() === '') {
+          alert('⚠️ API 키를 입력해주세요.\n\n현재 상태:\n• 입력 필드에 API 키를 입력했는지 확인\n• 설정이 저장되었는지 확인');
           return false;
         }
         
-        if (!apiKeyInput.startsWith('AIza')) {
-          alert('⚠️ Gemini API 키 형식이 올바르지 않습니다.\nAIza로 시작해야 합니다.');
+        if (!apiKeyToTest.startsWith('AIza')) {
+          alert('⚠️ Gemini API 키 형식이 올바르지 않습니다.\nAIza로 시작해야 합니다.\n\n현재 키 시작: ' + apiKeyToTest.substring(0, 10) + '...');
           return false;
         }
         
@@ -2447,7 +2454,7 @@
         const testPrompt = "안녕하세요. 이것은 API 연결 테스트입니다. '테스트 성공'이라고 응답해주세요.";
         
         console.log('🌐 Gemini API 테스트 호출 중...');
-        const result = await callGeminiAPI(testPrompt, apiKeyInput);
+        const result = await callGeminiAPI(testPrompt, apiKeyToTest);
         
         console.log('📦 테스트 응답:', result);
         
@@ -3034,6 +3041,13 @@ Player1 (AK) vs Player2 (QQ)
       const apiKeyInput = document.getElementById('gemini-api-key').value.trim();
       CONFIG.GEMINI_API_KEY = apiKeyInput;
       console.log('💾 API 키 저장:', apiKeyInput ? `설정됨 (길이: ${apiKeyInput.length})` : '빈 값');
+      
+      // API 키 저장 상태 알림
+      if (apiKeyInput) {
+        showNotification('✅ Gemini API 키가 저장되었습니다.', 'success');
+      } else {
+        showNotification('⚠️ API 키가 비어있습니다.', 'warning');
+      }
       
       // Apps Script 설정 localStorage 저장
       localStorage.setItem('read_sheet_url', CONFIG.READ_SHEET_URL);
