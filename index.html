@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.3.0
+  Version: 9.3.1
   Last Updated: 2025-01-09
-  Description: 시간 표기 수정, 카드 심볼 표시, 3줄 요약 간략화
+  Description: 시트 업데이트 모달 매칭 행 정보 전달 버그 수정
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.3.0 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.3.1 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.3.0</span>
+        <span class="text-xs text-gray-500">v9.3.1</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -3225,6 +3225,9 @@
       const summaryTextarea = document.getElementById('ai-summary');
       const matchedRowInput = document.getElementById('matched-row');
       
+      // 매칭된 행 정보를 저장할 전역 변수
+      window.currentMatchedRowData = null;
+      
       // 시간 표시
       const handDate = new Date(timestamp * 1000);
       const hours = String(handDate.getHours()).padStart(2, '0');
@@ -3257,6 +3260,12 @@
         }
         
         matchedRowInput.value = `매칭 성공: ${matchedRow.row}행 (${isExactMatch ? '정확' : '근사'} 매칭)`;
+        // 매칭된 행 정보 저장
+        window.currentMatchedRowData = {
+          row: matchedRow.row,
+          isExactMatch: isExactMatch,
+          time: matchedRow.time
+        };
         
         // 3단계: AI 분석 (정확한 계산)
         summaryTextarea.value = `🤖 3/4 핸드 분석 중...\n\n플레이어 카드와 보드 조합을 분석하고 있습니다...\n승부 결과를 계산 중...`;
@@ -3768,7 +3777,13 @@
         document.getElementById('update-filename').value = filenameInput.value;
         document.getElementById('update-ai-analysis').value = summaryTextarea.value;
         document.getElementById('update-hand-number').textContent = currentHand || '-';
-        document.getElementById('update-matched-row').textContent = matchedRowInput.value || '-';
+        
+        // 매칭된 행 정보 표시
+        if (window.currentMatchedRowData) {
+          document.getElementById('update-matched-row').textContent = `Row ${window.currentMatchedRowData.row} (${window.currentMatchedRowData.isExactMatch ? '정확' : '근사'} 매칭)`;
+        } else {
+          document.getElementById('update-matched-row').textContent = matchedRowInput.value || '-';
+        }
         document.getElementById('update-matched-time').textContent = new Date().toLocaleTimeString();
         
         // 시트 업데이트 모달 표시
@@ -3806,14 +3821,24 @@
         return;
       }
       
-      // 매칭된 행 번호 추출 (예: "🎯 Row 5 ..." → 5)
-      const rowMatch = matchedRowText.match(/Row\s+(\d+)/);
-      if (!rowMatch) {
+      // 매칭된 행 번호 추출
+      let matchedRow = null;
+      
+      // 먼저 전역 변수에서 확인
+      if (window.currentMatchedRowData && window.currentMatchedRowData.row) {
+        matchedRow = window.currentMatchedRowData.row;
+      } else {
+        // 텍스트에서 추출 시도 (예: "Row 5 ..." → 5)
+        const rowMatch = matchedRowText.match(/Row\s+(\d+)/);
+        if (rowMatch) {
+          matchedRow = parseInt(rowMatch[1]);
+        }
+      }
+      
+      if (!matchedRow) {
         alert('⚠️ 매칭된 행 정보를 찾을 수 없습니다.\n먼저 Virtual 시트 매칭을 완료해주세요.');
         return;
       }
-      
-      const matchedRow = parseInt(rowMatch[1]);
       
       console.log('📊 시트 업데이트 시작...');
       console.log(`📍 행: ${matchedRow}, 핸드: ${currentHand}, 파일명: ${filename}`);
