@@ -2560,19 +2560,7 @@
     // AI 핸드 분석 함수
     async function analyzeHandWithAI(handNumber) {
       try {
-        debugLog('🤖 AI 분석 시작 - 핸드 #' + handNumber);
-        
-        // Gemini API 키 확인
-        debugLog('🔑 CONFIG.GEMINI_API_KEY:', CONFIG.GEMINI_API_KEY ? '설정됨 (길이: ' + CONFIG.GEMINI_API_KEY.length + ')' : '설정되지 않음');
-        
-        if (!CONFIG.GEMINI_API_KEY || CONFIG.GEMINI_API_KEY.trim() === '') {
-          return '⚠️ Gemini API 키가 설정되지 않았습니다. 설정에서 API 키를 입력해주세요.';
-        }
-        
-        // API 키 형식 간단 검증
-        if (!CONFIG.GEMINI_API_KEY.startsWith('AIza')) {
-          return '⚠️ Gemini API 키 형식이 올바르지 않습니다. AIza로 시작해야 합니다.';
-        }
+        debugLog('🔍 정확한 핸드 분석 시작 - 핸드 #' + handNumber);
         
         // 핸드 데이터 로드
         const handData = await loadHandData(handNumber);
@@ -2580,72 +2568,150 @@
           return '❌ 핸드 데이터를 로드할 수 없습니다.';
         }
         
-        // 프롬프트 생성
-        const prompt = createAnalysisPrompt(handData);
+        // 직접 계산한 정확한 3줄 요약 생성
+        const preciseAnalysis = createPreciseThreeLineSummary(handData);
+        debugLog('✅ 핸드 분석 완료');
         
-        // Gemini AI 분석
-        const analysis = await callGeminiAPI(prompt, CONFIG.GEMINI_API_KEY);
+        return preciseAnalysis;
         
-        return analysis;
       } catch (error) {
-        console.error('AI 분석 오류:', error);
-        return '❌ 분석 실패: ' + error.message;
+        console.error('❌ 핸드 분석 오류:', error);
+        debugLog(`❌ 분석 실패: ${error.message}`);
+        
+        // 오류 시 기본 정보라도 반환
+        const fallbackSummary = createFallbackSummary(handData || { players: [], pot: 0, blinds: { bb: 0 } });
+        return fallbackSummary;
       }
     }
     
-    // 분석 프롬프트 생성
-    function createAnalysisPrompt(handData) {
-      // BB 단위로 팟 계산 (정확한 빅블라인드 대비 계산)
+    // 오류 시 기본 요약 생성
+    function createFallbackSummary(handData) {
       const potInBB = handData.blinds.bb && handData.blinds.bb > 0 ? 
-        Math.round((handData.pot / handData.blinds.bb) * 10) / 10 : // 소수점 1자리까지
+        Math.round((handData.pot / handData.blinds.bb) * 10) / 10 : 
         handData.pot;
       
-      // 보드 텍스처 분석을 위한 카드 정리
+      let line1 = '플레이어 정보 부족';
+      if (handData.players && handData.players.length >= 1) {
+        const player1 = handData.players[0];
+        const player2 = handData.players[1] || { name: '상대방', cards: ['?', '?'] };
+        line1 = `${player1.name} (${player1.cards ? player1.cards.join('') : '??'}) vs ${player2.name} (${player2.cards ? player2.cards.join('') : '??'})`;
+      }
+      
+      const board = handData.communityCards ? handData.communityCards.join(' ') : '보드 없음';
+      const line2 = `보드 [${board}] 분석 불가`;
+      const line3 = `팟 (${handData.pot || 0}) ${potInBB}BB - 결과 정보 없음`;
+      
+      return `${line1}\n${line2}\n${line3}`;
+    }
+    
+    // 정확한 3줄 요약 생성 (AI 프롬프트 대신 직접 계산)
+    function createPreciseThreeLineSummary(handData) {
+      // BB 단위로 팟 계산
+      const potInBB = handData.blinds.bb && handData.blinds.bb > 0 ? 
+        Math.round((handData.pot / handData.blinds.bb) * 10) / 10 : 
+        handData.pot;
+      
       const board = handData.communityCards.join(' ') || '보드 없음';
       
-      // 플레이어별 핸드 조합 분석 추가
-      const handCombinations = analyzePlayerHands(handData);
+      // 1줄: 플레이어 대결 구도
+      let line1 = '';
+      if (handData.players.length >= 2) {
+        const player1 = handData.players[0];
+        const player2 = handData.players[1];
+        const p1Cards = player1.cards && player1.cards.length >= 2 ? player1.cards.join('') : '??';
+        const p2Cards = player2.cards && player2.cards.length >= 2 ? player2.cards.join('') : '??';
+        line1 = `${player1.name} (${p1Cards}) vs ${player2.name} (${p2Cards})`;
+      } else {
+        line1 = '플레이어 정보 불충분';
+      }
       
-      // 승자와 패자 찾기 (간단한 로직 - 실제 데이터에서 개선 필요)
-      const winner = handData.winner || handData.players[0];
-      const loser = handData.players.find(p => p !== winner) || handData.players[1];
+      // 2줄: 보드 분석 + 핸드 조합
+      let line2 = `보드 [${board}]`;
+      if (handData.communityCards && handData.communityCards.length >= 5) {
+        const handCombinations = analyzePlayerHands(handData);
+        const boardTexture = analyzeBoardTexture(handData.communityCards);
+        line2 += ` ${boardTexture}, ${handCombinations}`;
+      } else {
+        line2 += ' 불완전한 보드';
+      }
       
-      const prompt = `포커 핸드 분석:
-
-핸드 #${handData.number}
-블라인드: ${handData.blinds.sb}/${handData.blinds.bb}
-플레이어 정보:
-${handData.players.map(p => `- ${p.name}: 카드 ${p.cards.join('')}, 스택 ${p.chips}`).join('\n')}
-
-보드: ${board}
-핸드 조합 분석: ${handCombinations}
-총 팟: ${handData.pot} (${potInBB}BB)
-
-다음 형식으로 정확히 3줄로 요약하세요:
-
-1줄: [플레이어명] (홀카드) vs [플레이어명] (홀카드) 형식으로 대결 구도 표시
-2줄: 보드 [${board}]와 관련된 분석 (확실한 정보만 기록, 불확실하면 보드 텍스처만)
-3줄: 팟 (${handData.pot}) ${potInBB}BB - 결과 (확실한 정보만, 불확실하면 생략)
-
-⚠️ 중요 지침:
-- 명확한 증거가 없는 승패나 핸드 결과는 추측하지 말것
-- 불확실한 경우 단순히 플레이어 홀카드만 표기
-- 가상의 내용이나 추정으로 정보를 만들어내지 말것
-- 확실히 알 수 있는 정보만 기록
-
-예시 (명확한 경우):
-Hero (AK) vs Villain (QQ)  
-보드 [A 7 2 9 3] 드라이 보드, 에이스 하이
-팟 (850) 45BB - 정보 부족으로 결과 생략
-
-예시 (불확실한 경우):
-Player1 (AK) vs Player2 (QQ)
-보드 [A 7 2 9 3] 드라이 보드
-팟 (850) 45BB - 결과 정보 없음
-
-반드시 위 지침을 따라 3줄로만 작성하세요.`;
+      // 3줄: 팟 정보 + 승부 결과
+      let line3 = `팟 (${handData.pot}) ${potInBB}BB`;
       
-      return prompt;
+      if (handData.communityCards && handData.communityCards.length >= 5 && handData.players.length >= 2) {
+        const winnerInfo = determineWinner(handData);
+        if (winnerInfo.winner) {
+          line3 += ` - ${winnerInfo.winner.name} 승리 (${winnerInfo.reason})`;
+        } else if (winnerInfo.reason === '동점 (키커 계산 복잡)') {
+          line3 += ` - 결과 불분명 (${winnerInfo.topHand})`;
+        } else {
+          line3 += ' - 결과 정보 없음';
+        }
+      } else {
+        line3 += ' - 결과 정보 없음';
+      }
+      
+      return `${line1}\n${line2}\n${line3}`;
+    }
+    
+    // 보드 텍스처 분석
+    function analyzeBoardTexture(board) {
+      if (!board || board.length < 3) return '보드 부족';
+      
+      // 수트 분석
+      const suits = board.map(card => card.slice(-1));
+      const suitCounts = {};
+      suits.forEach(suit => suitCounts[suit] = (suitCounts[suit] || 0) + 1);
+      const maxSuitCount = Math.max(...Object.values(suitCounts));
+      
+      // 랭크 분석
+      const ranks = board.map(card => {
+        const rank = card.slice(0, -1);
+        return rank === 'A' ? 14 : rank === 'K' ? 13 : rank === 'Q' ? 12 : rank === 'J' ? 11 : parseInt(rank);
+      }).sort((a, b) => b - a);
+      
+      let texture = '';
+      
+      // 플러시 드로우 체크
+      if (maxSuitCount >= 3) {
+        texture += maxSuitCount >= 4 ? '플러시 보드' : '플러시 드로우 보드';
+      } else {
+        texture += '레인보우 보드';
+      }
+      
+      // 페어 체크
+      const rankCounts = {};
+      ranks.forEach(rank => rankCounts[rank] = (rankCounts[rank] || 0) + 1);
+      const hasPair = Object.values(rankCounts).some(count => count >= 2);
+      
+      if (hasPair) {
+        texture += ', 페어 보드';
+      }
+      
+      // 스트레이트 가능성 체크
+      const uniqueRanks = [...new Set(ranks)].sort((a, b) => b - a);
+      let hasConnectivity = false;
+      
+      for (let i = 0; i < uniqueRanks.length - 1; i++) {
+        if (uniqueRanks[i] - uniqueRanks[i + 1] <= 2) {
+          hasConnectivity = true;
+          break;
+        }
+      }
+      
+      if (hasConnectivity) {
+        texture += ', 연결성 높음';
+      } else {
+        texture += ', 드라이 보드';
+      }
+      
+      return texture;
+    }
+    
+    // AI 분석용 간소화된 프롬프트 (백업용)
+    function createAnalysisPrompt(handData) {
+      // 직접 계산한 3줄 요약을 반환
+      return createPreciseThreeLineSummary(handData);
     }
     
     // Gemini API 호출 (여러 모델 fallback 지원)
@@ -2854,6 +2920,100 @@ Player1 (AK) vs Player2 (QQ)
       });
       
       return analyses.join(' | ');
+    }
+    
+    // 승부 결과 판정 함수
+    function determineWinner(handData) {
+      if (!handData.communityCards || handData.communityCards.length < 5 || handData.players.length < 2) {
+        return { winner: null, reason: '불완전한 정보' };
+      }
+      
+      const playerHandRankings = handData.players.map(player => {
+        if (!player.cards || player.cards.length < 2) {
+          return { player: player, rank: -1, description: '카드 없음' };
+        }
+        
+        const handRank = getHandRanking(player.cards, handData.communityCards);
+        return {
+          player: player,
+          rank: handRank.rank,
+          description: handRank.description,
+          combination: evaluateHandStrength(player.cards, handData.communityCards)
+        };
+      }).filter(p => p.rank >= 0); // 유효한 핸드만
+      
+      // 핸드 랭킹으로 정렬 (높은 순)
+      playerHandRankings.sort((a, b) => b.rank - a.rank);
+      
+      if (playerHandRankings.length < 2) {
+        return { winner: null, reason: '비교 불가' };
+      }
+      
+      const winner = playerHandRankings[0];
+      const runnerUp = playerHandRankings[1];
+      
+      // 동점인 경우 처리
+      if (winner.rank === runnerUp.rank) {
+        return { 
+          winner: null, 
+          reason: '동점 (키커 계산 복잡)',
+          topHand: winner.combination
+        };
+      }
+      
+      return {
+        winner: winner.player,
+        reason: winner.combination,
+        defeated: runnerUp.combination
+      };
+    }
+    
+    // 핸드 랭킹 계산 (숫자로 반환)
+    function getHandRanking(playerCards, board) {
+      const allCards = [...playerCards, ...board];
+      
+      if (allCards.length < 5) return { rank: -1, description: '불완전' };
+      
+      // 카드를 파싱
+      const parsedCards = allCards.map(card => {
+        const rank = card.slice(0, -1);
+        const suit = card.slice(-1);
+        let numRank = parseInt(rank);
+        if (rank === 'J') numRank = 11;
+        else if (rank === 'Q') numRank = 12;
+        else if (rank === 'K') numRank = 13;
+        else if (rank === 'A') numRank = 14;
+        return { rank: numRank, suit: suit };
+      }).sort((a, b) => b.rank - a.rank);
+      
+      const ranks = parsedCards.map(c => c.rank);
+      const suits = parsedCards.map(c => c.suit);
+      const rankCounts = {};
+      const suitCounts = {};
+      
+      ranks.forEach(rank => rankCounts[rank] = (rankCounts[rank] || 0) + 1);
+      suits.forEach(suit => suitCounts[suit] = (suitCounts[suit] || 0) + 1);
+      
+      const pairs = Object.keys(rankCounts).filter(rank => rankCounts[rank] >= 2);
+      const threeOfAKind = Object.keys(rankCounts).filter(rank => rankCounts[rank] >= 3);
+      const fourOfAKind = Object.keys(rankCounts).filter(rank => rankCounts[rank] >= 4);
+      
+      const isFlush = Object.values(suitCounts).some(count => count >= 5);
+      const isStraight = checkStraight(ranks);
+      
+      // 핸드 랭킹 반환 (높을수록 강함)
+      if (isStraight && isFlush) {
+        if (ranks[0] === 14 && ranks[1] === 13) return { rank: 9, description: '로얄 플러시' };
+        return { rank: 8, description: '스트레이트 플러시' };
+      }
+      if (fourOfAKind.length > 0) return { rank: 7, description: '포카드' };
+      if (threeOfAKind.length > 0 && pairs.length >= 2) return { rank: 6, description: '풀하우스' };
+      if (isFlush) return { rank: 5, description: '플러시' };
+      if (isStraight) return { rank: 4, description: '스트레이트' };
+      if (threeOfAKind.length > 0) return { rank: 3, description: '트리플' };
+      if (pairs.length >= 2) return { rank: 2, description: '투페어' };
+      if (pairs.length === 1) return { rank: 1, description: '원페어' };
+      return { rank: 0, description: '하이카드' };
     }
     
     // 정확한 포커 핸드 강도 평가 함수
