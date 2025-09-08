@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.5.1</title>
+  <title>포커 핸드 로거 v2.6.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -50,7 +50,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.5.1</span>
+        <span id="version-display" class="text-gray-400">v2.6.0</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -65,7 +65,10 @@
             </label>
           </div>
           <div class="flex-1 min-w-0">
-            <select id="table-selector" class="w-full bg-gray-700 border border-gray-600 rounded-md px-2 py-1"></select>
+            <button id="table-selector-btn" class="w-full bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-left flex items-center justify-between hover:bg-gray-600">
+              <span id="selected-table-display">테이블 선택</span>
+              <span class="text-gray-400">▼</span>
+            </button>
           </div>
           <div class="flex-1 flex items-center gap-1 min-w-0">
             <select id="timezone-selector" class="flex-grow bg-gray-700 border border-gray-600 rounded-md px-2 py-1 text-xs"></select>
@@ -270,6 +273,45 @@
     </div>
   </div>
 
+  <!-- 테이블 선택 모달 -->
+  <div id="table-selector-modal" class="modal fixed inset-0 bg-black bg-opacity-75 hidden z-50">
+    <div class="flex items-center justify-center h-full p-2">
+      <div class="bg-gray-800 rounded-lg w-full max-w-md h-full max-h-screen flex flex-col">
+        <!-- 헤더 -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
+          <h3 class="text-lg font-bold text-amber-400">🎯 테이블 선택</h3>
+          <button id="close-table-selector" class="text-gray-400 hover:text-white text-xl">×</button>
+        </div>
+        
+        <!-- 검색 및 필터 -->
+        <div class="p-4 border-b border-gray-700">
+          <input type="text" id="table-search" placeholder="테이블 번호 또는 플레이어 검색..." 
+                 class="w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-sm mb-3">
+          <div class="flex gap-2 flex-wrap">
+            <button id="filter-all" class="filter-btn px-3 py-1 rounded-full text-xs bg-blue-600 text-white">전체</button>
+            <button id="filter-active" class="filter-btn px-3 py-1 rounded-full text-xs bg-gray-600 hover:bg-gray-500">활성</button>
+            <button id="filter-empty" class="filter-btn px-3 py-1 rounded-full text-xs bg-gray-600 hover:bg-gray-500">빈테이블</button>
+          </div>
+        </div>
+        
+        <!-- 페이지 토글 -->
+        <div class="px-4 py-2 border-b border-gray-700">
+          <div class="flex items-center justify-between">
+            <button id="prev-page" class="px-3 py-1 bg-gray-600 rounded hover:bg-gray-500 disabled:opacity-50">◀</button>
+            <span id="page-info" class="text-sm text-gray-400">1-20 / 100</span>
+            <button id="next-page" class="px-3 py-1 bg-gray-600 rounded hover:bg-gray-500 disabled:opacity-50">▶</button>
+          </div>
+        </div>
+        
+        <!-- 테이블 그리드 -->
+        <div class="flex-1 overflow-y-auto p-4">
+          <div id="table-grid" class="grid grid-cols-4 gap-2">
+            <!-- 테이블 버튼들이 여기에 동적 생성됩니다 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
   /**
@@ -278,6 +320,7 @@
    * Version: 2.2.0
    * Last Modified: 2025-09-08 KST
    * Changes: 
+   * - v2.6.0: 스마트폰 최적화 테이블 선택 UI - 버튼식 페이지 토글 방식
    * - v2.5.1: 카메라 번호 초기값 로직 개선 - 표시된 값으로 자동 입력
    * - v2.5.0: IN/OUT 테이블 관리 시스템 및 console 오류 해결
    * - v2.4.0: 카메라 번호 로딩 개선 및 Type 시트 칩 업데이트 수정
@@ -288,7 +331,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.5.1';
+  const APP_VERSION = 'v2.6.0';
   const VERSION_DATE = '2025-09-08';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -388,7 +431,9 @@
     // ====== EL ======
     const el = {
       refreshDataBtn: document.getElementById('refresh-data'),
-      tableSelector: document.getElementById('table-selector'),
+      tableSelectorBtn: document.getElementById('table-selector-btn'),
+      selectedTableDisplay: document.getElementById('selected-table-display'),
+      tableSelectorModal: document.getElementById('table-selector-modal'),
       playerSelectionButtons: document.getElementById('player-selection-buttons'),
       boardCardPlaceholders: document.getElementById('board-card-placeholders'),
       playerDetailsSection: document.getElementById('player-details-section'),
@@ -487,8 +532,120 @@
 
     // ====== RENDERERS ======
     function renderTableSelection(){
-      const s=el.tableSelector; s.innerHTML='<option value="">테이블 선택</option>';
-      window.state.allTables.forEach(t=>{ const o=document.createElement('option'); o.value=t; o.textContent=t; s.appendChild(o); });
+      // 더이상 필요하지 않지만 호환성을 위해 유지
+      updateSelectedTableDisplay();
+    }
+
+    // ====== 새로운 테이블 선택 시스템 ======
+    let tableModalState = {
+      currentPage: 1,
+      tablesPerPage: 20,
+      currentFilter: 'all',
+      searchTerm: ''
+    };
+
+    function updateSelectedTableDisplay() {
+      const display = el.selectedTableDisplay;
+      if (window.state.selectedTable) {
+        const playerCount = (window.state.playerDataByTable[window.state.selectedTable] || []).length;
+        display.textContent = `${window.state.selectedTable} (${playerCount}명)`;
+      } else {
+        display.textContent = '테이블 선택';
+      }
+    }
+
+    function getFilteredTables() {
+      let tables = window.state.allTables;
+      
+      // 검색 필터
+      if (tableModalState.searchTerm) {
+        const term = tableModalState.searchTerm.toLowerCase();
+        tables = tables.filter(table => {
+          // 테이블 이름 매치
+          if (table.toLowerCase().includes(term)) return true;
+          // 플레이어 이름 매치
+          const players = window.state.playerDataByTable[table] || [];
+          return players.some(p => p.name.toLowerCase().includes(term));
+        });
+      }
+      
+      // 상태 필터
+      if (tableModalState.currentFilter === 'active') {
+        tables = tables.filter(table => {
+          const players = window.state.playerDataByTable[table] || [];
+          return players.length > 0;
+        });
+      } else if (tableModalState.currentFilter === 'empty') {
+        tables = tables.filter(table => {
+          const players = window.state.playerDataByTable[table] || [];
+          return players.length === 0;
+        });
+      }
+      
+      return tables;
+    }
+
+    function renderTableGrid() {
+      const filteredTables = getFilteredTables();
+      const startIdx = (tableModalState.currentPage - 1) * tableModalState.tablesPerPage;
+      const endIdx = startIdx + tableModalState.tablesPerPage;
+      const pageTables = filteredTables.slice(startIdx, endIdx);
+      
+      const grid = document.getElementById('table-grid');
+      grid.innerHTML = '';
+      
+      pageTables.forEach(table => {
+        const players = window.state.playerDataByTable[table] || [];
+        const playerCount = players.length;
+        const isSelected = window.state.selectedTable === table;
+        
+        // 상태별 색상
+        let statusColor = 'bg-gray-600'; // 빈 테이블
+        if (playerCount >= 7) statusColor = 'bg-green-600'; // 활성
+        else if (playerCount >= 4) statusColor = 'bg-yellow-600'; // 보통
+        else if (playerCount >= 1) statusColor = 'bg-blue-600'; // 적음
+        
+        const button = document.createElement('button');
+        button.className = `table-btn ${statusColor} hover:brightness-110 p-3 rounded-lg text-white text-sm font-medium relative transition-all ${isSelected ? 'ring-2 ring-amber-400' : ''}`;
+        button.innerHTML = `
+          <div class="text-xs font-bold">${table}</div>
+          <div class="text-xs opacity-75">${playerCount}명</div>
+          ${isSelected ? '<div class="absolute top-1 right-1 text-amber-400">●</div>' : ''}
+        `;
+        
+        button.onclick = () => {
+          window.state.selectedTable = table;
+          window.state.playersInHand = [];
+          updateSelectedTableDisplay();
+          closeTableSelectorModal();
+          renderAll();
+        };
+        
+        grid.appendChild(button);
+      });
+      
+      // 페이지 정보 업데이트
+      const totalPages = Math.ceil(filteredTables.length / tableModalState.tablesPerPage);
+      const pageInfo = document.getElementById('page-info');
+      const startNum = startIdx + 1;
+      const endNum = Math.min(endIdx, filteredTables.length);
+      pageInfo.textContent = `${startNum}-${endNum} / ${filteredTables.length}`;
+      
+      // 페이지 버튼 상태
+      document.getElementById('prev-page').disabled = tableModalState.currentPage === 1;
+      document.getElementById('next-page').disabled = tableModalState.currentPage >= totalPages;
+    }
+
+    function openTableSelectorModal() {
+      el.tableSelectorModal.classList.remove('hidden');
+      renderTableGrid();
+      document.getElementById('table-search').focus();
+    }
+
+    function closeTableSelectorModal() {
+      el.tableSelectorModal.classList.add('hidden');
+      tableModalState.searchTerm = '';
+      document.getElementById('table-search').value = '';
     }
     function renderPlayerSelection(){
       if(!window.state.selectedTable){
@@ -1604,7 +1761,7 @@
           river: data.actions?.river||[],
         };
         window.state.selectedTable = data.table || '';
-        el.tableSelector.value = window.state.selectedTable;
+        updateSelectedTableDisplay();
 
         window.state.playersInHand = (data.players||[]).map(p=>({
           name:p.name, hand:p.hand||[], chips:p.finalChips, initialChips:p.initialChips, role:p.role||null
@@ -2278,7 +2435,58 @@ async function sendDataToGoogleSheet(){
         }
       });
 
-      el.tableSelector.onchange = (e)=>{ window.state.selectedTable=e.target.value; window.state.playersInHand=[]; renderAll(); };
+      // 테이블 선택 버튼 및 모달 이벤트
+      el.tableSelectorBtn.onclick = openTableSelectorModal;
+      document.getElementById('close-table-selector').onclick = closeTableSelectorModal;
+      
+      // 테이블 모달 검색 및 필터
+      document.getElementById('table-search').oninput = (e) => {
+        tableModalState.searchTerm = e.target.value;
+        tableModalState.currentPage = 1;
+        renderTableGrid();
+      };
+      
+      // 필터 버튼들
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.onclick = () => {
+          // 모든 필터 버튼 비활성화
+          document.querySelectorAll('.filter-btn').forEach(b => {
+            b.classList.remove('bg-blue-600', 'text-white');
+            b.classList.add('bg-gray-600', 'hover:bg-gray-500');
+          });
+          // 클릭된 버튼 활성화
+          btn.classList.remove('bg-gray-600', 'hover:bg-gray-500');
+          btn.classList.add('bg-blue-600', 'text-white');
+          
+          tableModalState.currentFilter = btn.id.replace('filter-', '');
+          tableModalState.currentPage = 1;
+          renderTableGrid();
+        };
+      });
+      
+      // 페이지 네비게이션
+      document.getElementById('prev-page').onclick = () => {
+        if (tableModalState.currentPage > 1) {
+          tableModalState.currentPage--;
+          renderTableGrid();
+        }
+      };
+      
+      document.getElementById('next-page').onclick = () => {
+        const filteredTables = getFilteredTables();
+        const totalPages = Math.ceil(filteredTables.length / tableModalState.tablesPerPage);
+        if (tableModalState.currentPage < totalPages) {
+          tableModalState.currentPage++;
+          renderTableGrid();
+        }
+      };
+      
+      // 모달 외부 클릭시 닫기
+      el.tableSelectorModal.onclick = (e) => {
+        if (e.target === el.tableSelectorModal) {
+          closeTableSelectorModal();
+        }
+      };
       el.timezoneSelector.onchange = (e)=>{ window.state.selectedTimezone=e.target.value; updateTimeDisplay(); renderAll(); };
       
       // Smart Mode 토글
