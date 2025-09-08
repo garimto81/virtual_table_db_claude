@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.0.8 - AI 프롬프트 개선</title>
+  <title>포커 핸드 모니터링 v9.0.9 - AI 정확성 강화</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.0.8</span>
+        <span class="text-xs text-gray-500">v9.0.9</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -2587,16 +2587,28 @@ ${handData.players.map(p => `- ${p.name}: 카드 ${p.cards.join('')}, 스택 ${p
 총 팟: ${handData.pot} (${potInBB}BB)
 
 다음 형식으로 정확히 3줄로 요약하세요:
+
 1줄: [플레이어명] (홀카드) vs [플레이어명] (홀카드) 형식으로 대결 구도 표시
-2줄: 보드 [${board}]와 관련된 핵심 내용 (플러시/스트레이트 가능성, 텍스처 등)
-3줄: 팟 ${potInBB}BB - 승자와 핸드 결과
+2줄: 보드 [${board}]와 관련된 분석 (확실한 정보만 기록, 불확실하면 보드 텍스처만)
+3줄: 팟 (${handData.pot}) ${potInBB}BB - 결과 (확실한 정보만, 불확실하면 생략)
 
-예시:
-Hero (AK) vs Villain (QQ)
-보드 [A 7 2 9 3] 탑페어가 오버페어를 이김
-팟 45BB - Hero 승리 (에이스 탑페어)
+⚠️ 중요 지침:
+- 명확한 증거가 없는 승패나 핸드 결과는 추측하지 말것
+- 불확실한 경우 단순히 플레이어 홀카드만 표기
+- 가상의 내용이나 추정으로 정보를 만들어내지 말것
+- 확실히 알 수 있는 정보만 기록
 
-반드시 위 형식을 지켜서 3줄로만 작성하세요.`;
+예시 (명확한 경우):
+Hero (AK) vs Villain (QQ)  
+보드 [A 7 2 9 3] 드라이 보드, 에이스 하이
+팟 (850) 45BB - 정보 부족으로 결과 생략
+
+예시 (불확실한 경우):
+Player1 (AK) vs Player2 (QQ)
+보드 [A 7 2 9 3] 드라이 보드
+팟 (850) 45BB - 결과 정보 없음
+
+반드시 위 지침을 따라 3줄로만 작성하세요.`;
       
       return prompt;
     }
@@ -3303,7 +3315,7 @@ Hero (AK) vs Villain (QQ)
     
     async function init() {
       console.log('='.repeat(60));
-      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.8 - AI 프롬프트 개선');
+      console.log('🚀 포커 핸드 모니터링 시스템 v9.0.9 - AI 정확성 강화');
       
       // localStorage에서 AI API 키 로드
       function loadAPIKeys() {
