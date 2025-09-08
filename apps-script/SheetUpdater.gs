@@ -81,7 +81,8 @@ async function handleSheetUpdate(data) {
       handNumber,
       filename,
       aiAnalysis,
-      timestamp
+      timestamp,
+      indexSheetUrl // index 시트 URL 추가
     } = data;
     
     // 필수 데이터 검증
@@ -162,18 +163,33 @@ async function handleSheetUpdate(data) {
     sheet.getRange(targetRow, 9).setValue(updateTime);
     console.log(`✅ I${targetRow} 업데이트 시간: ${updateTime}`);
     
+    // index 시트 업데이트 (A열에서 핸드 번호 찾아 E열 업데이트)
+    let indexUpdateResult = null;
+    if (indexSheetUrl && handNumber) {
+      try {
+        indexUpdateResult = await updateIndexSheet(indexSheetUrl, handNumber, filename);
+        console.log(`✅ Index 시트 업데이트 완료: ${JSON.stringify(indexUpdateResult)}`);
+      } catch (indexError) {
+        console.error('❌ Index 시트 업데이트 실패:', indexError);
+        // index 시트 업데이트 실패해도 전체 실패로 처리하지 않음
+      }
+    }
+    
     console.log('✅ 시트 업데이트 완료!');
     
     return _json({
       status: 'success',
       message: '시트 업데이트 완료',
       data: {
-        sheetName: sheet.getName(),
-        rowNumber: targetRow,
-        filename: filename,
-        aiAnalysis: finalAnalysis,
-        updatedAt: updateTime.toISOString(),
-        handNumber: handNumber
+        virtualSheet: {
+          sheetName: sheet.getName(),
+          rowNumber: targetRow,
+          filename: filename,
+          aiAnalysis: finalAnalysis,
+          updatedAt: updateTime.toISOString(),
+          handNumber: handNumber
+        },
+        indexSheet: indexUpdateResult
       }
     });
     
@@ -246,6 +262,72 @@ async function handleHandUpdate(data) {
       message: `핸드 업데이트 실패: ${error.message}`,
       stack: error.stack
     });
+  }
+}
+
+// ===== Index 시트 업데이트 핸들러 =====
+
+async function updateIndexSheet(indexSheetUrl, handNumber, filename) {
+  try {
+    console.log(`🔍 Index 시트에서 핸드 번호 검색: ${handNumber}`);
+    
+    // index 시트 ID 추출
+    const indexSheetId = _extractSheetId(indexSheetUrl);
+    if (!indexSheetId) {
+      throw new Error('Index 시트 URL에서 ID를 추출할 수 없습니다');
+    }
+    
+    const indexGid = _extractGid(indexSheetUrl) || '0';
+    console.log(`🔗 Index 시트 ID: ${indexSheetId}, GID: ${indexGid}`);
+    
+    // index 스프레드시트 열기
+    const indexSpreadsheet = SpreadsheetApp.openById(indexSheetId);
+    const indexSheet = indexGid === '0' ? 
+      indexSpreadsheet.getSheets()[0] : 
+      indexSpreadsheet.getSheets().find(s => s.getSheetId() == indexGid);
+    
+    if (!indexSheet) {
+      throw new Error(`Index 시트 GID ${indexGid}에 해당하는 시트를 찾을 수 없습니다`);
+    }
+    
+    console.log(`📋 Index 시트 이름: "${indexSheet.getName()}"`);
+    
+    // A열에서 핸드 번호 검색
+    const dataRange = indexSheet.getDataRange();
+    const values = dataRange.getValues();
+    
+    let foundRow = -1;
+    for (let i = 0; i < values.length; i++) {
+      const cellValue = values[i][0]; // A열 (인덱스 0)
+      
+      // 핸드 번호 매칭 (다양한 형식 지원)
+      if (cellValue && cellValue.toString().includes(handNumber)) {
+        foundRow = i + 1; // 시트는 1부터 시작
+        console.log(`✅ 핸드 번호 "${handNumber}" 발견: 행 ${foundRow}, 값 "${cellValue}"`);
+        break;
+      }
+    }
+    
+    if (foundRow === -1) {
+      throw new Error(`핸드 번호 "${handNumber}"를 A열에서 찾을 수 없습니다`);
+    }
+    
+    // E열(5)에 파일명 업데이트
+    indexSheet.getRange(foundRow, 5).setValue(filename);
+    console.log(`✅ Index 시트 E${foundRow} 업데이트: "${filename}"`);
+    
+    return {
+      sheetName: indexSheet.getName(),
+      rowNumber: foundRow,
+      handNumber: handNumber,
+      filename: filename,
+      updatedColumn: 'E',
+      updatedAt: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    console.error('❌ Index 시트 업데이트 오류:', error);
+    throw error;
   }
 }
 
