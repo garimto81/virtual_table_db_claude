@@ -71,7 +71,7 @@ function doPost(e) {
 
 // ===== 시트 업데이트 핸들러 =====
 
-function handleSheetUpdate(data) {
+async function handleSheetUpdate(data) {
   try {
     console.log('🔄 시트 업데이트 시작...');
     
@@ -189,7 +189,7 @@ function handleSheetUpdate(data) {
 
 // ===== 핸드 업데이트 핸들러 =====
 
-function handleHandUpdate(data) {
+async function handleHandUpdate(data) {
   try {
     console.log('🔄 핸드 업데이트 시작...');
     
@@ -237,7 +237,7 @@ function handleHandUpdate(data) {
     };
     
     // 기존 handleSheetUpdate 함수 재사용
-    return handleSheetUpdate(convertedData);
+    return await handleSheetUpdate(convertedData);
     
   } catch (error) {
     console.error('❌ 핸드 업데이트 오류:', error);
