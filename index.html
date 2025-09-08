@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 9.3.2
+  Version: 9.3.3
   Last Updated: 2025-01-09
-  Description: 핸드 시간 표시 형식 개선 (시:분:초 포맷)
+  Description: Apps Script updateHand 액션 오류 수정
 -->
 <html lang="ko">
 <head>
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>포커 핸드 모니터링 v9.3.2 - AI 분석 시스템</title>
+  <title>포커 핸드 모니터링 v9.3.3 - AI 분석 시스템</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -248,7 +248,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span class="text-xs text-gray-500">v9.3.2</span>
+        <span class="text-xs text-gray-500">v9.3.3</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -2883,6 +2883,7 @@
         // 7. Apps Script를 통한 시트 업데이트
         showNotification('📝 시트 업데이트 중...', 'info');
         await updateHandInSheet(handNumber, {
+          sheetUrl: CONFIG.WRITE_SHEET_URL,
           filename: filename,
           aiSummary: aiSummary,
           handAnalysis: handAnalysis,
@@ -3157,8 +3158,9 @@
         filename: data.filename,
         aiSummary: data.aiSummary,
         handAnalysis: data.handAnalysis,
-        virtualRow: data.virtualRow,
-        isExactMatch: data.isExactMatch
+        virtualRow: data.virtualRow ? data.virtualRow.row : null,
+        isExactMatch: data.isExactMatch,
+        sheetUrl: data.sheetUrl
       };
       
       console.log('📤 Apps Script로 핸드 업데이트 전송:', payload);
@@ -3532,6 +3534,7 @@
       try {
         // Apps Script를 통한 시트 업데이트
         await updateHandInSheet(handNumber, {
+          sheetUrl: CONFIG.WRITE_SHEET_URL,
           filename: filename,
           aiSummary: summary,
           handAnalysis: '처리 완료',

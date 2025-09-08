@@ -50,6 +50,8 @@ function doPost(e) {
       return handleSheetUpdate(body);
     } else if (action === 'analyzeHand') {
       return handleHandAnalysis(body);
+    } else if (action === 'updateHand') {
+      return handleHandUpdate(body);
     } else {
       return _json({
         status: 'error',
@@ -180,6 +182,68 @@ function handleSheetUpdate(data) {
     return _json({
       status: 'error',
       message: `시트 업데이트 실패: ${error.message}`,
+      stack: error.stack
+    });
+  }
+}
+
+// ===== 핸드 업데이트 핸들러 =====
+
+function handleHandUpdate(data) {
+  try {
+    console.log('🔄 핸드 업데이트 시작...');
+    
+    const {
+      handNumber,
+      handEdit,
+      handEditTime,
+      filename,
+      aiSummary,
+      handAnalysis,
+      virtualRow,
+      isExactMatch,
+      sheetUrl
+    } = data;
+    
+    // 필수 데이터 검증
+    if (!sheetUrl) {
+      throw new Error('시트 URL이 필요합니다');
+    }
+    
+    if (!virtualRow || isNaN(parseInt(virtualRow))) {
+      throw new Error('유효한 Virtual 행 번호가 필요합니다');
+    }
+    
+    if (!filename || !filename.trim()) {
+      throw new Error('파일명이 필요합니다');
+    }
+    
+    console.log(`📊 핸드 업데이트 정보:
+      - 핸드 번호: ${handNumber}
+      - 시트 URL: ${sheetUrl}
+      - 행 번호: ${virtualRow}
+      - 파일명: ${filename}
+      - AI 요약: ${aiSummary}
+      - 핸드 분석: ${handAnalysis}`);
+    
+    // updateSheet 형식으로 데이터 변환하여 처리
+    const convertedData = {
+      sheetUrl: sheetUrl,
+      rowNumber: virtualRow,
+      handNumber: handNumber,
+      filename: filename,
+      aiAnalysis: aiSummary || handAnalysis || '분석 완료',
+      timestamp: handEditTime || new Date().toISOString()
+    };
+    
+    // 기존 handleSheetUpdate 함수 재사용
+    return handleSheetUpdate(convertedData);
+    
+  } catch (error) {
+    console.error('❌ 핸드 업데이트 오류:', error);
+    return _json({
+      status: 'error',
+      message: `핸드 업데이트 실패: ${error.message}`,
       stack: error.stack
     });
   }
