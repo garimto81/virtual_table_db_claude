@@ -3189,6 +3189,36 @@
       }
     }
     
+    // Virtual 시트 매칭 래퍼 함수 (기존 findClosestVirtualRow를 사용)
+    async function findMatchingRowInVirtualSheet(virtualSheetUrl, timestamp) {
+      try {
+        const result = await findClosestVirtualRow(timestamp, virtualSheetUrl);
+        
+        if (result && result.rowIndex) {
+          return {
+            matchedRow: {
+              row: result.rowIndex,
+              data: result.data || {},
+              time: result.matchedTime
+            },
+            isExactMatch: result.accuracy === 'exact',
+            accuracy: result.accuracy,
+            timeDiff: result.timeDiff
+          };
+        } else {
+          return {
+            matchedRow: null,
+            isExactMatch: false,
+            accuracy: 'none',
+            timeDiff: Infinity
+          };
+        }
+      } catch (error) {
+        console.error('❌ Virtual 시트 매칭 래퍼 오류:', error);
+        throw error;
+      }
+    }
+    
     // 개선된 완료 모달 표시 (처리 과정 실시간 확인)
     async function showImprovedCompletionModal(handNumber, timestamp, virtualSheetUrl) {
       const modal = document.getElementById('completion-modal');
