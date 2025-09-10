@@ -15,7 +15,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.8.0</title>
+  <title>포커 핸드 로거 v2.8.1</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -50,7 +50,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.8.0</span>
+        <span id="version-display" class="text-gray-400">v2.8.1</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -334,7 +334,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.8.0';
+  const APP_VERSION = 'v2.8.1';
   const VERSION_DATE = '2025-09-08';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -1237,7 +1237,7 @@
             
             // 해당 플레이어의 최대 칩 찾기
             const playerData = playersInHand.find(p => p.name === player);
-            const maxChips = playerData ? playerData.initialChips : Infinity;
+            const maxChips = playerData ? parseInt(unformatNumber(playerData.initialChips) || 0, 10) : Infinity;
             
             // 현재 기여액 + 새 액션이 최대 칩을 초과하지 않도록 제한
             const currentContribution = contributions[player] || 0;
@@ -1289,7 +1289,7 @@
       // 1. 각 플레이어의 총 베팅 가능 금액 계산 (초기 칩)
       const playerMaxBets = {};
       playersInHand.forEach(player => {
-        playerMaxBets[player.name] = player.initialChips || 0;
+        playerMaxBets[player.name] = parseInt(unformatNumber(player.initialChips) || 0, 10);
       });
       
       console.log('💰 플레이어별 최대 베팅 가능:', playerMaxBets);
