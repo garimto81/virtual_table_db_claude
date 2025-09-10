@@ -97,5 +97,63 @@ Pull Request 환영합니다!
 
 ---
 
+## 📌 현재 작업 상황 (2025-01-10)
+
+### ✅ 완료된 작업
+1. **칩 무한 버그 수정** - 2백만 이상 칩 정상 처리 (v2.8.1)
+2. **국가 정보 시스템** - J열(Country), K열(CountryVerified) 추가
+3. **승자 저장 문제** - 해결 방안 문서화 (Index 시트 F열)
+4. **프로젝트 정리** - 불필요한 파일 삭제, 문서 통합 (v2.8.2)
+
+### 🔧 다음 작업 필요 사항
+
+#### 1. 승자 저장 기능 구현
+```javascript
+// index.html 약 2240줄 근처 수정 필요
+function getWinnerNames() {
+  return window.state.playersInHand
+    .filter(p => p.role === 'winner')
+    .map(p => p.name)
+    .join(', ');
+}
+
+// indexMeta 객체에 추가
+const indexMeta = {
+  // ... 기존 필드들
+  winners: getWinnerNames(), // 이 줄 추가
+};
+```
+
+#### 2. 국가 정보 1회성 업데이트
+```javascript
+// Google Apps Script에서 실행
+runOneTimeCountryUpdate()
+```
+- 55명 플레이어 자동 매핑 준비됨
+- Type 시트 J/K열 사용
+
+#### 3. 테스트 필요
+- [ ] 승자 선택 → 시트 전송 → Index F열 확인
+- [ ] 2백만 이상 칩 입력 테스트
+- [ ] 국가 정보 업데이트 실행
+
+### 💡 중요 파일 위치
+- **메인 앱**: `index.html`
+- **백엔드**: `apps-script/Code_v59_InOut.gs`
+- **국가 업데이트**: `apps-script/OneTimeCountryUpdate.gs`
+- **전체 문서**: `DOCUMENTATION.md`
+
+### 🐛 알려진 이슈
+1. **승자 정보가 Index 시트에 저장 안됨** → 위 코드 수정으로 해결
+2. **복수 승자(스플릿 팟) 미구현** → 추후 개발 필요
+
+### 📝 개발 메모
+- Google Sheets ID: `1J-lf8bYTLPbpdhieUNdb8ckW_uwdQ3MtSBLmyRIwH7U`
+- Apps Script URL 재배포 필요시 index.html의 `APPS_SCRIPT_URL` 수정
+- Type 시트 구조: A~H(기존) + I(pic) + J(Country) + K(CountryVerified)
+
+---
+
 **Version**: v2.8.2  
-**Last Updated**: 2025-01-10
+**Last Updated**: 2025-01-10  
+**Next Session**: 승자 저장 기능 구현부터 시작
