@@ -6,6 +6,7 @@
   Last Modified: 2025-01-11 KST
   
   Change Log:
+  - v2.9.2 (2025-01-11): 1x11 그리드로 좌석 배치 개선
   - v2.9.1 (2025-01-11): 좌석 배치 UI 공간 최적화
   - v2.9.0 (2025-01-11): 좌석 배치 시스템 및 액션 순서 로직 추가
   - v2.8.3 (2025-01-11): 카드 입력 다이얼로그 버튼 위치 변경 (UX 개선)
@@ -22,7 +23,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.9.1</title>
+  <title>포커 핸드 로거 v2.9.2</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -57,7 +58,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.9.1</span>
+        <span id="version-display" class="text-gray-400">v2.9.2</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -95,22 +96,13 @@
             <span id="data-stamp"></span>
           </div>
         </div>
-        <!-- 좌석 배치 및 플레이어 선택 (10개 좌석) -->
+        <!-- 좌석 배치 및 플레이어 선택 (1x11 그리드) -->
         <div class="bg-gray-700 p-2 rounded-lg">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300">테이블 좌석</span>
-            <div class="flex items-center gap-2">
-              <label class="text-xs text-gray-300">버튼:</label>
-              <select id="button-position-select" class="bg-gray-600 text-xs px-2 py-1 rounded">
-                <option value="">선택</option>
-              </select>
-              <div id="position-indicators" class="text-xs text-gray-400">
-                <!-- SB, BB 표시 -->
-              </div>
-            </div>
+          <div id="seat-buttons" class="grid grid-cols-11 gap-1">
+            <!-- 10개 좌석 + 버튼 드롭다운 (11번째) -->
           </div>
-          <div id="seat-buttons" class="grid grid-cols-5 gap-1">
-            <!-- 10개 좌석 버튼 동적 생성 -->
+          <div id="position-indicators" class="text-xs text-gray-400 mt-1 text-center">
+            <!-- SB, BB 표시 -->
           </div>
         </div>
       </div>
@@ -344,6 +336,7 @@
    * Version: 2.9.1
    * Last Modified: 2025-01-11 KST
    * Changes: 
+   * - v2.9.2: 1x11 그리드로 좌석 배치 개선
    * - v2.9.1: 좌석 배치 UI 공간 최적화
    * - v2.9.0: 좌석 배치 시스템 및 액션 순서 로직 추가
    * - v2.8.3: 카드 입력 다이얼로그 버튼 위치 변경 (UX 개선)
@@ -363,7 +356,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.9.1';
+  const APP_VERSION = 'v2.9.2';
   const VERSION_DATE = '2025-01-10';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -687,14 +680,16 @@
       if(!seatButtons) return;
       
       if(!window.state.selectedTable){
-        seatButtons.innerHTML='<p class="text-gray-500 text-xs col-span-5">테이블을 먼저 선택해주세요.</p>';
+        seatButtons.innerHTML='<p class="text-gray-500 text-xs col-span-11">테이블을 먼저 선택해주세요.</p>';
         return;
       }
       
       const tableData = window.state.playerDataByTable[window.state.selectedTable]||[];
       
-      // 10개 좌석 버튼 생성
+      // 10개 좌석 버튼 + 버튼 위치 드롭다운 생성
       let html = '';
+      
+      // 1-10번 좌석 버튼
       for(let seatNum = 1; seatNum <= 10; seatNum++){
         // Type 시트에서 해당 좌석의 플레이어 찾기
         const playerData = tableData.find(p => parseInt(p.seat) === seatNum);
@@ -719,25 +714,46 @@
         if(playerData){
           const notable = playerData.notable ? '⭐' : '';
           const btnClass = isInHand ? 'bg-amber-600' : 'bg-gray-600 hover:bg-gray-500';
-          html += `<button class="seat-player-btn btn ${btnClass} ${borderClass} px-1 py-1 text-xs rounded-md truncate" 
+          html += `<button class="seat-player-btn btn ${btnClass} ${borderClass} px-1 py-1 text-[10px] rounded-md truncate" 
                     data-seat="${seatNum}" 
                     data-player-name="${playerData.name}"
                     title="Seat ${seatNum}: ${playerData.name}">
-                    <div class="text-xs font-bold">${seatNum}</div>
+                    <div class="font-bold">${seatNum}</div>
                     <div class="truncate">${notable}${playerData.name}${positionBadge}</div>
                   </button>`;
         } else {
           // 빈 좌석
-          html += `<button class="seat-empty-btn btn bg-gray-800 ${borderClass} px-1 py-1 text-xs rounded-md" 
+          html += `<button class="seat-empty-btn btn bg-gray-800 ${borderClass} px-1 py-1 text-[10px] rounded-md" 
                     data-seat="${seatNum}"
                     title="Seat ${seatNum}: 빈자리">
-                    <div class="text-xs text-gray-500">${seatNum}</div>
+                    <div class="text-gray-500">${seatNum}</div>
                     <div class="text-gray-600">-${positionBadge}</div>
                   </button>`;
         }
       }
       
+      // 11번째 위치: 버튼 드롭다운
+      const occupiedSeats = getOccupiedSeats();
+      const currentBtnPos = window.state.buttonPosition || '';
+      
+      html += `
+        <select id="button-position-select" class="bg-gray-600 text-[10px] px-1 py-1 rounded h-full">
+          <option value="">BTN</option>
+          ${occupiedSeats.map(seat => {
+            const playerName = window.state.seatMap[seat] || `Seat ${seat}`;
+            const selected = seat.toString() === currentBtnPos.toString() ? 'selected' : '';
+            return `<option value="${seat}" ${selected} title="${seat}번 - ${playerName}">${seat}</option>`;
+          }).join('')}
+        </select>
+      `;
+      
       seatButtons.innerHTML = html;
+      
+      // 버튼 위치 선택 이벤트 리스너 추가
+      const btnSelect = document.getElementById('button-position-select');
+      if(btnSelect) {
+        btnSelect.addEventListener('change', handleButtonPositionChange);
+      }
     }
     function renderPlayerDetails(){
       const finalPot = calculateFinalPot();
