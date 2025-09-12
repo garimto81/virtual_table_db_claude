@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.9.3
+  Version: 2.9.4
   Last Modified: 2025-01-12 KST
   
   Change Log:
+  - v2.9.4 (2025-01-12): 플레이어 이름 표시 버그 수정
   - v2.9.3 (2025-01-12): 좌석 번호 제거, 0.5x11 그리드, 버튼 드롭다운 버그 수정
   - v2.9.2 (2025-01-11): 1x11 그리드로 좌석 배치 개선
   - v2.9.1 (2025-01-11): 좌석 배치 UI 공간 최적화
@@ -24,7 +25,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.9.3</title>
+  <title>포커 핸드 로거 v2.9.4</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -715,12 +716,21 @@
         if(playerData){
           const notable = playerData.notable ? '⭐' : '';
           const btnClass = isInHand ? 'bg-amber-600' : 'bg-gray-600 hover:bg-gray-500';
-          // 좌석 번호 제거, 포지션 배지만 표시
+          // 포지션 배지와 플레이어 이름 표시
+          let displayText = '';
+          if(positionBadge) {
+            displayText = positionBadge; // 포지션이 있으면 포지션만 표시
+          } else {
+            // 포지션이 없으면 이름 표시 (notable 포함)
+            const shortName = playerData.name.length > 8 ? playerData.name.substring(0, 7) + '…' : playerData.name;
+            displayText = notable + shortName;
+          }
+          
           html += `<button class="seat-player-btn btn ${btnClass} ${borderClass} px-1 py-0.5 text-[9px] rounded truncate h-7" 
                     data-seat="${seatNum}" 
                     data-player-name="${playerData.name}"
                     title="Seat ${seatNum}: ${playerData.name}">
-                    <div class="truncate">${positionBadge || notable}</div>
+                    <div class="truncate">${displayText}</div>
                   </button>`;
         } else {
           // 빈 좌석
