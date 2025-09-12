@@ -2,11 +2,10 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.9.6
+  Version: 2.9.5
   Last Modified: 2025-09-12 KST
   
   Change Log:
-  - v2.9.6 (2025-09-12): 모든 팝업 애니메이션 제거 (즉시 표시)
   - v2.9.5 (2025-09-12): 시작 칩 업데이트 버그 수정
   - v2.9.4 (2025-09-12): 플레이어 이름 표시 버그 수정
   - v2.9.3 (2025-09-12): 좌석 번호 제거, 0.5x11 그리드, 버튼 드롭다운 버그 수정
@@ -27,7 +26,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.9.6</title>
+  <title>포커 핸드 로거 v2.9.5</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -37,13 +36,13 @@
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     #app-container { display: flex; flex-direction: column; height: 100%; }
     main { flex-grow: 1; overflow-y: auto; }
-    .btn { /* 애니메이션 제거 */ }
+    .btn { transition: all 0.1s ease-in-out; }
     .btn:active { transform: scale(0.95); }
     .btn-selected { background-color: #FBBF24 !important; color: #111827 !important; font-weight: bold; }
     .card-placeholder { border: 2px dashed #4B5563; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 1px; background-color: rgba(255,255,255,0.05); flex-shrink: 0; }
     .card-display { font-family: 'Roboto', sans-serif; background-color: white; border-radius: 4px; padding: 1px; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.8rem; }
     .card-display .rank { font-weight: bold; font-size: 1rem; }
-    .modal { /* 애니메이션 제거 */ backdrop-filter: blur(4px); }
+    .modal { transition: opacity 0.3s ease; backdrop-filter: blur(4px); }
     .card-selector-btn { font-family: 'Roboto', sans-serif; font-size: 1rem; font-weight: bold; }
     .card-selector-btn.card-red { color: #DC2626; }
     .card-selector-btn.card-black { color: #111827; }
@@ -154,12 +153,12 @@
   </div>
 
   <!-- Modals -->
-  <div id="card-selector-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-2 z-50 hidden"></div>
-  <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"></div>
-  <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"></div>
-  <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden"></div>
+  <div id="card-selector-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-2 z-50 hidden opacity-0"></div>
+  <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+  <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
+  <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <!-- 플레이어 & 칩 관리 모달 -->
-  <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+  <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
     <div class="bg-gray-800 rounded-lg p-4 max-w-lg w-full max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-xl font-bold text-amber-400">설정 관리</h2>
@@ -199,7 +198,7 @@
       </div>
     </div>
   </div>
-  <div id="log-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden">
+  <div id="log-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
     <div class="bg-gray-800 rounded-lg p-4 w-full max-w-lg h-2/3 flex flex-col">
       <div class="flex justify-between items-center mb-2">
         <h2 class="text-xl font-bold text-amber-400">로딩 로그</h2>
@@ -498,11 +497,10 @@
 
     // ====== LOG MODAL ======
     function openLogModal(){ 
-      el.logModal.classList.remove('hidden');
+      el.logModal.classList.remove('hidden'); 
+      setTimeout(()=>el.logModal.classList.remove('opacity-0'),10);
     }
-    function closeLogModal(){ 
-      el.logModal.classList.add('hidden');
-    }
+    function closeLogModal(){ el.logModal.classList.add('opacity-0'); setTimeout(()=>el.logModal.classList.add('hidden'),300); }
     function logMessage(msg,isError=false){
       const d=document.createElement('div');
       d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -889,13 +887,8 @@
     }
     function renderAll(){ renderPlayerSelection(); renderPlayerDetails(); renderBoard(); renderActionStreets(); renderWinnerSelection(); }
     // ====== MODALS ======
-    function openModal(node, html){ 
-      node.innerHTML=html; 
-      node.classList.remove('hidden');
-    }
-    function closeModal(node){ 
-      node.classList.add('hidden');
-    }
+    function openModal(node, html){ node.innerHTML=html; node.classList.remove('hidden'); setTimeout(()=>node.classList.remove('opacity-0'),10); }
+    function closeModal(node){ node.classList.add('opacity-0'); setTimeout(()=>node.classList.add('hidden'),300); }
 
     function openCardSelector(){
       const { target, player, index, count } = window.state.modalState.cardTarget;
@@ -2045,7 +2038,7 @@
       }catch(err){
         console.error(err); logMessage(`초기 로딩 실패: ${err.message}`, true);
       }finally{
-        closeLogModal();
+        setTimeout(closeLogModal, 800);
       }
     }
 
@@ -2491,7 +2484,7 @@ async function sendDataToGoogleSheet(){
     isSending = false;
     el.sendToSheetBtn.textContent='시트 전송';
     el.sendToSheetBtn.disabled=false;
-    closeLogModal(); // 즉시 닫기
+    setTimeout(()=>closeLogModal(), 3000); // 로그를 좀 더 오래 보여줌
   }
 }
 
@@ -3192,13 +3185,15 @@ async function sendDataToGoogleSheet(){
       const modal = el.registrationModal;
       if (modal) {
         modal.classList.remove('hidden');
+        setTimeout(() => modal.classList.remove('opacity-0'), 10);
       }
     }
     
     function closeRegistrationModal() {
       const modal = el.registrationModal;
       if (modal) {
-        modal.classList.add('hidden');
+        modal.classList.add('opacity-0');
+        setTimeout(() => modal.classList.add('hidden'), 300);
       }
     }
     
@@ -3271,7 +3266,7 @@ async function sendDataToGoogleSheet(){
       }catch(err){
         console.error(err); logMessage(`초기화 실패: ${err.message}`, true);
       }finally{
-        closeLogModal();
+        setTimeout(closeLogModal, 800);
       }
     }
 
