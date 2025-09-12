@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.9.4
+  Version: 2.9.5
   Last Modified: 2025-09-12 KST
   
   Change Log:
+  - v2.9.5 (2025-09-12): 시작 칩 업데이트 버그 수정
   - v2.9.4 (2025-09-12): 플레이어 이름 표시 버그 수정
   - v2.9.3 (2025-09-12): 좌석 번호 제거, 0.5x11 그리드, 버튼 드롭다운 버그 수정
   - v2.9.2 (2025-01-11): 1x11 그리드로 좌석 배치 개선
@@ -25,7 +26,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.9.4</title>
+  <title>포커 핸드 로거 v2.9.5</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -2934,13 +2935,10 @@ async function sendDataToGoogleSheet(){
           player.chips = raw;
           player.chipsUpdatedAt = new Date().toISOString();
           
-          // initialChips가 아직 설정되지 않았거나 핸드 시작 전이면 initialChips도 업데이트
-          if(!player.initialChips || player.initialChips === '' || player.initialChips === '0') {
-            player.initialChips = raw;
-            console.log(`🎰 ${player.name}의 시작칩 설정: ${raw}`);
-          } else {
-            console.log(`💰 ${player.name}의 칩 변경: ${oldChips} → ${raw} (시작칩 유지: ${player.initialChips})`);
-          }
+          // 항상 현재 입력된 칩 값을 시작칩으로 업데이트
+          // (사용자가 수동으로 칩을 변경하면 그것이 새로운 시작칩이 됨)
+          player.initialChips = raw;
+          console.log(`🎰 ${player.name}의 시작칩 업데이트: ${oldChips} → ${raw}`);
         }
       });
 
