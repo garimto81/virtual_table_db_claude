@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.9.1
-  Last Modified: 2025-01-11 KST
+  Version: 2.9.3
+  Last Modified: 2025-01-12 KST
   
   Change Log:
+  - v2.9.3 (2025-01-12): 좌석 번호 제거, 0.5x11 그리드, 버튼 드롭다운 버그 수정
   - v2.9.2 (2025-01-11): 1x11 그리드로 좌석 배치 개선
   - v2.9.1 (2025-01-11): 좌석 배치 UI 공간 최적화
   - v2.9.0 (2025-01-11): 좌석 배치 시스템 및 액션 순서 로직 추가
@@ -23,7 +24,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.9.2</title>
+  <title>포커 핸드 로거 v2.9.3</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -689,7 +690,7 @@
       // 10개 좌석 버튼 + 버튼 위치 드롭다운 생성
       let html = '';
       
-      // 1-10번 좌석 버튼
+      // 1-10번 좌석 버튼 (좌석 번호 표시 제거)
       for(let seatNum = 1; seatNum <= 10; seatNum++){
         // Type 시트에서 해당 좌석의 플레이어 찾기
         const playerData = tableData.find(p => parseInt(p.seat) === seatNum);
@@ -701,33 +702,32 @@
         let borderClass = '';
         
         if(positions.includes('BTN')) {
-          positionBadge = ' 🎯';
+          positionBadge = '🎯';
           borderClass = 'border-2 border-yellow-400';
         } else if(positions.includes('SB')) {
-          positionBadge = ' (SB)';
-          borderClass = 'border border-green-400';
+          positionBadge = 'SB';
+          borderClass = 'border-2 border-green-400';
         } else if(positions.includes('BB')) {
-          positionBadge = ' (BB)';
-          borderClass = 'border border-blue-400';
+          positionBadge = 'BB';
+          borderClass = 'border-2 border-blue-400';
         }
         
         if(playerData){
           const notable = playerData.notable ? '⭐' : '';
           const btnClass = isInHand ? 'bg-amber-600' : 'bg-gray-600 hover:bg-gray-500';
-          html += `<button class="seat-player-btn btn ${btnClass} ${borderClass} px-1 py-1 text-[10px] rounded-md truncate" 
+          // 좌석 번호 제거, 포지션 배지만 표시
+          html += `<button class="seat-player-btn btn ${btnClass} ${borderClass} px-1 py-0.5 text-[9px] rounded truncate h-7" 
                     data-seat="${seatNum}" 
                     data-player-name="${playerData.name}"
                     title="Seat ${seatNum}: ${playerData.name}">
-                    <div class="font-bold">${seatNum}</div>
-                    <div class="truncate">${notable}${playerData.name}${positionBadge}</div>
+                    <div class="truncate">${positionBadge || notable}</div>
                   </button>`;
         } else {
           // 빈 좌석
-          html += `<button class="seat-empty-btn btn bg-gray-800 ${borderClass} px-1 py-1 text-[10px] rounded-md" 
+          html += `<button class="seat-empty-btn btn bg-gray-800 ${borderClass} px-1 py-0.5 text-[9px] rounded h-7" 
                     data-seat="${seatNum}"
                     title="Seat ${seatNum}: 빈자리">
-                    <div class="text-gray-500">${seatNum}</div>
-                    <div class="text-gray-600">-${positionBadge}</div>
+                    <div class="text-gray-600">${positionBadge || '•'}</div>
                   </button>`;
         }
       }
@@ -737,7 +737,7 @@
       const currentBtnPos = window.state.buttonPosition || '';
       
       html += `
-        <select id="button-position-select" class="bg-gray-600 text-[10px] px-1 py-1 rounded h-full">
+        <select id="button-position-select" class="bg-gray-600 text-[9px] px-1 py-0.5 rounded h-7 cursor-pointer">
           <option value="">BTN</option>
           ${occupiedSeats.map(seat => {
             const playerName = window.state.seatMap[seat] || `Seat ${seat}`;
@@ -752,7 +752,12 @@
       // 버튼 위치 선택 이벤트 리스너 추가
       const btnSelect = document.getElementById('button-position-select');
       if(btnSelect) {
-        btnSelect.addEventListener('change', handleButtonPositionChange);
+        btnSelect.addEventListener('change', (e) => {
+          window.state.buttonPosition = e.target.value || null;
+          console.log(`🎯 버튼 위치 변경: ${window.state.buttonPosition || '없음'}`);
+          updateSeatDisplay();
+          saveActionState();
+        });
       }
     }
     function renderPlayerDetails(){
@@ -3232,16 +3237,8 @@ async function sendDataToGoogleSheet(){
     document.getElementById('tab-chips')?.addEventListener('click', () => switchTab('chips'));
     
     
-    // 버튼 위치 선택 이벤트
-    document.getElementById('button-position-select')?.addEventListener('change', (e) => {
-      window.state.buttonPosition = e.target.value || null;
-      updateSeatDisplay();
-      updatePositionIndicators();
-      
-      if(window.state.buttonPosition) {
-        showFeedback(`버튼이 Seat ${window.state.buttonPosition}에 설정되었습니다`);
-      }
-    });
+    // 버튼 위치 선택 이벤트 - renderPlayerSelection에서 처리하도록 제거
+    // (renderPlayerSelection 함수 내에서 이미 처리중)
 
     // ====== INIT ======
     async function initializeApp(){
