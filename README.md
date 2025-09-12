@@ -1,6 +1,6 @@
 # 🎰 Virtual Data Claude - Poker Hand Logger
 
-> 실시간 포커 핸드 기록 및 분석 시스템 v2.9.6
+> 실시간 포커 핸드 기록 및 분석 시스템 v2.9.5
 
 ## 📋 개요
 
@@ -70,13 +70,6 @@ virtual_data_claude/
 ```
 
 ## 🔄 최근 업데이트
-
-### v2.9.6 (2025-09-12)
-- ⚡ **모든 팝업 애니메이션 제거**
-  - transition 및 opacity 애니메이션 제거
-  - setTimeout 지연 제거로 즉시 표시
-  - 모달 열기/닫기 즉각 반응
-  - 빠른 응답성으로 사용자 경험 개선
 
 ### v2.9.5 (2025-09-12)
 - 💰 **시작 칩 업데이트 버그 수정**
@@ -214,6 +207,6 @@ runOneTimeCountryUpdate()
 
 ---
 
-**Version**: v2.9.6  
+**Version**: v2.9.5  
 **Last Updated**: 2025-09-12  
 **Next Session**: 승자 저장 기능 구현부터 시작
