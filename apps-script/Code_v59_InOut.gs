@@ -390,14 +390,14 @@ function _ensureIndexHeader(sheet) {
     'handEdit', 'handEditTime', 'label', 'table', 
     'tableUpdatedAt', 'Cam', 'CamFile01name', 'CamFile01number',
     'CamFile02name', 'CamFile02number',
-    'lastStreet', 'lastAction', 'workStatus'
+    'lastStreet', 'lastAction', 'workStatus', 'winners'
   ];
   
   if (sheet.getLastRow() < 1) {
     sheet.getRange(1, 1, 1, fullHeaderRow.length).setValues([fullHeaderRow]);
   } else {
     const lastCol = sheet.getLastColumn();
-    if (lastCol < 17) {
+    if (lastCol < 18) {  // 17에서 18로 변경 (winners 열 추가)
       sheet.getRange(1, 1, 1, fullHeaderRow.length).setValues([fullHeaderRow]);
     }
   }
@@ -519,7 +519,8 @@ function doPost(e) {
       indexMeta.camFile02number || '',
       indexMeta.lastStreet || 'preflop',
       indexMeta.lastAction || '',
-      indexMeta.workStatus || '진행중'
+      indexMeta.workStatus || '진행중',
+      indexMeta.winners || ''  // R열: 승자 정보 추가
     ];
     
     indexSheet.appendRow(indexData);

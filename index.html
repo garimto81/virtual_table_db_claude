@@ -71,7 +71,12 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.10.6</span>
+        <div class="flex items-center gap-2">
+          <button id="settings-btn" class="text-gray-400 hover:text-amber-400 transition-colors" title="설정">
+            ⚙️
+          </button>
+          <span id="version-display" class="text-gray-400">v2.10.6</span>
+        </div>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -138,6 +143,30 @@
           <div id="board-card-placeholders" class="flex flex-wrap gap-1 items-center flex-grow justify-end"></div>
         </div>
         <div class="space-y-1" id="street-logs-container"></div>
+        
+        <!-- 현재 차례 표시 & 빠른 액션 버튼 (자동 모드) -->
+        <div id="current-turn-indicator" class="hidden mt-2 p-2 bg-gray-700 rounded-md">
+          <div class="text-center text-sm mb-2">
+            <!-- 동적으로 생성됨 -->
+          </div>
+          <div id="quick-action-buttons" class="grid grid-cols-5 gap-1">
+            <button onclick="addAutoAction('Checks')" class="btn bg-green-600 hover:bg-green-500 text-white text-xs py-1 px-2 rounded">
+              체크
+            </button>
+            <button onclick="handleSmartCall()" class="btn bg-blue-600 hover:bg-blue-500 text-white text-xs py-1 px-2 rounded">
+              콜
+            </button>
+            <button onclick="openQuickBetRaise()" class="btn bg-orange-600 hover:bg-orange-500 text-white text-xs py-1 px-2 rounded">
+              벳/레이즈
+            </button>
+            <button onclick="addAutoAction('Folds')" class="btn bg-red-600 hover:bg-red-500 text-white text-xs py-1 px-2 rounded">
+              폴드
+            </button>
+            <button onclick="handleAllIn()" class="btn bg-purple-600 hover:bg-purple-500 text-white text-xs py-1 px-2 rounded">
+              올인
+            </button>
+          </div>
+        </div>
       </div>
 
 
@@ -339,6 +368,79 @@
     </div>
   </div>
 
+  <!-- 설정 모달 -->
+  <div id="settings-modal" class="modal fixed inset-0 bg-black bg-opacity-75 hidden z-50">
+    <div class="flex items-center justify-center h-full p-4">
+      <div class="bg-gray-800 rounded-lg w-full max-w-lg">
+        <!-- 헤더 -->
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
+          <h3 class="text-lg font-bold text-amber-400">⚙️ 설정</h3>
+          <button id="close-settings" class="text-gray-400 hover:text-white text-xl">×</button>
+        </div>
+        
+        <!-- 설정 내용 -->
+        <div class="p-4 space-y-4">
+          <!-- Apps Script URL 설정 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+              Apps Script URL
+              <span class="text-xs text-gray-500 ml-2">(재배포 후 새 URL 입력)</span>
+            </label>
+            <div class="space-y-2">
+              <input type="text" id="apps-script-url-input" 
+                     class="w-full bg-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                     placeholder="https://script.google.com/macros/s/.../exec">
+              <div class="text-xs text-gray-500">
+                현재: <span id="current-apps-url" class="text-gray-400 break-all"></span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 칩 스택 검증 설정 -->
+          <div>
+            <label class="flex items-center space-x-2">
+              <input type="checkbox" id="chip-validation-toggle" class="rounded text-amber-500 focus:ring-amber-500">
+              <span class="text-sm font-medium text-gray-300">칩 스택 검증 활성화</span>
+            </label>
+            <p class="text-xs text-gray-500 mt-1 ml-6">
+              활성화 시 보유 칩보다 큰 금액 입력을 제한합니다
+            </p>
+          </div>
+          
+          <!-- 액션 입력 모드 설정 -->
+          <div>
+            <label class="flex items-center space-x-2">
+              <input type="checkbox" id="action-input-mode-toggle" class="rounded text-amber-500 focus:ring-amber-500">
+              <span class="text-sm font-medium text-gray-300">자동 액션 매핑 모드</span>
+            </label>
+            <p class="text-xs text-gray-500 mt-1 ml-6">
+              활성화 시 액션이 순서대로 자동 매핑됩니다 (플레이어 선택 불필요)
+            </p>
+          </div>
+          
+          <!-- 버전 정보 -->
+          <div class="pt-2 border-t border-gray-700">
+            <div class="text-xs text-gray-500 space-y-1">
+              <div>버전: <span class="text-gray-400">${APP_VERSION}</span></div>
+              <div>업데이트: <span class="text-gray-400">${VERSION_DATE}</span></div>
+              <div>Sheet ID: <span class="text-gray-400 text-xs">1J-lf8bYTLPbpdhieUNdb8ckW_uwdQ3MtSBLmyRIwH7U</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 푸터 -->
+        <div class="flex justify-end gap-2 p-4 border-t border-gray-700">
+          <button id="cancel-settings" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-md text-sm font-medium">
+            취소
+          </button>
+          <button id="save-settings" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded-md text-sm font-medium">
+            저장
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
   /**
    * ============================================
@@ -351,7 +453,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.11.0';
+  const APP_VERSION = 'v2.13.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -407,13 +509,30 @@
     }
     
     // ====== CONFIG (필수: 실제 URL로 교체) ======
+    // Apps Script URL 설정 (localStorage에서 로드 또는 기본값 사용)
+    const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec";
+    let APPS_SCRIPT_URL = localStorage.getItem('appsScriptUrl') || DEFAULT_APPS_SCRIPT_URL;
+    
+    // CSV URLs (고정)
     const CSV_HAND_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1906746276&single=true&output=csv"; // Hand 탭 CSV
     const CSV_INDEX_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=1354012271&single=true&output=csv"; // Index 탭 CSV (HandIndex 대신 Index 사용)
     const CSV_TYPE_URL  = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSDY_i4330JANAjIz4sMncdJdRHsOkfUCjQusHTGQk2tykrhA4d09LeIp3XRbLd8hkN6SgSB47k_nux/pub?gid=998576925&single=true&output=csv";
-    // Apps Script URL - 재배포 후 새 URL로 교체 필요
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec";
+    
     // 전역 변수로도 설정 (테이블 관리 모듈용)
     window.APPS_SCRIPT_URL = APPS_SCRIPT_URL;
+    
+    // Apps Script URL 업데이트 함수
+    function updateAppsScriptUrl(newUrl) {
+      if (newUrl && newUrl.trim()) {
+        APPS_SCRIPT_URL = newUrl.trim();
+        window.APPS_SCRIPT_URL = APPS_SCRIPT_URL;
+        localStorage.setItem('appsScriptUrl', APPS_SCRIPT_URL);
+        console.log('✅ Apps Script URL 업데이트:', APPS_SCRIPT_URL);
+        showFeedback('✅ Apps Script URL 업데이트 완료');
+        return true;
+      }
+      return false;
+    }
 
     // ====== STATE ======
     let timeUpdater;
@@ -436,6 +555,12 @@
       buttonPosition: null,      // 버튼 위치 (seat 번호)
       seatMap: {},              // { seat: playerName } 10개 좌석 매핑
       nextActionSeat: null,      // 다음 액션 플레이어 좌석
+      
+      // 액션 자동 매핑 시스템
+      actionInputMode: localStorage.getItem('actionInputMode') || 'auto', // 'auto' | 'manual'
+      currentActionIndex: 0,     // 현재 액션 순서 인덱스
+      actionQueue: [],          // 액션 순서 대기열
+      nextActionPlayer: null,    // 다음 액션 플레이어
       smartCheckCall: true,      // 스마트 Check/Call 버튼 사용
       actionState: {
         handNumber: '',
@@ -503,6 +628,15 @@
       cam1: document.getElementById('cam-btn-1'),
       cam2: document.getElementById('cam-btn-2'),
       dataStamp: document.getElementById('data-stamp'),
+      // 설정 모달 관련
+      settingsBtn: document.getElementById('settings-btn'),
+      settingsModal: document.getElementById('settings-modal'),
+      closeSettingsBtn: document.getElementById('close-settings'),
+      cancelSettingsBtn: document.getElementById('cancel-settings'),
+      saveSettingsBtn: document.getElementById('save-settings'),
+      appsScriptUrlInput: document.getElementById('apps-script-url-input'),
+      currentAppsUrl: document.getElementById('current-apps-url'),
+      chipValidationToggle: document.getElementById('chip-validation-toggle'),
     };
 
     // ====== LOG MODAL ======
@@ -1605,6 +1739,167 @@
       return activePlayers[0];
     }
 
+    // ====== 액션 자동 매핑 시스템 ======
+    
+    // 다음 액션 플레이어 계산
+    function calculateNextActionPlayer(street) {
+      const actionOrder = getActionOrder(street);
+      const actions = window.state.actionState[street] || [];
+      
+      // 폴드/올인 플레이어 제외한 활성 플레이어만
+      const activePlayers = actionOrder.filter(name => {
+        const status = window.state.playerStatus[name];
+        return status !== 'folded' && status !== 'allin';
+      });
+      
+      if(activePlayers.length === 0) {
+        return null; // 모든 플레이어가 폴드/올인
+      }
+      
+      // 이번 스트리트에서 액션한 횟수 계산
+      const actionCounts = {};
+      activePlayers.forEach(name => actionCounts[name] = 0);
+      
+      actions.forEach(action => {
+        if(actionCounts.hasOwnProperty(action.player)) {
+          actionCounts[action.player]++;
+        }
+      });
+      
+      // 가장 적게 액션한 플레이어 찾기 (순서대로)
+      for(const player of activePlayers) {
+        const minActionCount = Math.min(...Object.values(actionCounts));
+        if(actionCounts[player] === minActionCount) {
+          return player;
+        }
+      }
+      
+      return activePlayers[0];
+    }
+    
+    // 다음 액션 플레이어 표시 업데이트
+    function updateNextActionDisplay() {
+      const street = window.state.currentStreet;
+      const nextPlayer = calculateNextActionPlayer(street);
+      
+      window.state.nextActionPlayer = nextPlayer;
+      
+      // 헤더에 현재 차례 표시
+      const turnIndicator = document.getElementById('current-turn-indicator');
+      if(turnIndicator && nextPlayer) {
+        const playerData = window.state.playersInHand.find(p => p.name === nextPlayer);
+        const positions = playerData ? getPositionsForSeat(parseInt(playerData.seat) || 0) : [];
+        const positionStr = positions.length > 0 ? `(${positions.join(',')})` : '';
+        
+        turnIndicator.innerHTML = `
+          <span class="text-amber-400">현재 차례:</span>
+          <span class="font-bold text-white">${nextPlayer} ${positionStr}</span>
+        `;
+        turnIndicator.classList.remove('hidden');
+      } else if(turnIndicator) {
+        turnIndicator.classList.add('hidden');
+      }
+      
+      // 플레이어 카드 하이라이트
+      document.querySelectorAll('.player-card').forEach(card => {
+        const playerName = card.dataset.playerName;
+        if(playerName === nextPlayer) {
+          card.classList.add('border-2', 'border-amber-400', 'animate-pulse');
+        } else {
+          card.classList.remove('border-2', 'border-amber-400', 'animate-pulse');
+        }
+      });
+    }
+    
+    // 액션 자동 추가 (자동 모드)
+    function addAutoAction(actionType, amount = '') {
+      if(window.state.actionInputMode !== 'auto') {
+        return false;
+      }
+      
+      const street = window.state.currentStreet;
+      const nextPlayer = window.state.nextActionPlayer || calculateNextActionPlayer(street);
+      
+      if(!nextPlayer) {
+        showFeedback('모든 플레이어가 액션을 완료했습니다', true);
+        return false;
+      }
+      
+      // 액션 추가
+      addActionToState(nextPlayer, actionType, amount, street);
+      
+      // 플레이어 상태 업데이트
+      if(actionType === 'Folds') {
+        window.state.playerStatus[nextPlayer] = 'folded';
+      } else if(actionType === 'All-in' || actionType === 'All In') {
+        window.state.playerStatus[nextPlayer] = 'allin';
+      }
+      
+      // UI 업데이트
+      renderActionStreets();
+      updateNextActionDisplay();
+      saveActionState();
+      
+      return true;
+    }
+    
+    // 스마트 콜 처리
+    function handleSmartCall() {
+      const street = window.state.currentStreet;
+      const nextPlayer = window.state.nextActionPlayer || calculateNextActionPlayer(street);
+      
+      if(!nextPlayer) {
+        showFeedback('모든 플레이어가 액션을 완료했습니다', true);
+        return;
+      }
+      
+      const smartAction = getSmartCheckCallAction(nextPlayer, street);
+      if(smartAction.action === 'Checks') {
+        addAutoAction('Checks');
+      } else {
+        addAutoAction(smartAction.action, smartAction.amount);
+      }
+    }
+    
+    // 올인 처리
+    function handleAllIn() {
+      const nextPlayer = window.state.nextActionPlayer || calculateNextActionPlayer(window.state.currentStreet);
+      
+      if(!nextPlayer) {
+        showFeedback('모든 플레이어가 액션을 완료했습니다', true);
+        return;
+      }
+      
+      const playerData = window.state.playersInHand.find(p => p.name === nextPlayer);
+      if(playerData) {
+        addAutoAction('All-in', playerData.chips);
+      }
+    }
+    
+    // 빠른 벳/레이즈 입력
+    function openQuickBetRaise() {
+      const street = window.state.currentStreet;
+      const nextPlayer = window.state.nextActionPlayer || calculateNextActionPlayer(street);
+      
+      if(!nextPlayer) {
+        showFeedback('모든 플레이어가 액션을 완료했습니다', true);
+        return;
+      }
+      
+      // 키패드 열기
+      openKeypad(null, { 
+        purpose: 'quickBet',
+        player: nextPlayer,
+        street: street
+      });
+    }
+    
+    // 전역 함수로 등록
+    window.addAutoAction = addAutoAction;
+    window.handleSmartCall = handleSmartCall;
+    window.handleAllIn = handleAllIn;
+    window.openQuickBetRaise = openQuickBetRaise;
+    
     // ====== PERSIST (localStorage) ======
     function saveActionState(){ localStorage.setItem('phl_v46_state', JSON.stringify(window.state.actionState)); }
     function loadActionState(){ const s=localStorage.getItem('phl_v46_state'); if(s) window.state.actionState={...window.state.actionState, ...JSON.parse(s)}; }
@@ -3517,6 +3812,32 @@ async function sendDataToGoogleSheet(){
               bigBlindBtn.textContent = `BB: ${formatNumber(value)}`;
             }
             saveActionState();
+          }else if(purpose==='quickBet'){
+            // 퀵 벳/레이즈 처리
+            const { player, street } = window.state.modalState.keypadOptions;
+            const amount = unformatNumber(display.textContent);
+            if(amount && player && street) {
+              // 현재 스트리트에 베팅이 있는지 확인
+              const hasBet = window.state.actionState[street].some(a => 
+                /BET|RAISE/i.test(a.action || '')
+              );
+              const action = hasBet ? 'Raises' : 'Bets';
+              
+              // 액션 추가
+              window.state.actionState[street].push({
+                player: player,
+                action: action,
+                amount: amount,
+                timestamp: new Date().toISOString()
+              });
+              
+              // 다음 플레이어 계산
+              window.state.nextActionPlayer = calculateNextActionPlayer(street);
+              
+              saveActionState();
+              renderAll();
+              showFeedback(`${player} ${action} ${formatNumber(amount)}`);
+            }
           }
           closeModal(el.keypadModal);
         }else if(btn.id==='keypad-cancel'){ closeModal(el.keypadModal);
@@ -3635,6 +3956,96 @@ async function sendDataToGoogleSheet(){
         }
       });
     }
+    
+    // ========================================
+    // 설정 모달 이벤트 핸들러
+    // ========================================
+    
+    // 설정 모달 열기
+    if (el.settingsBtn) {
+      el.settingsBtn.addEventListener('click', () => {
+        // 현재 URL 표시
+        el.currentAppsUrl.textContent = APPS_SCRIPT_URL;
+        el.appsScriptUrlInput.value = APPS_SCRIPT_URL;
+        
+        // 칩 검증 설정 로드
+        const chipValidation = localStorage.getItem('chipValidation') !== 'false';
+        el.chipValidationToggle.checked = chipValidation;
+        
+        // 액션 입력 모드 설정 로드
+        const actionInputMode = localStorage.getItem('actionInputMode') === 'auto';
+        const actionInputToggle = document.getElementById('action-input-mode-toggle');
+        if (actionInputToggle) {
+          actionInputToggle.checked = actionInputMode;
+        }
+        
+        // 버전 정보 업데이트
+        const versionInfo = el.settingsModal.querySelector('.text-gray-400');
+        if (versionInfo) {
+          el.settingsModal.querySelectorAll('.text-gray-400').forEach((elem, idx) => {
+            if (idx === 0) elem.textContent = APP_VERSION;
+            if (idx === 1) elem.textContent = VERSION_DATE;
+          });
+        }
+        
+        // 모달 열기
+        el.settingsModal.classList.remove('hidden');
+      });
+    }
+    
+    // 설정 모달 닫기
+    const closeSettings = () => {
+      el.settingsModal.classList.add('hidden');
+    };
+    
+    if (el.closeSettingsBtn) {
+      el.closeSettingsBtn.addEventListener('click', closeSettings);
+    }
+    
+    if (el.cancelSettingsBtn) {
+      el.cancelSettingsBtn.addEventListener('click', closeSettings);
+    }
+    
+    // 설정 저장
+    if (el.saveSettingsBtn) {
+      el.saveSettingsBtn.addEventListener('click', () => {
+        // Apps Script URL 저장
+        const newUrl = el.appsScriptUrlInput.value.trim();
+        if (newUrl && newUrl !== APPS_SCRIPT_URL) {
+          if (updateAppsScriptUrl(newUrl)) {
+            console.log('✅ Apps Script URL 업데이트 완료');
+          }
+        }
+        
+        // 칩 검증 설정 저장
+        const chipValidation = el.chipValidationToggle.checked;
+        localStorage.setItem('chipValidation', chipValidation.toString());
+        window.state.chipValidation = chipValidation;
+        console.log(`✅ 칩 검증 설정: ${chipValidation ? '활성화' : '비활성화'}`);
+        
+        // 액션 입력 모드 설정 저장
+        const actionInputToggle = document.getElementById('action-input-mode-toggle');
+        if (actionInputToggle) {
+          const actionInputMode = actionInputToggle.checked ? 'auto' : 'manual';
+          localStorage.setItem('actionInputMode', actionInputMode);
+          window.state.actionInputMode = actionInputMode;
+          console.log(`✅ 액션 입력 모드: ${actionInputMode === 'auto' ? '자동 매핑' : '수동 선택'}`);
+          
+          // UI 업데이트
+          renderAll();
+        }
+        
+        showFeedback('✅ 설정이 저장되었습니다');
+        closeSettings();
+      });
+    }
+    
+    // ESC 키로 닫기
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !el.settingsModal.classList.contains('hidden')) {
+        closeSettings();
+      }
+    });
     
     const closeBtn = document.getElementById('close-registration-modal');
     if (closeBtn) {
