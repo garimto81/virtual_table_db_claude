@@ -2,10 +2,17 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.9.5
-  Last Modified: 2025-09-12 KST
+  Version: 2.10.6
+  Last Modified: 2025-09-15 KST
   
   Change Log:
+  - v2.10.6 (2025-09-15): 버튼 드롭다운 작동 버그 수정, 버전 중앙 관리 시스템 구현
+  - v2.10.5 (2025-09-15): 버튼 위치 중복 입력 버그 수정
+  - v2.10.4 (2025-09-15): 버튼 설정 UI 최적화
+  - v2.10.3 (2025-09-15): 버튼 설정 UI 개선
+  - v2.10.2 (2025-09-15): 보드 카드 한번에 입력 기능
+  - v2.10.1 (2025-09-15): 플레이어 칩 버튼 이벤트 버그 수정
+  - v2.10.0 (2025-09-15): 폴드 되돌리기 버그 수정 외
   - v2.9.5 (2025-09-12): 시작 칩 업데이트 버그 수정
   - v2.9.4 (2025-09-12): 플레이어 이름 표시 버그 수정
   - v2.9.3 (2025-09-12): 좌석 번호 제거, 0.5x11 그리드, 버튼 드롭다운 버그 수정
@@ -61,7 +68,7 @@
     <div class="bg-gray-900 border-b border-gray-700 px-3 py-1">
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
-        <span id="version-display" class="text-gray-400">v2.9.2</span>
+        <span id="version-display" class="text-gray-400">v2.10.6</span>
       </div>
     </div>
     <main class="p-2 space-y-2">
@@ -333,32 +340,32 @@
   /**
    * ============================================
    * 포커 핸드 로거 - Main JavaScript
-   * Version: 2.9.1
-   * Last Modified: 2025-01-11 KST
-   * Changes: 
-   * - v2.9.2: 1x11 그리드로 좌석 배치 개선
-   * - v2.9.1: 좌석 배치 UI 공간 최적화
-   * - v2.9.0: 좌석 배치 시스템 및 액션 순서 로직 추가
-   * - v2.8.3: 카드 입력 다이얼로그 버튼 위치 변경 (UX 개선)
-   * - v2.8.2: 문서 통합 및 프로젝트 정리
-   * - v2.8.1: 2백만 칩 이상 무한 표시 버그 수정
-   * - v2.8.0: 올인 제한 고려한 정확한 팔 계산 로직 구현
-   * - v2.7.0: 팔 계산 로직 개선 - 블라인드/안티를 플레이어별 기여액에 포함
-   * - v2.6.1: getElements is not defined 오류 수정 - getCamNumber 함수 내 전역 el 객체 사용
-   * - v2.6.0: 스마트폰 최적화 테이블 선택 UI - 버튼식 페이지 토글 방식
-   * - v2.5.1: 카메라 번호 초기값 로직 개선 - 표시된 값으로 자동 입력
-   * - v2.5.0: IN/OUT 테이블 관리 시스템 및 console 오류 해결
-   * - v2.4.0: 카메라 번호 로딩 개선 및 Type 시트 칩 업데이트 수정
-   * - v2.2.0: AI 기반 칩 스택 분석 기능 추가 (Gemini API)
-   * - v2.1.1: Pot Correction 로직 개선 - 정확한 팟 설정
+   * 버전 관리는 APP_VERSION 상수를 통해 중앙화됨
    * Author: garimto81 with Claude
    * ============================================
    */
   
-  // 버전 정보 전역 상수
+  // ========================================
+  // 중앙 버전 관리 시스템
+  // ========================================
   const APP_VERSION = 'v2.10.6';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
+  
+  // 모든 버전 표시를 업데이트하는 함수
+  function updateAllVersionDisplays() {
+    // 버전 표시 엘리먼트 업데이트
+    const versionDisplay = document.getElementById('version-display');
+    if (versionDisplay) {
+      versionDisplay.textContent = APP_VERSION;
+    }
+    
+    // 타이틀 업데이트
+    document.title = `포커 핸드 로거 ${APP_VERSION}`;
+    
+    // 콘솔에 버전 정보 출력
+    console.log(`%c${VERSION_INFO}`, 'color: #10b981; font-weight: bold; font-size: 14px');
+  }
   
   // Gemini API 설정
   const GEMINI_API_KEY = 'AIzaSyBB8uqP1ECTe40jknSy5XK71TCs8_KbGV0';
@@ -382,6 +389,9 @@
   };
   
   document.addEventListener('DOMContentLoaded', () => {
+    // 버전 표시 업데이트
+    updateAllVersionDisplays();
+    
     console.log(`%c🚀 앱 초기화 시작 - ${VERSION_INFO}`, 'color: #10b981; font-weight: bold');
     console.log('Initialized at', new Date().toISOString());
     
@@ -1747,7 +1757,7 @@
     
     // 실제 팟 계산 (올인 제한과 사이드팟을 고려한 정확한 계산)
     function calculateActualPot() {
-      console.log(`%c🎲 === 새로운 팟 계산 시작 [v2.7.0] ===`, 'color: #10b981; font-weight: bold');
+      console.log(`%c🎲 === 새로운 팟 계산 시작 [${APP_VERSION}] ===`, 'color: #10b981; font-weight: bold');
       
       // Pot Correction이 있으면 기존 로직 사용
       let potCorrectionFound = false;
@@ -1764,7 +1774,7 @@
       
       // 새로운 정확한 팟 계산
       const result = calculateAccuratePot();
-      console.log(`%c🎲 === 팟 계산 종료 [v2.7.0] ===`, 'color: #10b981; font-weight: bold');
+      console.log(`%c🎲 === 팟 계산 종료 [${APP_VERSION}] ===`, 'color: #10b981; font-weight: bold');
       return result.totalPot;
     }
     
@@ -2500,7 +2510,7 @@
         seat: p.seat || (i+1)  // Type에서 가져온 seat 정보가 있으면 사용, 없으면 인덱스+1
       }));
       
-      console.log(`%c=== PLAYER 행 생성 [v2.1.1] ===`, 'color: #3b82f6; font-weight: bold');
+      console.log(`%c=== PLAYER 행 생성 [${APP_VERSION}] ===`, 'color: #3b82f6; font-weight: bold');
       console.log(`현재 행번호(no): ${no}`);
       console.log(`플레이어 수: ${players.length}`);
       console.log('%c형식: A=행번호, B=PLAYER, C=이름, D=좌석, E=0(고정), F=시작칩, G=종료칩, H=핸드', 'color: #9ca3af');
