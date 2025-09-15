@@ -115,14 +115,8 @@
       <div class="bg-gray-800 p-2 rounded-lg space-y-2">
         <div class="flex flex-wrap items-center gap-2">
           <div class="flex items-center gap-1">
-            <div class="input-with-keypad flex items-center">
-              <input type="text" id="small-blind-input" class="number-input w-12 bg-gray-700 p-1 rounded-md text-sm" placeholder="SB">
-              <button class="keypad-icon-btn btn bg-gray-600 p-1 rounded-md text-xs h-auto w-auto px-2 py-1">⌨️</button>
-            </div>
-            <div class="input-with-keypad flex items-center">
-              <input type="text" id="big-blind-input" class="number-input w-12 bg-gray-700 p-1 rounded-md text-sm" placeholder="BB">
-              <button class="keypad-icon-btn btn bg-gray-600 p-1 rounded-md text-xs h-auto w-auto px-2 py-1">⌨️</button>
-            </div>
+            <button id="small-blind-btn" class="btn bg-gray-700 p-1 rounded-md text-sm min-w-[60px]">SB: 0</button>
+            <button id="big-blind-btn" class="btn bg-gray-700 p-1 rounded-md text-sm min-w-[60px]">BB: 0</button>
             <div class="flex items-center">
               <input id="bb-ante-checkbox" type="checkbox" class="h-4 w-4 bg-gray-700 border-gray-600 rounded text-amber-500">
               <label for="bb-ante-checkbox" class="ml-1 text-xs">Ante</label>
@@ -359,8 +353,8 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.9.2';
-  const VERSION_DATE = '2025-01-10';
+  const APP_VERSION = 'v2.10.0';
+  const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
   // Gemini API 설정
@@ -1028,10 +1022,30 @@
       openModal(el.actionPadModal, html);
     }
 
+    // 칩 입력 개선 함수
+    function openChipInput(player, isInitial = false) {
+      const currentChips = player.chips || '0';
+      const placeholder = isInitial ? '시작 칩 입력' : `현재: ${formatNumber(currentChips)}`;
+      
+      openKeypad(null, {
+        prefill: '0',  // 항상 0부터 시작
+        placeholder: placeholder,
+        onConfirm: (value) => {
+          player.chips = value;
+          player.initialChips = value;
+          player.chipsUpdatedAt = new Date().toISOString();
+          renderPlayerDetails();
+        },
+        onCancel: () => {
+          // 취소 시 원래 값 유지 - 아무것도 안함
+        }
+      });
+    }
+    
     function openKeypad(targetInput, options={}){
       window.state.modalState.keypadTarget=targetInput;
       window.state.modalState.keypadOptions=options;
-      const initial = options.prefill ? options.prefill : (targetInput?targetInput.value:'');
+      const initial = options.prefill !== undefined ? options.prefill : (targetInput?targetInput.value:'');
       const html=`<div class="bg-gray-800 rounded-lg p-2 w-full max-w-xs">
         <div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded mb-2 h-12">${initial}</div>
         <div class="grid grid-cols-3 gap-2 text-xl font-bold">
@@ -1182,15 +1196,25 @@
           const cur = parseInt(unformatNumber(p.chips) || 0, 10);
           const amountToDeduct = parseInt(unformatNumber(amount), 10);
           
-          // All In의 경우 칩을 0으로 만들기
+          // 칩스택 검증 설정 확인
+          if(window.state.settings && window.state.settings.validateChips) {
+            // 검증 ON: 칩 체크
+            if(amountToDeduct > cur && action !== 'All In') {
+              // 칩 부족 시 올인 처리
+              action = 'All In';
+              amount = p.chips;
+            }
+          }
+          // 검증 OFF: 그대로 진행 (음수 칩도 허용)
+          
           if(action === 'All In') {
             p.chips = '0';
           } else {
-            // 일반 베팅의 경우 차감
-            const newChips = Math.max(0, cur - amountToDeduct);
+            // 검증 OFF 시 음수도 허용
+            const newChips = cur - amountToDeduct;
             p.chips = newChips.toString();
           }
-          p.chipsUpdatedAt = new Date().toISOString(); // ★ 프로그램적 변경도 타임스탬프 기록
+          p.chipsUpdatedAt = new Date().toISOString();
         }
       }
       window.state.actionState[actionPadStreet].push({
@@ -1209,9 +1233,20 @@
 
     function undoLastAction(street){
       const last=window.state.actionState[street].pop();
-      if(last&&last.amount){
-        const p=window.state.playersInHand.find(pp=>pp.name===last.player);
-        if(p){ const cur=parseInt(unformatNumber(p.chips)||0,10); p.chips=(cur+parseInt(unformatNumber(last.amount),10)).toString(); }
+      if(last) {
+        // 플레이어 상태 복원
+        if(last.action === 'Folds' || last.action === 'All In') {
+          delete window.state.playerStatus[last.player];
+        }
+        
+        // 칩 복원
+        if(last.amount){
+          const p=window.state.playersInHand.find(pp=>pp.name===last.player);
+          if(p){ 
+            const cur=parseInt(unformatNumber(p.chips)||0,10); 
+            p.chips=(cur+parseInt(unformatNumber(last.amount),10)).toString(); 
+          }
+        }
       }
       saveActionState(); renderAll();
     }
@@ -2398,11 +2433,8 @@ async function sendDataToGoogleSheet(){
   if (isSending) return;     // 중복 전송 가드
   isSending = true;
 
-  if (window.state.playersInHand.filter(p=>p.role==='winner').length===0){
-    showFeedback('승자를 선택해야 합니다.', true);
-    isSending = false;
-    return;
-  }
+  // 승자 체크 제거 - 승자 없어도 전송 가능
+  const winners = window.state.playersInHand.filter(p=>p.role==='winner');
 
   openLogModal(); logMessage('시트 전송 시작...');
   el.sendToSheetBtn.textContent='전송 중...';
@@ -2411,6 +2443,8 @@ async function sendDataToGoogleSheet(){
   try{
     const { rows, epochSec } = generateRows_v46();
     const indexMeta   = buildIndexMeta();
+    // 승자 정보 추가 (없으면 빈 문자열)
+    indexMeta.winners = winners.map(w => w.name).join(', ') || '';
     const typeUpdates = buildTypeUpdates();
     // 노트 기능 제거
     const payload = { rows, indexMeta, typeUpdates };
@@ -2911,8 +2945,12 @@ async function sendDataToGoogleSheet(){
           window.state.modalState.cardTarget = { target:'playerHand', player:cardPlaceholder.dataset.playerName, count:parseInt(cardPlaceholder.dataset.count) };
           openCardSelector();
         }else if(keypadBtn){
-          const input = playerCard.querySelector('.player-chip-input');
-          openKeypad(input, { purpose:'input' });
+          const pn = playerCard.dataset.playerName;
+          const p = window.state.playersInHand.find(pp=>pp.name===pn);
+          if(p) {
+            // 개선된 칩 입력 함수 사용
+            openChipInput(p, false);
+          }
         }
       });
 
