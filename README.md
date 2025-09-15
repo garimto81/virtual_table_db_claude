@@ -64,12 +64,20 @@ virtual_data_claude/
 ├── apps-script/
 │   ├── Code_v59_InOut.gs     # 메인 백엔드
 │   ├── OneTimeCountryUpdate.gs
-│   └── UpdateCountryInfo.gs
+│   ├── UpdateCountryInfo.gs
+│   └── OneTimePositionUpdate.gs  # 기존 데이터 포지션 추가
 ├── README.md              # 프로젝트 소개
 └── DOCUMENTATION.md       # 통합 문서
 ```
 
 ## 🔄 최근 업데이트
+
+### v2.11.0 (2025-09-15)
+- 🎯 **포지션 정보 Google Sheets 기록 추가**
+  - PLAYER 행의 I열에 포지션 정보(BTN/SB/BB) 추가
+  - getPositionsForSeat 함수를 활용하여 자동 계산
+  - 여러 포지션을 가진 경우 쉼표로 구분하여 저장
+  - 디버깅 로그에 포지션 정보 출력 추가
 
 ### v2.10.9 (2025-09-15)
 - 🐛 **팟 계산 로직 버그 수정**
@@ -279,6 +287,7 @@ runOneTimeCountryUpdate()
 - **메인 앱**: `index.html`
 - **백엔드**: `apps-script/Code_v59_InOut.gs`
 - **국가 업데이트**: `apps-script/OneTimeCountryUpdate.gs`
+- **포지션 업데이트**: `apps-script/OneTimePositionUpdate.gs`
 - **전체 문서**: `DOCUMENTATION.md`
 
 ### 🐛 알려진 이슈
@@ -292,6 +301,6 @@ runOneTimeCountryUpdate()
 
 ---
 
-**Version**: v2.10.6  
+**Version**: v2.11.0  
 **Last Updated**: 2025-09-15  
 **Next Session**: 테스트 및 추가 개선

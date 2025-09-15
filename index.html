@@ -351,7 +351,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.10.9';
+  const APP_VERSION = 'v2.11.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -2543,7 +2543,7 @@
       console.log(`%c=== PLAYER 행 생성 [${APP_VERSION}] ===`, 'color: #3b82f6; font-weight: bold');
       console.log(`현재 행번호(no): ${no}`);
       console.log(`플레이어 수: ${players.length}`);
-      console.log('%c형식: A=행번호, B=PLAYER, C=이름, D=좌석, E=0(고정), F=시작칩, G=종료칩, H=핸드', 'color: #9ca3af');
+      console.log('%c형식: A=행번호, B=PLAYER, C=이름, D=좌석, E=0(고정), F=시작칩, G=종료칩, H=핸드, I=포지션', 'color: #9ca3af');
       
       players.forEach(p=>{
         console.log(`\n--- ${p.name} 처리 시작 ---`);
@@ -2576,9 +2576,13 @@
         console.log(`  initialChips 타입: ${typeof initialChips}, 값: ${initialChips}`);
         console.log(`  finalChips 타입: ${typeof finalChips}, 값: ${finalChips}`);
         
-        // PLAYER 형식: B=PLAYER, C=name, D=seat, E=0, F=시작칩, G=종료칩, H=핸드
-        // push 함수가 자동으로 행번호를 A열에 추가하므로 7개 요소 필요
-        const playerRow = ['PLAYER', p.name, parseInt(p.seat) || 1, 0, initialChips, finalChips, p.hand?.length? p.hand.join(' ') : ''];
+        // 포지션 정보 계산 (BTN/SB/BB)
+        const positions = getPositionsForSeat(parseInt(p.seat) || 1);
+        const positionStr = positions.length > 0 ? positions.join(',') : '';
+        
+        // PLAYER 형식: B=PLAYER, C=name, D=seat, E=0, F=시작칩, G=종료칩, H=핸드, I=포지션
+        // push 함수가 자동으로 행번호를 A열에 추가하므로 8개 요소 필요
+        const playerRow = ['PLAYER', p.name, parseInt(p.seat) || 1, 0, initialChips, finalChips, p.hand?.length? p.hand.join(' ') : '', positionStr];
         
         console.log(`  ===== PLAYER 행 생성 =====`);
         console.log(`  playerRow 배열:`, playerRow);
@@ -2592,6 +2596,7 @@
         console.log(`  [4] = ${playerRow[4]} (시작칩: ${initialChips})`);
         console.log(`  [5] = ${playerRow[5]} (종료칩: ${finalChips})`);
         console.log(`  [6] = '${playerRow[6]}' (핸드)`);
+        console.log(`  [7] = '${playerRow[7]}' (포지션: ${positionStr})`);
         
         // push 전 현재 행번호
         const currentNo = no;
@@ -2604,7 +2609,7 @@
         console.log(`  push 후 저장된 행:`, pushedRow);
         console.log(`  최종 CSV 형식:`);
         console.log(`    A=${pushedRow[0]} (행번호), B=${pushedRow[1]} (PLAYER), C=${pushedRow[2]} (이름), D=${pushedRow[3]} (좌석),`);
-        console.log(`    E=${pushedRow[4]} (0 고정값), F=${pushedRow[5]} (시작칩), G=${pushedRow[6]} (종료칩), H=${pushedRow[7]} (핸드)`);
+        console.log(`    E=${pushedRow[4]} (0 고정값), F=${pushedRow[5]} (시작칩), G=${pushedRow[6]} (종료칩), H=${pushedRow[7]} (핸드), I=${pushedRow[8]} (포지션)`);
         console.log(`--- ${p.name} 처리 완료 ---\n`);
       });
 
