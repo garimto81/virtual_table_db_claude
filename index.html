@@ -26,7 +26,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.10.5</title>
+  <title>포커 핸드 로거 v2.10.6</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -356,7 +356,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.10.5';
+  const APP_VERSION = 'v2.10.6';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -1175,6 +1175,10 @@
         // 플레이어 제거 (게임에서 제외)
         const player = window.state.playersInHand[i];
         window.state.playersInHand.splice(i,1);
+        // seatMap에서도 제거
+        if(player.seat) {
+          delete window.state.seatMap[player.seat];
+        }
         console.log(`➖ ${name} 게임에서 제외 (Seat ${player.seat})`);
       } else {
         // 플레이어 추가 (게임에 참여)
@@ -1185,6 +1189,11 @@
         const chips=pd.chips||'';
         const notable=pd.notable||false;
         const seat=pd.seat||''; // Type 시트의 seat 정보
+        
+        // seatMap에 추가
+        if(seat) {
+          window.state.seatMap[seat] = name;
+        }
         
         // 새 플레이어 추가 시 initialChips를 현재 칩으로 설정
         console.log(`➕ ${name} 게임 참여: 시작칩 = ${chips}, 좌석 = ${seat}`);
