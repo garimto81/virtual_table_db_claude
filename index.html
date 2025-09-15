@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.10.8
+  Version: 2.10.9
   Last Modified: 2025-09-15 KST
   
   Change Log:
+  - v2.10.9 (2025-09-15): 팟 계산 로직 버그 수정 - 중간 베팅 금액 누적 문제 해결
   - v2.10.8 (2025-09-15): 키패드 중복 입력 버그 수정 - 중복 이벤트 리스너 제거
   - v2.10.7 (2025-09-15): 버튼/SB/BB 선택 로직 개선 - 전체 플레이어 리스트에서 선택 가능
   - v2.10.6 (2025-09-15): 버튼 드롭다운 작동 버그 수정, 버전 중앙 관리 시스템 구현
@@ -350,7 +351,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.10.8';
+  const APP_VERSION = 'v2.10.9';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -1746,28 +1747,36 @@
         }
       });
       
-      // 3. 액션 기반 기여액 추가 (올인 제한 고려)
+      // 3. 각 스트리트별로 최종 베팅 금액 계산 (올바른 포커 로직)
       ['preflop', 'flop', 'turn', 'river'].forEach(street => {
         const actions = window.state.actionState[street] || [];
+        const streetBets = {}; // 이 스트리트에서 각 플레이어의 베팅 금액
         
+        // 해당 스트리트의 모든 액션을 순회하며 최종 베팅 금액 계산
         actions.forEach(action => {
           if(action.amount && action.player && action.action !== 'Pot Correction') {
             const player = action.player;
             const amount = parseInt(unformatNumber(action.amount), 10);
             
-            // 해당 플레이어의 최대 칩 찾기
-            const playerData = playersInHand.find(p => p.name === player);
-            const maxChips = playerData ? parseInt(unformatNumber(playerData.initialChips) || 0, 10) : Infinity;
-            
-            // 현재 기여액 + 새 액션이 최대 칩을 초과하지 않도록 제한
-            const currentContribution = contributions[player] || 0;
-            const allowedAmount = Math.min(amount, Math.max(0, maxChips - currentContribution));
-            
-            contributions[player] = currentContribution + allowedAmount;
-            
-            if (allowedAmount < amount) {
-              console.log(`⚠️ ${player}: ${amount} 요청 → ${allowedAmount} 제한 (최대: ${maxChips}, 현재: ${currentContribution})`);
-            }
+            // 이 플레이어의 이 스트리트 베팅 금액을 action.amount로 설정
+            // (콜/레이즈는 누적이 아니라 최종 베팅 금액)
+            streetBets[player] = amount;
+          }
+        });
+        
+        // 이 스트리트의 최종 베팅 금액을 전체 기여액에 추가
+        Object.entries(streetBets).forEach(([player, amount]) => {
+          const playerData = playersInHand.find(p => p.name === player);
+          const maxChips = playerData ? parseInt(unformatNumber(playerData.initialChips) || 0, 10) : Infinity;
+          
+          // 현재 총 기여액 + 이 스트리트 베팅이 최대 칩을 초과하지 않도록 제한
+          const currentContribution = contributions[player] || 0;
+          const allowedAmount = Math.min(amount, Math.max(0, maxChips - currentContribution));
+          
+          contributions[player] = currentContribution + allowedAmount;
+          
+          if (allowedAmount < amount) {
+            console.log(`⚠️ ${player} (${street}): ${amount} 요청 → ${allowedAmount} 제한 (최대: ${maxChips}, 현재: ${currentContribution})`);
           }
         });
       });
