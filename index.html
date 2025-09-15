@@ -353,7 +353,7 @@
    */
   
   // 버전 정보 전역 상수
-  const APP_VERSION = 'v2.10.2';
+  const APP_VERSION = 'v2.10.3';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -737,33 +737,55 @@
         }
       }
       
-      // 11번째 위치: 버튼 드롭다운
+      // 버튼 설정 UI 개선
       const occupiedSeats = getOccupiedSeats();
       const currentBtnPos = window.state.buttonPosition || '';
       
-      html += `
-        <select id="button-position-select" class="bg-gray-600 text-[9px] px-1 py-0.5 rounded h-7 cursor-pointer">
-          <option value="">BTN</option>
-          ${occupiedSeats.map(seat => {
-            const playerName = window.state.seatMap[seat] || `Seat ${seat}`;
-            const selected = seat.toString() === currentBtnPos.toString() ? 'selected' : '';
-            return `<option value="${seat}" ${selected} title="${seat}번 - ${playerName}">${seat}</option>`;
-          }).join('')}
-        </select>
-      `;
-      
       seatButtons.innerHTML = html;
       
+      // 버튼 설정 컨트롤을 별도 영역에 추가
+      const buttonControlHtml = `
+        <div class="col-span-10 mt-2 bg-gray-800 rounded-lg p-2">
+          <div class="flex items-center gap-2">
+            <span class="text-amber-400 font-bold text-sm">🌯 BTN:</span>
+            <select id="button-position-select" class="flex-1 bg-gray-700 text-white px-3 py-1 rounded text-sm font-bold">
+              <option value="">버튼 선택 안함</option>
+              ${occupiedSeats.map(seat => {
+                const playerName = window.state.seatMap[seat] || `Seat ${seat}`;
+                const selected = seat.toString() === currentBtnPos.toString() ? 'selected' : '';
+                const displayText = `${seat}번 - ${playerName}`;
+                return `<option value="${seat}" ${selected}>${displayText}</option>`;
+              }).join('')}
+            </select>
+          </div>
+          <div id="position-display" class="mt-1 text-xs">
+            <!-- SB/BB 자동 표시 -->
+          </div>
+        </div>
+      `;
+      
+      const buttonControl = document.createElement('div');
+      buttonControl.innerHTML = buttonControlHtml;
+      seatButtons.parentElement.appendChild(buttonControl.firstElementChild);
+      
       // 버튼 위치 선택 이벤트 리스너 추가
-      const btnSelect = document.getElementById('button-position-select');
-      if(btnSelect) {
-        btnSelect.addEventListener('change', (e) => {
-          window.state.buttonPosition = e.target.value || null;
-          console.log(`🎯 버튼 위치 변경: ${window.state.buttonPosition || '없음'}`);
-          updateSeatDisplay();
-          saveActionState();
-        });
-      }
+      setTimeout(() => {
+        const btnSelect = document.getElementById('button-position-select');
+        if(btnSelect) {
+          btnSelect.addEventListener('change', (e) => {
+            window.state.buttonPosition = e.target.value || null;
+            console.log(`🎯 버튼 위치 변경: ${window.state.buttonPosition || '없음'}`);
+            updateSeatDisplay();
+            updateButtonPositionDisplay();
+            saveActionState();
+            
+            // 시각적 피드백
+            showFeedback(window.state.buttonPosition ? 
+              `버튼 위치: ${window.state.buttonPosition}번 좌석` : 
+              '버튼 위치 해제', false);
+          });
+        }
+      }, 100);
     }
     function renderPlayerDetails(){
       const finalPot = calculateFinalPot();
@@ -889,7 +911,14 @@
         </div>`;
       }).join('');
     }
-    function renderAll(){ renderPlayerSelection(); renderPlayerDetails(); renderBoard(); renderActionStreets(); renderWinnerSelection(); }
+    function renderAll(){ 
+      renderPlayerSelection(); 
+      renderPlayerDetails(); 
+      renderBoard(); 
+      renderActionStreets(); 
+      renderWinnerSelection();
+      updateButtonPositionDisplay();
+    }
     // ====== MODALS ======
     function openModal(node, html){ node.innerHTML=html; node.classList.remove('hidden'); setTimeout(()=>node.classList.remove('opacity-0'),10); }
     function closeModal(node){ node.classList.add('opacity-0'); setTimeout(()=>node.classList.add('hidden'),300); }
@@ -1411,6 +1440,42 @@
         }
       }
       return occupiedSeats[0];
+    }
+    
+    function updateButtonPositionDisplay() {
+      const display = document.getElementById('position-display');
+      if(!display) return;
+      
+      if(!window.state.buttonPosition) {
+        display.innerHTML = '<span class="text-gray-400">버튼을 선택하면 SB/BB가 자동으로 설정됩니다</span>';
+        return;
+      }
+      
+      const occupiedSeats = getOccupiedSeats();
+      const btnPos = parseInt(window.state.buttonPosition);
+      const sbSeat = getNextOccupiedSeat(btnPos, occupiedSeats);
+      const bbSeat = getNextOccupiedSeat(sbSeat, occupiedSeats);
+      
+      const btnPlayer = window.state.seatMap[btnPos] || '빈자리';
+      const sbPlayer = window.state.seatMap[sbSeat] || '빈자리';
+      const bbPlayer = window.state.seatMap[bbSeat] || '빈자리';
+      
+      display.innerHTML = `
+        <div class="grid grid-cols-3 gap-2 text-center">
+          <div class="bg-yellow-900/30 rounded p-1">
+            <span class="text-yellow-400 font-bold">🎯 BTN</span>
+            <div class="text-white text-xs">${btnPlayer}</div>
+          </div>
+          <div class="bg-green-900/30 rounded p-1">
+            <span class="text-green-400 font-bold">SB</span>
+            <div class="text-white text-xs">${sbPlayer}</div>
+          </div>
+          <div class="bg-blue-900/30 rounded p-1">
+            <span class="text-blue-400 font-bold">BB</span>
+            <div class="text-white text-xs">${bbPlayer}</div>
+          </div>
+        </div>
+      `;
     }
     
     function updatePositionIndicators() {
