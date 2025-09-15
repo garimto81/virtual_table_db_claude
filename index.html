@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.10.6
+  Version: 2.10.7
   Last Modified: 2025-09-15 KST
   
   Change Log:
+  - v2.10.7 (2025-09-15): 버튼/SB/BB 선택 로직 개선 - 전체 플레이어 리스트에서 선택 가능
   - v2.10.6 (2025-09-15): 버튼 드롭다운 작동 버그 수정, 버전 중앙 관리 시스템 구현
   - v2.10.5 (2025-09-15): 버튼 위치 중복 입력 버그 수정
   - v2.10.4 (2025-09-15): 버튼 설정 UI 최적화
@@ -348,7 +349,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.10.6';
+  const APP_VERSION = 'v2.10.7';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -750,17 +751,23 @@
         }
       }
       
-      // 11번째 위치: 버튼 드롭다운 (1x11 그리드)
-      const occupiedSeats = getOccupiedSeats();
+      // 11번째 위치: 버튼 드롭다운 (1x11 그리드) - 전체 플레이어 리스트에서 선택 가능
       const currentBtnPos = window.state.buttonPosition || '';
+      
+      // 전체 테이블 플레이어 리스트에서 좌석이 있는 플레이어들 가져오기
+      const allPlayersWithSeats = tableData.filter(player => player.seat).map(player => ({
+        seat: parseInt(player.seat),
+        name: player.name
+      })).sort((a, b) => a.seat - b.seat);
       
       html += `
         <select id="button-position-select" class="bg-gray-600 text-[9px] px-1 py-0.5 rounded h-7 cursor-pointer">
           <option value="">BTN</option>
-          ${occupiedSeats.map(seat => {
-            const playerName = window.state.seatMap[seat] || `Seat ${seat}`;
-            const selected = seat.toString() === currentBtnPos.toString() ? 'selected' : '';
-            return `<option value="${seat}" ${selected} title="${seat}번 - ${playerName}">${seat}</option>`;
+          ${allPlayersWithSeats.map(player => {
+            const selected = player.seat.toString() === currentBtnPos.toString() ? 'selected' : '';
+            const isInGame = window.state.playersInHand.some(p => p.name === player.name);
+            const statusIndicator = isInGame ? '🟢' : '⚫';
+            return `<option value="${player.seat}" ${selected} title="${player.seat}번 - ${player.name} ${isInGame ? '(참여중)' : '(대기중)'}">${statusIndicator}${player.seat}</option>`;
           }).join('')}
         </select>
       `;
@@ -1418,13 +1425,13 @@
       if(!window.state.buttonPosition) return positions;
       
       const btnPos = parseInt(window.state.buttonPosition);
-      const occupiedSeats = getOccupiedSeats();
+      const allPlayerSeats = getAllPlayerSeats();
       
       if(seatNum === btnPos) positions.push('BTN');
       
-      // SB, BB 계산 (버튼 다음 활성 플레이어들)
-      const sbSeat = getNextOccupiedSeat(btnPos, occupiedSeats);
-      const bbSeat = getNextOccupiedSeat(sbSeat, occupiedSeats);
+      // SB, BB 계산 (전체 플레이어 중 버튼 다음 플레이어들)
+      const sbSeat = getNextPlayerSeat(btnPos, allPlayerSeats);
+      const bbSeat = getNextPlayerSeat(sbSeat, allPlayerSeats);
       
       if(seatNum === sbSeat) positions.push('SB');
       if(seatNum === bbSeat) positions.push('BB');
@@ -1437,6 +1444,30 @@
         .map(s => parseInt(s))
         .filter(s => window.state.seatMap[s])
         .sort((a, b) => a - b);
+    }
+    
+    // 전체 플레이어 좌석 리스트 가져오기 (게임 참여 여부와 관계없이)
+    function getAllPlayerSeats() {
+      if(!window.state.selectedTable) return [];
+      const tableData = window.state.playerDataByTable[window.state.selectedTable] || [];
+      return tableData
+        .filter(player => player.seat)
+        .map(player => parseInt(player.seat))
+        .sort((a, b) => a - b);
+    }
+    
+    // 전체 플레이어 중에서 다음 좌석 찾기 (SB/BB 계산용)
+    function getNextPlayerSeat(currentSeat, allSeats) {
+      if(!allSeats.length) return null;
+      
+      // 현재 좌석 다음의 첫 번째 플레이어 좌석 찾기
+      for(let i = 1; i <= 10; i++) {
+        const nextSeat = ((currentSeat + i - 1) % 10) + 1;
+        if(allSeats.includes(nextSeat)) {
+          return nextSeat;
+        }
+      }
+      return allSeats[0];
     }
     
     function getNextOccupiedSeat(currentSeat, occupiedSeats) {
@@ -1461,14 +1492,17 @@
         return;
       }
       
-      const occupiedSeats = getOccupiedSeats();
+      // 전체 플레이어 좌석 리스트에서 SB/BB 계산
+      const allPlayerSeats = getAllPlayerSeats();
       const btnPos = parseInt(window.state.buttonPosition);
-      const sbSeat = getNextOccupiedSeat(btnPos, occupiedSeats);
-      const bbSeat = getNextOccupiedSeat(sbSeat, occupiedSeats);
+      const sbSeat = getNextPlayerSeat(btnPos, allPlayerSeats);
+      const bbSeat = getNextPlayerSeat(sbSeat, allPlayerSeats);
       
-      const btnPlayer = window.state.seatMap[btnPos] || '빈자리';
-      const sbPlayer = window.state.seatMap[sbSeat] || '빈자리';
-      const bbPlayer = window.state.seatMap[bbSeat] || '빈자리';
+      // 플레이어 이름 가져오기 (전체 테이블 데이터에서)
+      const tableData = window.state.playerDataByTable[window.state.selectedTable] || [];
+      const btnPlayer = tableData.find(p => parseInt(p.seat) === btnPos)?.name || '빈자리';
+      const sbPlayer = tableData.find(p => parseInt(p.seat) === sbSeat)?.name || '빈자리';
+      const bbPlayer = tableData.find(p => parseInt(p.seat) === bbSeat)?.name || '빈자리';
       
       display.innerHTML = `
         <div class="grid grid-cols-3 gap-2 text-center">
@@ -1495,14 +1529,17 @@
         return;
       }
       
-      const occupiedSeats = getOccupiedSeats();
+      // 전체 플레이어 좌석 리스트에서 SB/BB 계산
+      const allPlayerSeats = getAllPlayerSeats();
       const btnPos = parseInt(window.state.buttonPosition);
-      const sbSeat = getNextOccupiedSeat(btnPos, occupiedSeats);
-      const bbSeat = getNextOccupiedSeat(sbSeat, occupiedSeats);
+      const sbSeat = getNextPlayerSeat(btnPos, allPlayerSeats);
+      const bbSeat = getNextPlayerSeat(sbSeat, allPlayerSeats);
       
-      const btnPlayer = window.state.seatMap[btnPos] || '빈자리';
-      const sbPlayer = window.state.seatMap[sbSeat] || '빈자리';
-      const bbPlayer = window.state.seatMap[bbSeat] || '빈자리';
+      // 플레이어 이름 가져오기 (전체 테이블 데이터에서)
+      const tableData = window.state.playerDataByTable[window.state.selectedTable] || [];
+      const btnPlayer = tableData.find(p => parseInt(p.seat) === btnPos)?.name || '빈자리';
+      const sbPlayer = tableData.find(p => parseInt(p.seat) === sbSeat)?.name || '빈자리';
+      const bbPlayer = tableData.find(p => parseInt(p.seat) === bbSeat)?.name || '빈자리';
       
       indicators.innerHTML = `
         <span class="text-yellow-400">BTN: ${btnPlayer}</span>
