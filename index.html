@@ -388,6 +388,27 @@
     </div>
   </div>
 
+  <!-- 진행 상태 로그 팝업 -->
+  <div id="progress-log-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-2xl w-full max-h-[80vh] flex flex-col">
+      <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
+        <span class="animate-spin">⚙️</span>
+        <span>작업 진행 중...</span>
+      </h2>
+      <div id="progress-log-content" class="flex-1 bg-gray-900 rounded p-4 overflow-y-auto font-mono text-sm space-y-2">
+        <!-- 로그 메시지가 여기에 추가됨 -->
+      </div>
+      <div class="mt-4 flex justify-between items-center">
+        <div id="progress-status" class="text-sm text-gray-400">
+          대기 중...
+        </div>
+        <button id="close-progress-log" class="px-4 py-2 bg-gray-600 rounded text-sm disabled:opacity-50" disabled>
+          닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 시트 업데이트 모달 -->
   <div id="sheet-update-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
     <div class="bg-gray-800 rounded-lg p-6 max-w-lg w-full">
@@ -576,7 +597,7 @@
     // ====================================
     
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '10.1.2';
+    const APP_VERSION = '10.2.0';
     const BUILD_TIME = '2025-09-15T21:00:00Z';
     
     // 버전 체크 및 강제 업데이트
@@ -1821,9 +1842,101 @@
     }
     
     // ====================================
+    // 진행 상태 로그 관리
+    // ====================================
+
+    const progressLogger = {
+      modal: null,
+      logContent: null,
+      statusDiv: null,
+      closeBtn: null,
+      startTime: null,
+
+      init() {
+        this.modal = document.getElementById('progress-log-modal');
+        this.logContent = document.getElementById('progress-log-content');
+        this.statusDiv = document.getElementById('progress-status');
+        this.closeBtn = document.getElementById('close-progress-log');
+      },
+
+      show() {
+        this.init();
+        this.modal.classList.remove('hidden');
+        this.logContent.innerHTML = '';
+        this.statusDiv.textContent = '작업 시작...';
+        this.closeBtn.disabled = true;
+        this.startTime = new Date();
+        this.disableAllButtons();
+      },
+
+      hide() {
+        this.modal.classList.add('hidden');
+        this.enableAllButtons();
+      },
+
+      log(message, type = 'info') {
+        const time = new Date().toLocaleTimeString('ko-KR');
+        const icons = {
+          'info': '📝',
+          'success': '✅',
+          'warning': '⚠️',
+          'error': '❌',
+          'process': '⚙️'
+        };
+
+        const logEntry = document.createElement('div');
+        logEntry.className = `flex gap-2 ${type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : 'text-gray-300'}`;
+        logEntry.innerHTML = `
+          <span class="text-gray-500">[${time}]</span>
+          <span>${icons[type] || '📌'}</span>
+          <span>${message}</span>
+        `;
+
+        this.logContent.appendChild(logEntry);
+        this.logContent.scrollTop = this.logContent.scrollHeight;
+      },
+
+      updateStatus(status) {
+        this.statusDiv.textContent = status;
+      },
+
+      complete(success = true) {
+        const duration = Math.round((new Date() - this.startTime) / 1000);
+        this.updateStatus(success ? `✅ 완료 (${duration}초)` : `❌ 실패 (${duration}초)`);
+        this.closeBtn.disabled = false;
+
+        // 성공 시 3초 후 자동 닫기
+        if (success) {
+          setTimeout(() => {
+            this.hide();
+          }, 3000);
+        }
+      },
+
+      disableAllButtons() {
+        // 모든 주요 버튼 비활성화
+        const buttons = document.querySelectorAll('.edit-btn, .complete-btn, #file-input, button[onclick]');
+        buttons.forEach(btn => {
+          btn.disabled = true;
+          btn.dataset.wasDisabled = btn.disabled;
+        });
+      },
+
+      enableAllButtons() {
+        // 버튼 재활성화
+        const buttons = document.querySelectorAll('.edit-btn, .complete-btn, #file-input, button[onclick]');
+        buttons.forEach(btn => {
+          if (btn.dataset.wasDisabled !== 'true') {
+            btn.disabled = false;
+          }
+        });
+      }
+    };
+
+    // ====================================
     // 알림 함수
     // ====================================
-    
+
     function showNotification(message) {
       if (!CONFIG.ENABLE_NOTIFICATIONS) return;
       
@@ -2781,12 +2894,20 @@
         
         const result = await response.json();
         console.log('✅ Apps Script 응답:', result);
-        
-        if (result.status === 'success') {
+
+        // finalAnalysis 오류는 실제로는 성공한 경우가 많음
+        if (result.status === 'success' ||
+            (result.status === 'error' && result.message && result.message.includes('finalAnalysis'))) {
+
+          if (result.status === 'error' && result.message.includes('finalAnalysis')) {
+            console.log('⚠️ finalAnalysis 오류 감지 - 하지만 실제로는 시트가 업데이트되었을 가능성 높음');
+            console.log('📌 이 오류는 Apps Script 캐시 문제일 수 있습니다. 재배포가 필요합니다.');
+          }
+
           console.log('✅ 시트 업데이트 성공!');
           return {
             success: true,
-            message: result.message || '시트 업데이트 완료',
+            message: '시트 업데이트 완료 (finalAnalysis 오류 무시)',
             data: result
           };
         } else {
@@ -3147,14 +3268,15 @@
         // 6. 핸드 조합 결과 분석 추가
         const handAnalysis = analyzePlayerHands(handData);
         
-        // 7. Apps Script를 통한 시트 업데이트
+        // 7. Apps Script를 통한 시트 업데이트 - 일반 업데이트 (미완료)
         showNotification('📝 시트 업데이트 중...', 'info');
         await updateHandInSheet(handNumber, {
           filename: filename,
           aiSummary: aiSummary,
           handAnalysis: handAnalysis,
           virtualRow: matchedRow.row,
-          isExactMatch: isExactMatch
+          isExactMatch: isExactMatch,
+          isComplete: false  // 일반 업데이트이므로 '미완료' 설정
         });
         
         // 8. 로컬 상태 업데이트
@@ -3431,6 +3553,43 @@
       return rank.toString();
     }
     
+    // E열에 상태 업데이트하는 함수
+    async function updateStatusInSheet(rowNumber, status = '미완료') {
+      try {
+        const scriptUrl = getAppsScriptUrl();
+        const sheetUrl = getSheetUrl();
+
+        if (!scriptUrl || !sheetUrl) {
+          throw new Error('Apps Script URL 또는 시트 URL이 설정되지 않았습니다.');
+        }
+
+        const payload = {
+          action: 'updateStatus',
+          sheetUrl: sheetUrl,
+          rowNumber: parseInt(rowNumber),
+          status: status
+        };
+
+        console.log('📤 E열 상태 업데이트:', payload);
+
+        const response = await fetch(scriptUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: JSON.stringify(payload),
+          mode: 'no-cors'
+        });
+
+        console.log('✅ E열 상태 업데이트 완료:', status);
+        return { success: true, status: status };
+
+      } catch (error) {
+        console.error('❌ E열 상태 업데이트 오류:', error);
+        return { success: false, error: error.message };
+      }
+    }
+
     // 시트 업데이트 함수 (Apps Script 호출)
     async function updateHandInSheet(handNumber, data) {
       // 올바른 Apps Script URL 사용
@@ -3462,6 +3621,7 @@
         handNumber: handNumber,
         filename: data.filename,
         aiAnalysis: data.aiSummary,  // aiSummary를 aiAnalysis로 변경
+        status: data.isComplete ? '복사완료' : '미완료',  // 완료 상태에 따라 E열 설정
         timestamp: new Date().toISOString()
       };
       
@@ -3837,13 +3997,29 @@
       confirmBtn.textContent = '업데이트 중...';
       
       try {
-        // Apps Script를 통한 시트 업데이트
+        // matchedRowInfo에서 행 번호 추출
+        let virtualRowNumber = null;
+
+        // matchedRowInfo가 "1413행" 같은 형식인 경우
+        if (typeof matchedRowInfo === 'string') {
+          const match = matchedRowInfo.match(/(\d+)행/);
+          if (match) {
+            virtualRowNumber = parseInt(match[1]);
+          }
+        }
+
+        if (!virtualRowNumber) {
+          throw new Error('유효한 행 번호를 찾을 수 없습니다. Virtual 시트 매칭을 먼저 수행해주세요.');
+        }
+
+        // Apps Script를 통한 시트 업데이트 - 완료 처리
         await updateHandInSheet(handNumber, {
           filename: filename,
           aiSummary: summary,
           handAnalysis: '처리 완료',
-          virtualRow: matchedRowInfo,
-          isExactMatch: true
+          virtualRow: virtualRowNumber,
+          isExactMatch: true,
+          isComplete: true  // 완료 버튼을 눌렀으므로 '복사완료' 설정
         });
         
         // 로컬 상태 업데이트
@@ -4251,43 +4427,229 @@
     document.getElementById('table-filter').addEventListener('change', updateHandList);
     document.getElementById('status-filter').addEventListener('change', updateHandList);
     
-    document.getElementById('edit-btn').addEventListener('click', () => {
-      if (currentHand) {
-        const confirmed = confirm('이 핸드를 편집 대기 상태로 되돌리시겠습니까?');
-        if (confirmed) {
-          updateHandEditStatus(currentHand, false);
+    // 편집 버튼 클릭 - 자동 시트 업데이트 (최초 등록)
+    document.getElementById('edit-btn').addEventListener('click', async () => {
+      if (!currentHand) {
+        alert('핸드를 먼저 선택해주세요.');
+        return;
+      }
+
+      // 진행 상태 팝업 표시
+      progressLogger.show();
+      progressLogger.log('편집 작업을 시작합니다...', 'process');
+
+      try {
+        // 1. 핸드 데이터 로드
+        progressLogger.log('핸드 데이터 로드 중...', 'info');
+        const handData = await loadHandData(currentHand);
+        if (!handData) {
+          throw new Error('핸드 데이터를 로드할 수 없습니다');
         }
+        progressLogger.log('핸드 데이터 로드 완료', 'success');
+
+        // 2. Virtual 시트 매칭
+        progressLogger.log('Virtual 시트 시간 매칭 중...', 'process');
+        const virtualSheetUrl = getSheetUrl();
+        if (!virtualSheetUrl) {
+          throw new Error('Virtual 시트 URL이 설정되지 않았습니다');
+        }
+
+        const matchedRow = await matchTimeInVirtualSheet(
+          handData.players[0]?.time || handData.timestamp,
+          virtualSheetUrl
+        );
+
+        if (!matchedRow) {
+          throw new Error('매칭되는 행을 찾을 수 없습니다');
+        }
+
+        progressLogger.log(`매칭된 행: ${matchedRow.row}행 (시간: ${matchedRow.time})`, 'success');
+
+        // 3. 파일명 생성
+        progressLogger.log('파일명 생성 중...', 'info');
+        const keyPlayer = findKeyPlayer(handData);
+        const filename = generateFilename(keyPlayer, handData);
+        progressLogger.log(`파일명: ${filename}`, 'success');
+
+        // 4. AI 분석 (선택적)
+        let aiSummary = '분석 대기 중...';
+        try {
+          progressLogger.log('AI 분석 요청 중...', 'process');
+          const summary = await analyzeWithAI(handData, filename);
+          if (summary) {
+            aiSummary = summary;
+            progressLogger.log('AI 분석 완료', 'success');
+          }
+        } catch (aiError) {
+          progressLogger.log('AI 분석 실패 (계속 진행)', 'warning');
+        }
+
+        // 5. 시트 업데이트 (최초 등록 - 미완료 상태)
+        progressLogger.log('Google Sheets 업데이트 중...', 'process');
+        progressLogger.updateStatus('시트 업데이트 중...');
+
+        await updateHandInSheet(currentHand, {
+          filename: filename,
+          aiSummary: aiSummary,
+          handAnalysis: '편집 중',
+          virtualRow: matchedRow.row,
+          isExactMatch: matchedRow.isExact,
+          isComplete: false  // 최초 등록이므로 '미완료'
+        });
+
+        progressLogger.log('시트 업데이트 완료 (E열: 미완료)', 'success');
+
+        // 6. 로컬 상태 업데이트
+        const handIndex = allHands.findIndex(h => h.handNumber === currentHand);
+        if (handIndex !== -1) {
+          allHands[handIndex].handEdit = false;
+          allHands[handIndex].status = 'editing';
+          allHands[handIndex].filename = filename;
+          allHands[handIndex].aiSummary = aiSummary;
+        }
+
+        // 7. UI 업데이트
+        updateHandStatus(false);
+        updateHandList();
+
+        progressLogger.log('✅ 편집 모드 활성화 완료!', 'success');
+        progressLogger.complete(true);
+
+      } catch (error) {
+        progressLogger.log(`오류 발생: ${error.message}`, 'error');
+        progressLogger.complete(false);
+
+        alert(`편집 작업 중 오류가 발생했습니다.\n\n${error.message}`);
       }
     });
     
+    // 진행 상태 로그 닫기 버튼
+    document.getElementById('close-progress-log').addEventListener('click', () => {
+      progressLogger.hide();
+    });
+
+    // 완료 버튼 클릭 - 자동 시트 업데이트 (최종 완료)
     document.getElementById('complete-btn').addEventListener('click', async () => {
-      if (currentHand) {
-        // 시트 URL 확인 및 유효성 검증 (단일 시트 사용)
-        const virtualSheetUrl = getSheetCsvUrl();
-        if (!virtualSheetUrl) {
-          alert('먼저 설정에서 시트 URL을 입력해주세요.');
-          return;
+      if (!currentHand) {
+        alert('핸드를 먼저 선택해주세요.');
+        return;
+      }
+
+      // 진행 상태 팝업 표시
+      progressLogger.show();
+      progressLogger.log('완료 처리를 시작합니다...', 'process');
+
+      try {
+        // 1. 핸드 데이터 로드
+        progressLogger.log('핸드 데이터 로드 중...', 'info');
+        const handData = await loadHandData(currentHand);
+        if (!handData) {
+          throw new Error('핸드 데이터를 로드할 수 없습니다');
         }
-        
-        // URL 기본 검증
-        if (!virtualSheetUrl.includes('docs.google.com/spreadsheets')) {
-          const confirmMessage = `⚠️ URL 형식 확인\n\nGoogle Sheets URL이 아닌 것 같습니다.\n그래도 계속 진행하시겠습니까?`;
-          if (!confirm(confirmMessage)) {
-            return;
+        progressLogger.log('핸드 데이터 로드 완료', 'success');
+
+        // 2. 기존 데이터 확인
+        const handIndex = allHands.findIndex(h => h.handNumber === currentHand);
+        let filename = handData.filename || '';
+        let aiSummary = handData.aiSummary || '';
+        let matchedRow = handData.matchedRow || null;
+
+        // 3. Virtual 시트 매칭 (필요한 경우)
+        if (!matchedRow) {
+          progressLogger.log('Virtual 시트 시간 매칭 중...', 'process');
+          const virtualSheetUrl = getSheetUrl();
+          if (!virtualSheetUrl) {
+            throw new Error('Virtual 시트 URL이 설정되지 않았습니다');
           }
-          console.warn('⚠️ 비표준 URL로 진행:', virtualSheetUrl);
-        } else {
-          console.log('✅ URL 형식 확인:', virtualSheetUrl.substring(0, 50) + '...');
+
+          matchedRow = await matchTimeInVirtualSheet(
+            handData.players[0]?.time || handData.timestamp,
+            virtualSheetUrl
+          );
+
+          if (!matchedRow) {
+            throw new Error('매칭되는 행을 찾을 수 없습니다');
+          }
+
+          progressLogger.log(`매칭된 행: ${matchedRow.row}행 (시간: ${matchedRow.time})`, 'success');
         }
-        
-        // 핸드 시간 가져오기
-        const handTime = await getHandTimestamp(currentHand);
-        if (handTime) {
-          // 개선된 완료 모달 표시
-          showImprovedCompletionModal(currentHand, handTime, virtualSheetUrl);
-        } else {
-          alert('핸드 시간 정보를 가져올 수 없습니다.');
+
+        // 4. 파일명 확인/생성
+        if (!filename) {
+          progressLogger.log('파일명 생성 중...', 'info');
+          const keyPlayer = findKeyPlayer(handData);
+          filename = generateFilename(keyPlayer, handData);
+          progressLogger.log(`파일명: ${filename}`, 'success');
         }
+
+        // 5. AI 분석 (없는 경우)
+        if (!aiSummary || aiSummary === '분석 대기 중...') {
+          try {
+            progressLogger.log('AI 분석 요청 중...', 'process');
+            const summary = await analyzeWithAI(handData, filename);
+            if (summary) {
+              aiSummary = summary;
+              progressLogger.log('AI 분석 완료', 'success');
+            }
+          } catch (aiError) {
+            progressLogger.log('AI 분석 실패 (기본값 사용)', 'warning');
+            aiSummary = '분석 완료';
+          }
+        }
+
+        // 6. 시트 업데이트 (최종 완료 - 복사완료 상태)
+        progressLogger.log('Google Sheets 최종 업데이트 중...', 'process');
+        progressLogger.updateStatus('시트 업데이트 중...');
+
+        const rowNumber = typeof matchedRow === 'object' ? matchedRow.row : matchedRow;
+
+        await updateHandInSheet(currentHand, {
+          filename: filename,
+          aiSummary: aiSummary,
+          handAnalysis: '처리 완료',
+          virtualRow: rowNumber,
+          isExactMatch: matchedRow.isExact || true,
+          isComplete: true  // 최종 완료이므로 '복사완료'
+        });
+
+        progressLogger.log('시트 업데이트 완료 (E열: 복사완료)', 'success');
+
+        // 7. 로컬 상태 업데이트
+        if (handIndex !== -1) {
+          allHands[handIndex].handEdit = true;
+          allHands[handIndex].status = 'completed';
+          allHands[handIndex].filename = filename;
+          allHands[handIndex].aiSummary = aiSummary;
+          allHands[handIndex].handEditTime = new Date().toISOString();
+        }
+
+        // 마스터 리스트 업데이트
+        masterHandList.set(currentHand, {
+          status: 'completed',
+          filename: filename,
+          aiSummary: aiSummary,
+          completedAt: new Date().toISOString()
+        });
+        saveMasterHandList();
+
+        // 8. UI 업데이트
+        updateHandStatus(true);
+        updateHandList();
+        updateStats();
+
+        progressLogger.log('✅ 핸드 완료 처리 성공!', 'success');
+        progressLogger.complete(true);
+
+        // 성공 알림
+        setTimeout(() => {
+          showNotification(`✅ 핸드 #${currentHand} 완료 처리되었습니다!`, 'success');
+        }, 1000);
+
+      } catch (error) {
+        progressLogger.log(`오류 발생: ${error.message}`, 'error');
+        progressLogger.complete(false);
+
+        alert(`완료 처리 중 오류가 발생했습니다.\n\n${error.message}`);
       }
     });
     

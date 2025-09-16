@@ -14,17 +14,13 @@
 ## 📁 프로젝트 구조
 ```
 virtual_table_db_claude/
-├── index.html         # 메인 웹 애플리케이션 (v9.7.7)
-├── apps_script.gs     # Google Apps Script (v3.2)
-├── README.md          # 프로젝트 개요
-├── _config.yml        # GitHub Pages 설정
-├── docs/              # 문서 모음
-│   ├── PROJECT_DOCUMENTATION.md
-│   ├── SHEET_UPDATE_DEBUG.md
-│   └── ...
-├── scripts/           # 스크립트 아카이브
-│   └── archive/
-└── tools/             # 테스트 도구
+├── index.html                  # 메인 웹 애플리케이션 (v10.1.2)
+├── README.md                   # 프로젝트 개요
+├── PROJECT_DOCUMENTATION.md    # 통합 프로젝트 문서
+├── _config.yml                 # GitHub Pages 설정
+├── scripts/                    # Apps Script 최신 버전
+│   └── apps_script_v3.4.2.gs  # ⚠️ 최신 버전만 유지
+└── tools/                      # 테스트 도구
     ├── quick_test.html
     └── test_connection.html
 ```
@@ -34,7 +30,7 @@ virtual_table_db_claude/
 ### 1. Apps Script 배포
 1. [Google Apps Script](https://script.google.com) 접속
 2. 새 프로젝트 생성
-3. `apps_script.gs` (v3.2) 내용 복사/붙여넣기
+3. `scripts/apps_script_v3.4.2.gs` 내용 복사/붙여넣기
 4. 배포 > 새 배포 > 웹 앱
 5. 액세스 권한: "모든 사용자" 설정
 6. 배포 URL 복사
@@ -49,7 +45,11 @@ virtual_table_db_claude/
 6. 🔍 디버그 버튼으로 실시간 검증
 
 ## 📖 문서
-자세한 설정, 문제 해결, API 정보는 [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)를 참조하세요.
+모든 상세 설정, 문제 해결, API 정보는 [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)를 참조하세요.
+
+### 📌 Apps Script 파일 위치
+**최신 버전**: `scripts/apps_script_v3.4.4.gs`
+⚠️ **중요**: 항상 최신 버전만 사용하고, 이전 버전은 모두 삭제합니다.
 
 ## 🔧 기술 스택
 - **Frontend**: HTML5, Tailwind CSS, Vanilla JavaScript
@@ -59,15 +59,36 @@ virtual_table_db_claude/
 - **Hosting**: GitHub Pages
 
 ## 📊 버전
-- **현재 버전**: v10.1.2
-- **Apps Script**: v3.4.1
-- **최종 업데이트**: 2025-09-15
+- **현재 버전**: v10.2.0
+- **Apps Script**: v3.4.4
+- **최종 업데이트**: 2025-01-16
+
+### v10.2.0 업데이트 내용 (메이저 업데이트)
+- ✅ **편집 버튼 자동 시트 업데이트** - 클릭 즉시 처리
+- ✅ **진행 상태 팝업 로그창** - 실시간 작업 진행 표시
+- ✅ **작업 중 버튼 비활성화** - 충돌 방지
+- ✅ **2단계 작업 프로세스** 구현
+  - 편집 버튼: 최초 등록 (E열: '미완료')
+  - 완료 버튼: 최종 완료 (E열: '복사완료')
+- 🔧 확인 팝업 제거로 작업 속도 향상
+
+### v10.1.4 업데이트 내용
+- ✅ E열 드롭다운 데이터 검증 규칙 자동 설정
+- 🔧 초기 업데이트 시 '미완료' 기본값 설정
+- 🔧 완료 처리 버튼 클릭 시 '복사완료' 자동 설정
+- 📦 Apps Script v3.4.4 적용
+
+### v10.1.3 업데이트 내용
+- ✅ E열 상태 드롭다운 지원 추가 (미완료/복사완료)
+- 🔧 완료 처리 버튼 행 번호 파싱 오류 수정
+- 📦 Apps Script v3.4.3 적용
 
 ### v10.1.2 업데이트 내용
 - 🐛 Apps Script finalAnalysis 변수 스코프 오류 수정
 - ✅ 시트 업데이트 오류 메시지 해결
 - 🔧 try-catch 블록 외부 변수 선언으로 참조 오류 해결
-- 📦 Apps Script v3.4.1 적용 필요
+- 📦 Apps Script v3.4.2 적용 필요
+- 📁 프로젝트 구조 정리 및 문서 통합
 
 ### v10.1.1 업데이트 내용
 - 🔧 브라우저 캐시 문제로 인한 오류 메시지 개선
@@ -183,7 +204,7 @@ virtual_table_db_claude/
 3. 실제 테스트 데이터 입력 확인
 
 ### 상세 가이드
-- [SHEET_UPDATE_TROUBLESHOOTING.md](docs/SHEET_UPDATE_TROUBLESHOOTING.md)
+- [PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)의 문제 해결 섹션 참조
 - CORS 오류, 캐시 문제, 권한 설정 등
 
 ## 📞 지원
