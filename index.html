@@ -2,11 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.26.6
+  Version: 2.28.0
   Last Modified: 2025-09-16 KST
 
   Change Log:
-  - v2.26.6 (2025-09-16): 포지션 기반 자동 액션 시스템 구현
+  - v2.28.0 (2025-09-16): 완전한 오류 방지 시스템 구현
     • 스트릿 선택 시 자동으로 액션 패드 열기
     • 포커 포지션 순서대로 자동 플레이어 진행
     • Check/Call 버튼 상황별 동적 변경 (금액 표시)
@@ -43,11 +43,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.26.6</title>
+  <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="pragma" content="no-cache" />
+  <meta http-equiv="expires" content="0" />
+  <title>포커 핸드 로거 v2.28.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
-  <script src="chip-analysis-module.js" defer></script>
+  <script src="chip-analysis-module.js?v=2.28.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
-  <script src="table-management-v59.js" defer></script>
+  <script src="table-management-v59.js?v=2.28.0" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
