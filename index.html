@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.25.2</title>
+  <title>포커 핸드 로거 v2.25.3</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -208,8 +208,8 @@
         <!-- 버튼들 -->
         <div class="grid grid-cols-2 gap-3">
           <button id="open-table-management-btn" class="bg-blue-600 hover:bg-blue-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center">
-            <span class="text-2xl mb-1">📋</span>
-            <span>테이블 관리</span>
+            <span class="text-2xl mb-1">🎯</span>
+            <span>테이블 선택</span>
           </button>
           <button class="bg-gray-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center opacity-50 cursor-not-allowed" disabled>
             <span class="text-2xl mb-1">🎲</span>
@@ -263,20 +263,15 @@
 
       <!-- 테이블 관리 섹션 (초기에 숨김) -->
       <div id="player-management-content" class="space-y-3 hidden">
-          <!-- 테이블 선택 섹션 -->
+          <!-- 선택된 테이블 정보 -->
           <div class="bg-gray-700 p-3 rounded-lg">
             <div class="flex items-center justify-between mb-2">
-              <h4 class="text-sm font-bold text-amber-400">테이블 선택</h4>
+              <h4 class="text-sm font-bold text-amber-400">선택된 테이블</h4>
               <span id="sync-status" class="text-xs text-gray-400"></span>
             </div>
-            <div class="flex gap-2">
-              <button id="management-table-selector-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-2 px-3 rounded text-sm font-medium flex items-center justify-between">
-                <span id="management-selected-table-display">🎯 테이블 선택</span>
-                <span class="text-blue-200">▼</span>
-              </button>
-            </div>
-            <div id="selected-table-info" class="mt-2 text-xs text-gray-400 hidden">
-              선택된 테이블: <span id="selected-table-name" class="text-amber-400 font-bold"></span>
+            <div id="selected-table-info" class="text-sm">
+              <span id="selected-table-name" class="text-amber-400 font-bold"></span>
+              <button id="change-table-btn" class="ml-2 text-xs bg-gray-600 hover:bg-gray-500 px-2 py-1 rounded">변경</button>
             </div>
           </div>
 
@@ -537,7 +532,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.25.2';
+  const APP_VERSION = 'v2.25.3';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -805,16 +800,16 @@
 
     function updateSelectedTableDisplay() {
       const display = el.selectedTableDisplay;
-      const managementDisplay = document.getElementById('management-selected-table-display');
+      const managementTableName = document.getElementById('selected-table-name');
 
       if (window.state.selectedTable) {
         const playerCount = (window.state.playerDataByTable[window.state.selectedTable] || []).length;
         const text = `${window.state.selectedTable} (${playerCount}명)`;
         display.textContent = text;
-        if (managementDisplay) managementDisplay.textContent = text;
+        if (managementTableName) managementTableName.textContent = window.state.selectedTable;
       } else {
         display.textContent = '테이블 선택';
-        if (managementDisplay) managementDisplay.textContent = '🎯 테이블 선택';
+        if (managementTableName) managementTableName.textContent = '테이블을 선택해주세요';
       }
     }
 
@@ -3616,8 +3611,11 @@ async function sendDataToGoogleSheet(){
       el.tableSelectorBtn.onclick = openTableSelectorModal;
       document.getElementById('close-table-selector').onclick = closeTableSelectorModal;
 
-      // 관리 모달의 테이블 선택 버튼
-      document.getElementById('management-table-selector-btn').onclick = openTableSelectorModal;
+      // 관리 모달의 테이블 변경 버튼
+      document.getElementById('change-table-btn')?.addEventListener('click', () => {
+        window.isTableManagementMode = true;
+        openTableSelectorModal();
+      });
       
       // 테이블 모달 검색 및 필터
       document.getElementById('table-search').oninput = (e) => {
@@ -4221,9 +4219,8 @@ async function sendDataToGoogleSheet(){
       ));
       managementState.changes = { added: [], modified: [], deleted: [] };
 
-      // UI 업데이트
+      // UI 업데이트 - 테이블 정보는 항상 표시
       document.getElementById('selected-table-name').textContent = tableName;
-      document.getElementById('selected-table-info').classList.remove('hidden');
       document.getElementById('player-add-section').classList.remove('hidden');
       document.getElementById('player-list-section').classList.remove('hidden');
       document.getElementById('batch-actions').classList.remove('hidden');
