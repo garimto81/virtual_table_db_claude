@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.25.0</title>
+  <title>포커 핸드 로거 v2.25.1</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -537,7 +537,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.25.0';
+  const APP_VERSION = 'v2.25.1';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -882,11 +882,20 @@
           window.state.playersInHand = [];
           updateSelectedTableDisplay();
           closeTableSelectorModal();
-          renderAll();
 
-          // 관리 모달이 열려있다면 자동으로 선택 처리
-          if (!document.getElementById('player-management-content').classList.contains('hidden')) {
+          // 테이블 관리 모드인지 확인
+          if (window.isTableManagementMode) {
+            // 테이블 관리 모드: 관리 UI로 전환
+            document.getElementById('management-menu').classList.add('hidden');
+            document.getElementById('player-management-content').classList.remove('hidden');
+            initPlayerManagement();
             onManagementTableSelected(table);
+
+            // 플래그 리셋
+            window.isTableManagementMode = false;
+          } else {
+            // 일반 모드: 기본 렌더링
+            renderAll();
           }
         };
         
@@ -4144,11 +4153,13 @@ async function sendDataToGoogleSheet(){
       }
     }, 100);
 
-    // 테이블 관리 버튼 클릭
+    // 테이블 관리 버튼 클릭 - 바로 테이블 선택 모달 열기
     document.getElementById('open-table-management-btn')?.addEventListener('click', () => {
-      document.getElementById('management-menu').classList.add('hidden');
-      document.getElementById('player-management-content').classList.remove('hidden');
-      initPlayerManagement();
+      // 테이블 관리 모드 활성화 플래그 설정
+      window.isTableManagementMode = true;
+
+      // 바로 테이블 선택 모달 열기
+      openTableSelectorModal();
     });
 
     // 플레이어 관리 시스템 상태
