@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.26.1</title>
+  <title>포커 핸드 로거 v2.26.2</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -532,7 +532,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.26.1';
+  const APP_VERSION = 'v2.26.2';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -1641,6 +1641,12 @@
         // 베팅/레이즈 - 키패드 열기
         closeModal(modal);
         window.state.modalState.actionPadPlayer = playerName; // 키패드용 플레이어 설정
+
+        // 베팅인지 레이즈인지 결정
+        const st = window.actionManager.currentStreet;
+        const hasBet = window.state.actionState[st]?.some(a => /BET|RAISE/i.test(a.action || ''));
+        window.state.modalState.actionPadCurrentAction = hasBet ? 'Raises' : 'Bets';
+
         openKeypad(playerName, { purpose: 'bet' });
         return; // 키패드에서 처리하므로 여기서 종료
       }
@@ -4119,8 +4125,12 @@ async function sendDataToGoogleSheet(){
         const potBtn = e.target.closest('.pot-keypad-btn');
         
         if(streetBtn) {
-          window.state.currentStreet = streetBtn.dataset.street;
+          const selectedStreet = streetBtn.dataset.street;
+          window.state.currentStreet = selectedStreet;
           renderActionStreets(); // 하이라이트 업데이트
+
+          // 스트릿 선택 시 바로 액션 패드 열기
+          openActionPad(selectedStreet);
         }
         if(addBtn) openActionPad(addBtn.dataset.street);
         if(undoBtn) undoLastAction(undoBtn.dataset.street);
