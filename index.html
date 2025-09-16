@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.24.0</title>
+  <title>포커 핸드 로거 v2.25.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -270,12 +270,10 @@
               <span id="sync-status" class="text-xs text-gray-400"></span>
             </div>
             <div class="flex gap-2">
-              <button id="load-table-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 px-3 rounded text-sm font-medium">
-                📋 테이블 호출
+              <button id="management-table-selector-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-2 px-3 rounded text-sm font-medium flex items-center justify-between">
+                <span id="management-selected-table-display">🎯 테이블 선택</span>
+                <span class="text-blue-200">▼</span>
               </button>
-              <select id="management-table-select" class="flex-1 bg-gray-600 px-2 py-1 rounded text-sm hidden">
-                <option value="">테이블 선택...</option>
-              </select>
             </div>
             <div id="selected-table-info" class="mt-2 text-xs text-gray-400 hidden">
               선택된 테이블: <span id="selected-table-name" class="text-amber-400 font-bold"></span>
@@ -539,8 +537,8 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.24.0';
-  const VERSION_DATE = '2025-09-15';
+  const APP_VERSION = 'v2.25.0';
+  const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
   // 모든 버전 표시를 업데이트하는 함수
@@ -807,11 +805,16 @@
 
     function updateSelectedTableDisplay() {
       const display = el.selectedTableDisplay;
+      const managementDisplay = document.getElementById('management-selected-table-display');
+
       if (window.state.selectedTable) {
         const playerCount = (window.state.playerDataByTable[window.state.selectedTable] || []).length;
-        display.textContent = `${window.state.selectedTable} (${playerCount}명)`;
+        const text = `${window.state.selectedTable} (${playerCount}명)`;
+        display.textContent = text;
+        if (managementDisplay) managementDisplay.textContent = text;
       } else {
         display.textContent = '테이블 선택';
+        if (managementDisplay) managementDisplay.textContent = '🎯 테이블 선택';
       }
     }
 
@@ -880,6 +883,11 @@
           updateSelectedTableDisplay();
           closeTableSelectorModal();
           renderAll();
+
+          // 관리 모달이 열려있다면 자동으로 선택 처리
+          if (!document.getElementById('player-management-content').classList.contains('hidden')) {
+            onManagementTableSelected(table);
+          }
         };
         
         grid.appendChild(button);
@@ -3582,6 +3590,9 @@ async function sendDataToGoogleSheet(){
       // 테이블 선택 버튼 및 모달 이벤트
       el.tableSelectorBtn.onclick = openTableSelectorModal;
       document.getElementById('close-table-selector').onclick = closeTableSelectorModal;
+
+      // 관리 모달의 테이블 선택 버튼
+      document.getElementById('management-table-selector-btn').onclick = openTableSelectorModal;
       
       // 테이블 모달 검색 및 필터
       document.getElementById('table-search').oninput = (e) => {
@@ -4162,9 +4173,7 @@ async function sendDataToGoogleSheet(){
         changes: { added: [], modified: [], deleted: [] }
       };
 
-      // UI 초기화
-      document.getElementById('load-table-btn').classList.remove('hidden');
-      document.getElementById('management-table-select').classList.add('hidden');
+      // UI 초기화 - 즉시 선택 방식으로 변경
       document.getElementById('selected-table-info').classList.add('hidden');
       document.getElementById('player-add-section').classList.add('hidden');
       document.getElementById('player-list-section').classList.add('hidden');
@@ -4172,56 +4181,13 @@ async function sendDataToGoogleSheet(){
       document.getElementById('sync-status').textContent = '';
     }
 
-    // 테이블 호출 버튼
-    document.getElementById('load-table-btn')?.addEventListener('click', async () => {
-      const btn = document.getElementById('load-table-btn');
-      const select = document.getElementById('management-table-select');
+    // 관리 모달에서 테이블 선택 처리 - selectTable에서 호출됨
+    function onManagementTableSelected(tableName) {
+      if (!tableName) return;
 
-      btn.textContent = '로딩 중...';
-      btn.disabled = true;
-
-      try {
-        // Type 시트에서 테이블 목록 가져오기
-        const csv = await fetch(CSV_TYPE_URL).then(r => r.text());
-        const rows = parseCSV(csv);
-        buildTypeFromCsv(rows);
-        const tables = Object.keys(window.state.playerDataByTable);
-
-        if (tables.length === 0) {
-          showFeedback('테이블이 없습니다', true);
-          return;
-        }
-
-        // 셀렉트 박스 채우기
-        select.innerHTML = '<option value="">테이블 선택...</option>';
-        tables.forEach(table => {
-          const playerCount = window.state.playerDataByTable[table]?.length || 0;
-          const option = document.createElement('option');
-          option.value = table;
-          option.textContent = `${table} (${playerCount}명)`;
-          select.appendChild(option);
-        });
-
-        // UI 전환
-        btn.classList.add('hidden');
-        select.classList.remove('hidden');
-      } catch(err) {
-        console.error('테이블 로드 오류:', err);
-        showFeedback('테이블 로드 실패', true);
-      } finally {
-        btn.textContent = '📋 테이블 호출';
-        btn.disabled = false;
-      }
-    });
-
-    // 테이블 선택
-    document.getElementById('management-table-select')?.addEventListener('change', (e) => {
-      const table = e.target.value;
-      if (!table) return;
-
-      managementState.selectedTable = table;
+      managementState.selectedTable = tableName;
       managementState.originalPlayers = JSON.parse(JSON.stringify(
-        window.state.playerDataByTable[table] || []
+        window.state.playerDataByTable[tableName] || []
       ));
       managementState.currentPlayers = JSON.parse(JSON.stringify(
         managementState.originalPlayers
@@ -4229,15 +4195,17 @@ async function sendDataToGoogleSheet(){
       managementState.changes = { added: [], modified: [], deleted: [] };
 
       // UI 업데이트
-      document.getElementById('selected-table-name').textContent = table;
+      document.getElementById('selected-table-name').textContent = tableName;
       document.getElementById('selected-table-info').classList.remove('hidden');
       document.getElementById('player-add-section').classList.remove('hidden');
       document.getElementById('player-list-section').classList.remove('hidden');
       document.getElementById('batch-actions').classList.remove('hidden');
 
+      // 플레이어 목록 렌더링
       renderManagementPlayersList();
       updateChangesSummary();
-    });
+    }
+
 
     // 로컬 플레이어 목록 렌더링
     function renderManagementPlayersList() {
