@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.26.4
+  Version: 2.26.5
   Last Modified: 2025-09-16 KST
 
   Change Log:
+  - v2.26.5 (2025-09-16): 팝업 애니메이션 제거 - 모든 모달과 액션 패드가 즉시 표시되도록 개선
   - v2.26.4 (2025-09-16): 베팅 칩 입력 버그 완전 수정 - openKeypad 호출 방식 통일 및 자동 모드 연동 개선
   - v2.26.3 (2025-09-16): 베팅 액수 입력 오류 수정 - 키패드에서 플레이어 정보 전달 로직 개선
   - v2.26.2 (2025-09-16): 사용자 경험 개선 - 스트릿 선택 시 바로 액션 패드 열기, 숫자 입력 버그 수정
@@ -44,7 +45,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.26.4</title>
+  <title>포커 핸드 로거 v2.26.5</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -54,13 +55,13 @@
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
     #app-container { display: flex; flex-direction: column; height: 100%; }
     main { flex-grow: 1; overflow-y: auto; }
-    .btn { transition: all 0.1s ease-in-out; }
+    .btn { /* transition removed for instant response */ }
     .btn:active { transform: scale(0.95); }
     .btn-selected { background-color: #FBBF24 !important; color: #111827 !important; font-weight: bold; }
     .card-placeholder { border: 2px dashed #4B5563; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 1px; background-color: rgba(255,255,255,0.05); flex-shrink: 0; }
     .card-display { font-family: 'Roboto', sans-serif; background-color: white; border-radius: 4px; padding: 1px; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 0.8rem; }
     .card-display .rank { font-weight: bold; font-size: 1rem; }
-    .modal { transition: opacity 0.3s ease; backdrop-filter: blur(4px); }
+    .modal { /* transition removed for instant popup */ backdrop-filter: blur(4px); }
     .card-selector-btn { font-family: 'Roboto', sans-serif; font-size: 1rem; font-weight: bold; }
     .card-selector-btn.card-red { color: #DC2626; }
     .card-selector-btn.card-black { color: #111827; }
@@ -80,10 +81,10 @@
       <div class="flex justify-between items-center text-xs">
         <span class="font-bold text-amber-400">포커 핸드 로거</span>
         <div class="flex items-center gap-2">
-          <button id="settings-btn" class="text-gray-400 hover:text-amber-400 transition-colors" title="설정">
+          <button id="settings-btn" class="text-gray-400 hover:text-amber-400" title="설정">
             ⚙️
           </button>
-          <span id="version-display" class="text-gray-400">v2.26.4</span>
+          <span id="version-display" class="text-gray-400">v2.26.5</span>
         </div>
       </div>
     </div>
@@ -538,7 +539,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.26.4';
+  const APP_VERSION = 'v2.26.5';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -955,9 +956,9 @@
     // ====== LOG MODAL ======
     function openLogModal(){ 
       el.logModal.classList.remove('hidden'); 
-      setTimeout(()=>el.logModal.classList.remove('opacity-0'),10);
+      el.logModal.classList.remove('opacity-0');
     }
-    function closeLogModal(){ el.logModal.classList.add('opacity-0'); setTimeout(()=>el.logModal.classList.add('hidden'),300); }
+    function closeLogModal(){ el.logModal.classList.add('opacity-0', 'hidden'); }
     function logMessage(msg,isError=false){
       const d=document.createElement('div');
       d.textContent=`[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -1099,7 +1100,7 @@
         else if (playerCount >= 1) statusColor = 'bg-blue-600'; // 적음
         
         const button = document.createElement('button');
-        button.className = `table-btn ${statusColor} hover:brightness-110 p-3 rounded-lg text-white text-sm font-medium relative transition-all ${isSelected ? 'ring-2 ring-amber-400' : ''}`;
+        button.className = `table-btn ${statusColor} hover:brightness-110 p-3 rounded-lg text-white text-sm font-medium relative ${isSelected ? 'ring-2 ring-amber-400' : ''}`;
         button.innerHTML = `
           <div class="text-xs font-bold">${table}</div>
           <div class="text-xs opacity-75">${playerCount}명</div>
@@ -1370,9 +1371,9 @@
           ? 'bg-gradient-to-r from-amber-900/40 to-yellow-900/30 border-2 border-amber-400 shadow-xl ring-2 ring-amber-500/30' 
           : 'bg-gray-900/50 border border-gray-700';
         
-        return `<div class="street-container ${containerClass} p-2 rounded-md transition-all duration-300">
+        return `<div class="street-container ${containerClass} p-2 rounded-md">
           <div class="flex justify-between items-center text-xs mb-1">
-            <button class="street-select-btn ${streetBtnClass} px-3 py-1 rounded-md font-bold min-w-[70px] text-center transition-all cursor-pointer" 
+            <button class="street-select-btn ${streetBtnClass} px-3 py-1 rounded-md font-bold min-w-[70px] text-center cursor-pointer" 
                     data-street="${street}" style="${isActive ? 'box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);' : ''}">${street.toUpperCase()}</button>
             <div class="flex items-center gap-1">
               <span class="font-mono">Pot: ${potDisplay}</span>
@@ -1396,8 +1397,8 @@
       updateButtonPositionDisplay();
     }
     // ====== MODALS ======
-    function openModal(node, html){ node.innerHTML=html; node.classList.remove('hidden'); setTimeout(()=>node.classList.remove('opacity-0'),10); }
-    function closeModal(node){ node.classList.add('opacity-0'); setTimeout(()=>node.classList.add('hidden'),300); }
+    function openModal(node, html){ node.innerHTML=html; node.classList.remove('hidden', 'opacity-0'); }
+    function closeModal(node){ node.classList.add('hidden', 'opacity-0'); }
 
     function openCardSelector(){
       const { target, player, index, count } = window.state.modalState.cardTarget;
@@ -1666,12 +1667,10 @@
 
         // 스트릿이 완료되었거나 다음 플레이어가 있으면 모달 업데이트
         if(nextPlayer) {
-          setTimeout(() => openActionPad(window.actionManager.currentStreet), 500);
+          openActionPad(window.actionManager.currentStreet);
         } else {
-          setTimeout(() => {
-            closeModal(modal);
-            showFeedback(`${window.actionManager.currentStreet.toUpperCase()} 스트릿 완료`, false);
-          }, 500);
+          closeModal(modal);
+          showFeedback(`${window.actionManager.currentStreet.toUpperCase()} 스트릿 완료`, false);
         }
       } else {
         // 수동 모드에서는 모달 닫기
@@ -3117,7 +3116,7 @@
         const btnBgClass = it.workStatus === '완료' ? 'bg-gray-800' : 
                           it.workStatus === '검토필요' ? 'bg-yellow-900/30' : 'bg-gray-700';
         
-        return `<button class="btn ${btnBgClass} p-2 rounded-md w-full text-left load-hand-item-btn mb-2 hover:bg-gray-600 transition-all" 
+        return `<button class="btn ${btnBgClass} p-2 rounded-md w-full text-left load-hand-item-btn mb-2 hover:bg-gray-600" 
                 data-no="${it.handNumber}" data-date="${it.handUpdatedAt}">
           <div class="flex justify-between items-center mb-1">
             <span class="font-bold text-white flex items-center gap-1">
@@ -3523,7 +3522,7 @@ async function sendDataToGoogleSheet(){
     isSending = false;
     el.sendToSheetBtn.textContent='시트 전송';
     el.sendToSheetBtn.disabled=false;
-    setTimeout(()=>closeLogModal(), 3000); // 로그를 좀 더 오래 보여줌
+    closeLogModal(); // 로그를 좀 더 오래 보여줌
   }
 }
 
@@ -4167,7 +4166,7 @@ async function sendDataToGoogleSheet(){
           const newMode = window.actionManager.toggleMode();
           showFeedback(`액션 모드: ${newMode === 'auto' ? '🤖 자동 순서' : '👆 수동 선택'}`, false);
           // 모달 다시 열기 (UI 업데이트)
-          setTimeout(() => openActionPad(window.actionManager.currentStreet), 300);
+          openActionPad(window.actionManager.currentStreet);
           return;
         }
 
@@ -4175,7 +4174,7 @@ async function sendDataToGoogleSheet(){
         if(btn.id==='skip-current-player') {
           const nextPlayer = window.actionManager.moveToNextPlayer();
           showFeedback(`플레이어 스킵됨. ${nextPlayer ? `다음: ${nextPlayer.name}` : '스트릿 완료'}`, false);
-          setTimeout(() => openActionPad(window.actionManager.currentStreet), 300);
+          openActionPad(window.actionManager.currentStreet);
           return;
         }
 
@@ -4342,7 +4341,7 @@ async function sendDataToGoogleSheet(){
                 showFeedback(`${playerName} ${window.state.modalState.actionPadCurrentAction} ${formatNumber(finalAmt)}`, false);
 
                 if(nextPlayer) {
-                  setTimeout(() => openActionPad(window.actionManager.currentStreet), 500);
+                  openActionPad(window.actionManager.currentStreet);
                 } else {
                   setTimeout(() => {
                     showFeedback(`${window.actionManager.currentStreet.toUpperCase()} 스트릿 완료`, false);
@@ -4492,7 +4491,7 @@ async function sendDataToGoogleSheet(){
       const modal = el.registrationModal;
       if (modal) {
         modal.classList.remove('hidden');
-        setTimeout(() => modal.classList.remove('opacity-0'), 10);
+        modal.classList.remove('opacity-0');
       }
     }
     
@@ -4500,7 +4499,7 @@ async function sendDataToGoogleSheet(){
       const modal = el.registrationModal;
       if (modal) {
         modal.classList.add('opacity-0');
-        setTimeout(() => modal.classList.add('hidden'), 300);
+        modal.classList.add('hidden');
       }
     }
     
