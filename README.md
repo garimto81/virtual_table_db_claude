@@ -105,6 +105,12 @@ virtual_data/
 
 ## 🔄 최근 업데이트
 
+### v2.26.1 (2025-09-16)
+- 🔧 **버그 수정**
+  - updateSmartCheckCallButton 함수 정의 오류 수정
+  - addActionToLog 함수 null 체크 오류 수정
+  - 액션 패드 시스템 안정성 개선
+
 ### v2.26.0 (2025-09-16)
 - 🚀 **포지션 기반 액션 순서 시스템 구현**
   - 포커 규칙에 따른 자동 액션 순서 계산 (프리플랍: UTG→BTN→SB→BB, 포스트플랍: SB→BB→UTG→BTN)
