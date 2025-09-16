@@ -537,7 +537,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.27.0';
+  const APP_VERSION = 'v2.27.1';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -550,23 +550,24 @@
     constructor() {
       this.sequence = 0;
       this.lastTimestamp = Date.now();
+      this.lastValidatedSequence = 0;
     }
 
     generateTimestamp() {
       const now = Date.now();
-      this.sequence++;
+      const newSequence = this.sequence + 1;
 
       return {
-        sequence: this.sequence,
+        sequence: newSequence,
         timestamp: now,
-        hash: this.hashTimestamp(this.sequence, now)
+        hash: this.hashTimestamp(newSequence, now)
       };
     }
 
-    validateTimestamp(actionTimestamp) {
-      // 시퀀스 검증
-      if (actionTimestamp.sequence <= this.sequence) {
-        console.error('시간 역행 감지: Invalid sequence');
+    validateAndUpdate(actionTimestamp) {
+      // 시퀀스 검증 - 마지막 검증된 시퀀스보다 커야 함
+      if (actionTimestamp.sequence <= this.lastValidatedSequence) {
+        console.error(`시간 역행 감지: sequence ${actionTimestamp.sequence} <= ${this.lastValidatedSequence}`);
         return false;
       }
 
@@ -582,6 +583,11 @@
         console.error('타임스탬프 변조 감지');
         return false;
       }
+
+      // 검증 성공 시 업데이트
+      this.sequence = actionTimestamp.sequence;
+      this.lastValidatedSequence = actionTimestamp.sequence;
+      this.lastTimestamp = actionTimestamp.timestamp;
 
       return true;
     }
@@ -2042,9 +2048,9 @@
       manager.isProcessing = true;
 
       try {
-        // Layer 1: 타임스탬프 검증
+        // Layer 1: 타임스탬프 생성 및 검증
         const timestamp = manager.timekeeper.generateTimestamp();
-        if (!manager.timekeeper.validateTimestamp(timestamp)) {
+        if (!manager.timekeeper.validateAndUpdate(timestamp)) {
           throw new Error('시간 검증 실패');
         }
 
