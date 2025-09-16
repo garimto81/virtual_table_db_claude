@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.16.0</title>
+  <title>포커 핸드 로거 v2.17.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -494,7 +494,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.16.0';
+  const APP_VERSION = 'v2.17.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -4022,7 +4022,7 @@ async function sendDataToGoogleSheet(){
         // Type 시트에서 테이블 목록 가져오기
         const csv = await fetch(CSV_TYPE_URL).then(r => r.text());
         const rows = parseCSV(csv);
-        parseTypeData(rows);
+        buildTypeFromCsv(rows);
         const tables = Object.keys(window.state.playerDataByTable);
 
         if (tables.length === 0) {
