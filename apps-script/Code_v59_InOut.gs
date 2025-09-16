@@ -383,20 +383,93 @@ function updatePlayerChips(playerName, tableName, newChips) {
   }
 }
 
+// 일괄 업데이트 함수
+function batchUpdatePlayers(tableName, playersJson, deletedJson) {
+  try {
+    const sheet = _open().getSheetByName('Type');
+    const players = typeof playersJson === 'string' ? JSON.parse(playersJson) : playersJson;
+    const deleted = typeof deletedJson === 'string' ? JSON.parse(deletedJson) : deletedJson;
+
+    if (!sheet) return {success: false, message: 'Type 시트를 찾을 수 없습니다'};
+
+    const data = sheet.getDataRange().getValues();
+    const now = new Date();
+
+    // 1. 삭제 처리 - OUT 상태로 변경
+    for (const playerName of deleted) {
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][TYPE_COLUMNS.PLAYER] === playerName &&
+            data[i][TYPE_COLUMNS.TABLE] === tableName &&
+            data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+          sheet.getRange(i + 1, RANGE_COLUMNS.STATUS).setValue('OUT');
+          sheet.getRange(i + 1, RANGE_COLUMNS.UPDATED_AT).setValue(now);
+          data[i][TYPE_COLUMNS.STATUS] = 'OUT';
+          break;
+        }
+      }
+    }
+
+    // 2. 업데이트 및 추가 처리
+    for (const player of players) {
+      let found = false;
+
+      // 기존 플레이어 찾기
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][TYPE_COLUMNS.PLAYER] === player.name &&
+            data[i][TYPE_COLUMNS.TABLE] === tableName &&
+            data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+          // 업데이트
+          const row = i + 1;
+          sheet.getRange(row, RANGE_COLUMNS.SEAT).setValue(player.seat || '');
+          sheet.getRange(row, RANGE_COLUMNS.CHIPS).setValue(player.chips || 0);
+          sheet.getRange(row, RANGE_COLUMNS.UPDATED_AT).setValue(now);
+          found = true;
+          break;
+        }
+      }
+
+      // 새 플레이어 추가
+      if (!found) {
+        const newRow = sheet.getLastRow() + 1;
+        sheet.getRange(newRow, RANGE_COLUMNS.CAMERA).setValue('');
+        sheet.getRange(newRow, RANGE_COLUMNS.PLAYER).setValue(player.name);
+        sheet.getRange(newRow, RANGE_COLUMNS.TABLE).setValue(tableName);
+        sheet.getRange(newRow, RANGE_COLUMNS.NOTABLE).setValue(player.notable ? 'TRUE' : 'FALSE');
+        sheet.getRange(newRow, RANGE_COLUMNS.CHIPS).setValue(player.chips || 0);
+        sheet.getRange(newRow, RANGE_COLUMNS.UPDATED_AT).setValue(now);
+        sheet.getRange(newRow, RANGE_COLUMNS.SEAT).setValue(player.seat || '');
+        sheet.getRange(newRow, RANGE_COLUMNS.STATUS).setValue('IN');
+      }
+    }
+
+    return {
+      success: true,
+      message: '일괄 업데이트 완료',
+      processed: {
+        updated: players.length,
+        deleted: deleted.length
+      }
+    };
+  } catch (error) {
+    console.error('batchUpdatePlayers error:', error);
+    return {success: false, message: error.toString()};
+  }
+}
+
 // 플레이어 삭제 (행 자체를 삭제)
 function deletePlayer(playerName, tableName) {
   try {
     const sheet = _open().getSheetByName('Type');
     const data = sheet.getDataRange().getValues();
-    
+
     for (let i = data.length - 1; i >= 1; i--) {
-      if (data[i][TYPE_COLUMNS.PLAYER] === playerName && 
+      if (data[i][TYPE_COLUMNS.PLAYER] === playerName &&
           data[i][TYPE_COLUMNS.TABLE] === tableName) {
         sheet.deleteRow(i + 1);
         return {success: true, message: `${playerName} 삭제 완료`};
       }
     }
-    
+
     return {success: false, message: '플레이어를 찾을 수 없습니다'};
   } catch (error) {
     console.error('deletePlayer error:', error);
@@ -560,7 +633,10 @@ function doPost(e) {
 
         case 'updateChips':
           return _json(updatePlayerChips(body.player, body.table, body.chips));
-        
+
+        case 'batchUpdate':
+          return _json(batchUpdatePlayers(body.table, body.players, body.deleted));
+
         // v56 기능
         case 'updateHandEdit':
           return _json(updateHandEditStatus(body.handNumber, body.checked));
