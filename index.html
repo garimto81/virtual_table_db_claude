@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.25.1</title>
+  <title>포커 핸드 로거 v2.25.2</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -135,8 +135,8 @@
       <div class="bg-gray-800 p-2 rounded-lg space-y-2">
         <div class="flex flex-wrap items-center gap-2">
           <div class="flex items-center gap-1">
-            <button id="small-blind-btn" class="btn bg-gray-700 p-1 rounded-md text-sm min-w-[60px]">SB: 0</button>
-            <button id="big-blind-btn" class="btn bg-gray-700 p-1 rounded-md text-sm min-w-[60px]">BB: 0</button>
+            <button id="small-blind-btn" data-purpose="smallBlind" class="btn bg-gray-700 p-1 rounded-md text-sm min-w-[60px]">0</button>
+            <button id="big-blind-btn" data-purpose="bigBlind" class="btn bg-gray-700 p-1 rounded-md text-sm min-w-[60px]">0</button>
             <div class="flex items-center">
               <input id="bb-ante-checkbox" type="checkbox" class="h-4 w-4 bg-gray-700 border-gray-600 rounded text-amber-500">
               <label for="bb-ante-checkbox" class="ml-1 text-xs">Ante</label>
@@ -537,7 +537,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.25.1';
+  const APP_VERSION = 'v2.25.2';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -2005,7 +2005,23 @@
     
     // ====== PERSIST (localStorage) ======
     function saveActionState(){ localStorage.setItem('phl_v46_state', JSON.stringify(window.state.actionState)); }
-    function loadActionState(){ const s=localStorage.getItem('phl_v46_state'); if(s) window.state.actionState={...window.state.actionState, ...JSON.parse(s)}; }
+    function loadActionState(){
+      const s=localStorage.getItem('phl_v46_state');
+      if(s) window.state.actionState={...window.state.actionState, ...JSON.parse(s)};
+      updateBlindButtons();
+    }
+
+    function updateBlindButtons() {
+      const smallBlindBtn = document.getElementById('small-blind-btn');
+      const bigBlindBtn = document.getElementById('big-blind-btn');
+
+      if(smallBlindBtn) {
+        smallBlindBtn.textContent = formatNumber(window.state.actionState.smallBlind || '0');
+      }
+      if(bigBlindBtn) {
+        bigBlindBtn.textContent = formatNumber(window.state.actionState.bigBlind || '0');
+      }
+    }
 
     // ====== SMART CHECK/CALL ======
     function getSmartCheckCallAction(player, street) {
@@ -3922,18 +3938,18 @@ async function sendDataToGoogleSheet(){
             // SB 버튼에서 호출된 경우
             const value = unformatNumber(display.textContent) || '0';
             window.state.actionState.smallBlind = value;
-            const smallBlindBtn = document.querySelector('[data-purpose="smallBlind"]');
+            const smallBlindBtn = document.getElementById('small-blind-btn');
             if(smallBlindBtn) {
-              smallBlindBtn.textContent = `SB: ${formatNumber(value)}`;
+              smallBlindBtn.textContent = formatNumber(value);
             }
             saveActionState();
           }else if(purpose==='bigBlind'){
             // BB 버튼에서 호출된 경우
             const value = unformatNumber(display.textContent) || '0';
             window.state.actionState.bigBlind = value;
-            const bigBlindBtn = document.querySelector('[data-purpose="bigBlind"]');
+            const bigBlindBtn = document.getElementById('big-blind-btn');
             if(bigBlindBtn) {
-              bigBlindBtn.textContent = `BB: ${formatNumber(value)}`;
+              bigBlindBtn.textContent = formatNumber(value);
             }
             saveActionState();
           }else if(purpose==='quickBet'){
