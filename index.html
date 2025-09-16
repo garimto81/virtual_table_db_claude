@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.17.0</title>
+  <title>포커 핸드 로거 v2.18.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -204,16 +204,38 @@
       </div>
 
       <!-- 메인 관리 버튼들 -->
-      <div id="management-menu" class="grid grid-cols-2 gap-3 mb-4">
-        <button id="open-table-management-btn" class="bg-blue-600 hover:bg-blue-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center">
-          <span class="text-2xl mb-1">📋</span>
-          <span>테이블 관리</span>
-        </button>
-        <button class="bg-gray-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center opacity-50 cursor-not-allowed" disabled>
-          <span class="text-2xl mb-1">🎲</span>
-          <span>칩 관리</span>
-          <span class="text-xs text-gray-400">(준비 중)</span>
-        </button>
+      <div id="management-menu" class="space-y-3 mb-4">
+        <!-- 버튼들 -->
+        <div class="grid grid-cols-2 gap-3">
+          <button id="open-table-management-btn" class="bg-blue-600 hover:bg-blue-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center">
+            <span class="text-2xl mb-1">📋</span>
+            <span>테이블 관리</span>
+          </button>
+          <button class="bg-gray-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center opacity-50 cursor-not-allowed" disabled>
+            <span class="text-2xl mb-1">🎲</span>
+            <span>칩 관리</span>
+            <span class="text-xs text-gray-400">(준비 중)</span>
+          </button>
+        </div>
+
+        <!-- Apps Script URL 설정 -->
+        <div class="bg-gray-700 p-3 rounded-lg">
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            Apps Script URL
+            <span class="text-xs text-gray-500 ml-2">(재배포 후 새 URL 입력)</span>
+          </label>
+          <div class="space-y-2">
+            <input type="text" id="management-apps-url-input"
+                   class="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                   placeholder="https://script.google.com/macros/s/.../exec">
+            <button id="save-apps-url-btn" class="w-full bg-amber-600 hover:bg-amber-700 py-1.5 rounded text-sm">
+              💾 URL 저장
+            </button>
+            <div class="text-xs text-gray-500">
+              현재: <span id="management-current-url" class="text-gray-400 break-all"></span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 테이블 관리 섹션 (초기에 숨김) -->
@@ -494,7 +516,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.17.0';
+  const APP_VERSION = 'v2.18.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -3968,8 +3990,33 @@ async function sendDataToGoogleSheet(){
         // 초기화: 모든 섹션 숨기기
         document.getElementById('management-menu').classList.remove('hidden');
         document.getElementById('player-management-content').classList.add('hidden');
+
+        // Apps Script URL 표시
+        const currentUrlSpan = document.getElementById('management-current-url');
+        const urlInput = document.getElementById('management-apps-url-input');
+        if (currentUrlSpan) currentUrlSpan.textContent = APPS_SCRIPT_URL;
+        if (urlInput) urlInput.value = '';
       });
     }
+
+    // Apps Script URL 저장 버튼
+    document.getElementById('save-apps-url-btn')?.addEventListener('click', () => {
+      const urlInput = document.getElementById('management-apps-url-input');
+      const newUrl = urlInput?.value.trim();
+
+      if (newUrl && newUrl !== APPS_SCRIPT_URL) {
+        if (updateAppsScriptUrl(newUrl)) {
+          const currentUrlSpan = document.getElementById('management-current-url');
+          if (currentUrlSpan) currentUrlSpan.textContent = newUrl;
+          showFeedback('✅ Apps Script URL이 저장되었습니다');
+          urlInput.value = '';
+        } else {
+          showFeedback('❌ 올바른 URL 형식이 아닙니다', true);
+        }
+      } else if (!newUrl) {
+        showFeedback('URL을 입력해주세요', true);
+      }
+    });
 
     // 테이블 관리 버튼 클릭
     document.getElementById('open-table-management-btn')?.addEventListener('click', () => {
