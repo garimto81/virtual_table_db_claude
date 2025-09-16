@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.20.0</title>
+  <title>포커 핸드 로거 v2.21.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -225,15 +225,24 @@
             <span class="text-xs text-gray-500 ml-2">(재배포 후 새 URL 입력)</span>
           </label>
           <div class="space-y-2">
+            <!-- 현재 저장된 URL 표시 -->
+            <div id="current-url-display" class="bg-gray-800 p-2 rounded border border-gray-600">
+              <div class="text-xs text-gray-400 mb-1">현재 저장된 URL:</div>
+              <div id="management-current-url" class="text-xs text-amber-400 break-all font-mono"></div>
+            </div>
+
+            <!-- URL 입력 -->
             <input type="text" id="management-apps-url-input"
                    class="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                   placeholder="https://script.google.com/macros/s/.../exec">
-            <button id="save-apps-url-btn" class="w-full bg-amber-600 hover:bg-amber-700 py-1.5 rounded text-sm">
-              💾 URL 저장
+                   placeholder="새 URL을 입력하세요">
+
+            <!-- 저장 버튼 -->
+            <button id="save-apps-url-btn" class="w-full bg-amber-600 hover:bg-amber-700 py-1.5 rounded text-sm font-medium">
+              💾 새 URL 저장
             </button>
-            <div class="text-xs text-gray-500">
-              현재: <span id="management-current-url" class="text-gray-400 break-all"></span>
-            </div>
+
+            <!-- 저장 상태 메시지 -->
+            <div id="url-save-status" class="hidden text-xs p-2 rounded"></div>
           </div>
         </div>
       </div>
@@ -516,7 +525,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.20.0';
+  const APP_VERSION = 'v2.21.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -3994,45 +4003,101 @@ async function sendDataToGoogleSheet(){
         // Apps Script URL 표시
         const currentUrlSpan = document.getElementById('management-current-url');
         const urlInput = document.getElementById('management-apps-url-input');
-        if (currentUrlSpan) currentUrlSpan.textContent = APPS_SCRIPT_URL;
-        if (urlInput) urlInput.value = '';
+        const urlStatus = document.getElementById('url-save-status');
+
+        if (currentUrlSpan) {
+          currentUrlSpan.textContent = APPS_SCRIPT_URL || '설정되지 않음';
+          // URL이 기본값인지 사용자 설정값인지 표시
+          const isCustomUrl = APPS_SCRIPT_URL !== DEFAULT_APPS_SCRIPT_URL;
+          currentUrlSpan.className = isCustomUrl ?
+            'text-xs text-green-400 break-all font-mono' :
+            'text-xs text-amber-400 break-all font-mono';
+        }
+
+        if (urlInput) {
+          urlInput.value = '';
+          urlInput.placeholder = '새 URL을 입력하세요 (현재와 다른 URL만 저장 가능)';
+        }
+
+        if (urlStatus) {
+          urlStatus.classList.add('hidden');
+        }
       });
     }
 
     // Apps Script URL 저장 버튼 - 지연 실행으로 DOM 로드 보장
     setTimeout(() => {
       const saveUrlBtn = document.getElementById('save-apps-url-btn');
-      console.log('[v2.20.0] Apps Script URL 저장 버튼:', saveUrlBtn);
+      console.log('[v2.21.0] Apps Script URL 저장 버튼:', saveUrlBtn);
 
       if (saveUrlBtn) {
         saveUrlBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          console.log('[v2.20.0] URL 저장 버튼 클릭됨');
+          console.log('[v2.21.0] URL 저장 버튼 클릭됨');
 
           const urlInput = document.getElementById('management-apps-url-input');
+          const urlStatus = document.getElementById('url-save-status');
+          const currentUrlSpan = document.getElementById('management-current-url');
           const newUrl = urlInput?.value.trim();
 
-          console.log('[v2.20.0] 입력된 URL:', newUrl);
-          console.log('[v2.20.0] 현재 URL:', APPS_SCRIPT_URL);
+          console.log('[v2.21.0] 입력된 URL:', newUrl);
+          console.log('[v2.21.0] 현재 URL:', APPS_SCRIPT_URL);
+
+          // 상태 메시지 표시 함수
+          function showUrlStatus(message, isSuccess) {
+            if (urlStatus) {
+              urlStatus.textContent = message;
+              urlStatus.className = isSuccess ?
+                'text-xs p-2 rounded bg-green-600 text-white' :
+                'text-xs p-2 rounded bg-red-600 text-white';
+              urlStatus.classList.remove('hidden');
+
+              // 3초 후 자동 숨김
+              setTimeout(() => {
+                urlStatus.classList.add('hidden');
+              }, 3000);
+            }
+          }
 
           if (newUrl && newUrl !== APPS_SCRIPT_URL) {
             if (updateAppsScriptUrl(newUrl)) {
-              const currentUrlSpan = document.getElementById('management-current-url');
-              if (currentUrlSpan) currentUrlSpan.textContent = newUrl;
+              // 성공 시 UI 업데이트
+              if (currentUrlSpan) {
+                currentUrlSpan.textContent = newUrl;
+                currentUrlSpan.className = 'text-xs text-green-400 break-all font-mono';
+              }
+              showUrlStatus('✅ URL이 성공적으로 저장되었습니다!', true);
               showFeedback('✅ Apps Script URL이 저장되었습니다');
+
+              // 입력 필드 초기화 및 플레이스홀더 업데이트
               urlInput.value = '';
+              urlInput.placeholder = '저장 완료! 다른 URL을 입력하려면 여기에 입력하세요';
+
+              // 저장 버튼 임시 비활성화 및 텍스트 변경
+              saveUrlBtn.disabled = true;
+              saveUrlBtn.textContent = '✅ 저장 완료';
+              saveUrlBtn.className = 'w-full bg-green-600 py-1.5 rounded text-sm font-medium';
+
+              setTimeout(() => {
+                saveUrlBtn.disabled = false;
+                saveUrlBtn.textContent = '💾 새 URL 저장';
+                saveUrlBtn.className = 'w-full bg-amber-600 hover:bg-amber-700 py-1.5 rounded text-sm font-medium';
+              }, 2000);
             } else {
+              showUrlStatus('❌ 올바른 URL 형식이 아닙니다', false);
               showFeedback('❌ 올바른 URL 형식이 아닙니다', true);
             }
           } else if (!newUrl) {
+            showUrlStatus('⚠️ URL을 입력해주세요', false);
             showFeedback('URL을 입력해주세요', true);
           } else if (newUrl === APPS_SCRIPT_URL) {
+            showUrlStatus('ℹ️ 현재 저장된 URL과 동일합니다', false);
             showFeedback('동일한 URL입니다', true);
           }
         });
-        console.log('[v2.20.0] URL 저장 버튼 이벤트 리스너 등록 완료');
+        console.log('[v2.21.0] URL 저장 버튼 이벤트 리스너 등록 완료');
       } else {
-        console.error('[v2.20.0] save-apps-url-btn 요소를 찾을 수 없습니다');
+        console.error('[v2.21.0] save-apps-url-btn 요소를 찾을 수 없습니다');
       }
     }, 100);
 
