@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.22.0</title>
+  <title>포커 핸드 로거 v2.23.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -539,7 +539,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.22.0';
+  const APP_VERSION = 'v2.23.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -4042,20 +4042,20 @@ async function sendDataToGoogleSheet(){
     // Apps Script URL 저장 버튼 - 지연 실행으로 DOM 로드 보장
     setTimeout(() => {
       const saveUrlBtn = document.getElementById('save-apps-url-btn');
-      console.log('[v2.22.0] Apps Script URL 저장 버튼:', saveUrlBtn);
+      console.log('[v2.23.0] Apps Script URL 저장 버튼:', saveUrlBtn);
 
       if (saveUrlBtn) {
         saveUrlBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          console.log('[v2.22.0] URL 저장 버튼 클릭됨');
+          console.log('[v2.23.0] URL 저장 버튼 클릭됨');
 
           const urlInput = document.getElementById('management-apps-url-input');
           const urlStatus = document.getElementById('url-save-status');
           const currentUrlSpan = document.getElementById('management-current-url');
           const newUrl = urlInput?.value.trim();
 
-          console.log('[v2.22.0] 입력된 URL:', newUrl);
-          console.log('[v2.22.0] 현재 URL:', APPS_SCRIPT_URL);
+          console.log('[v2.23.0] 입력된 URL:', newUrl);
+          console.log('[v2.23.0] 현재 URL:', APPS_SCRIPT_URL);
 
           // 상태 메시지 표시 함수
           function showUrlStatus(message, isSuccess) {
@@ -4109,9 +4109,9 @@ async function sendDataToGoogleSheet(){
             showFeedback('동일한 URL입니다', true);
           }
         });
-        console.log('[v2.22.0] URL 저장 버튼 이벤트 리스너 등록 완료');
+        console.log('[v2.23.0] URL 저장 버튼 이벤트 리스너 등록 완료');
       } else {
-        console.error('[v2.22.0] save-apps-url-btn 요소를 찾을 수 없습니다');
+        console.error('[v2.23.0] save-apps-url-btn 요소를 찾을 수 없습니다');
       }
     }, 100);
 
@@ -4465,6 +4465,12 @@ async function sendDataToGoogleSheet(){
       syncStatus.className = 'text-xs text-yellow-400';
 
       try {
+        console.log('[v2.23.0] === 일괄 등록 시작 ===');
+        console.log('[v2.23.0] 선택된 테이블:', managementState.selectedTable);
+        console.log('[v2.23.0] 현재 플레이어 수:', managementState.currentPlayers.length);
+        console.log('[v2.23.0] 삭제될 플레이어:', deleted);
+        console.log('[v2.23.0] Apps Script URL:', APPS_SCRIPT_URL);
+
         // 일괄 처리 요청
         const formData = new FormData();
         formData.append('action', 'batchUpdate');
@@ -4472,33 +4478,79 @@ async function sendDataToGoogleSheet(){
         formData.append('players', JSON.stringify(managementState.currentPlayers));
         formData.append('deleted', JSON.stringify(deleted));
 
+        console.log('[v2.23.0] FormData 생성 완료');
+        console.log('[v2.23.0] 전송할 플레이어 데이터:', JSON.stringify(managementState.currentPlayers, null, 2));
+
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           body: formData
         });
 
+        console.log('[v2.23.0] 응답 수신:', response.status, response.statusText);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
         const result = await response.json();
+        console.log('[v2.23.0] 응답 데이터:', result);
 
         if (result.success) {
+          console.log('[v2.23.0] 일괄 등록 성공:', result);
           syncStatus.textContent = '✅ 동기화 완료';
           syncStatus.className = 'text-xs text-green-400';
           showFeedback('✅ 모든 변경 사항이 등록되었습니다');
 
-          // 데이터 새로고침
-          await loadTypeSheet();
+          // 데이터 새로고침 - CSV 방식 사용
+          try {
+            console.log('[v2.23.0] 데이터 새로고침 시작...');
+            console.log('[v2.23.0] CSV_TYPE_URL:', CSV_TYPE_URL);
+
+            const csv = await fetch(CSV_TYPE_URL).then(r => {
+              console.log('[v2.23.0] CSV 응답 상태:', r.status, r.statusText);
+              return r.text();
+            });
+
+            console.log('[v2.23.0] CSV 데이터 길이:', csv.length);
+            console.log('[v2.23.0] CSV 첫 100자:', csv.substring(0, 100));
+
+            const rows = parseCSV(csv);
+            console.log('[v2.23.0] 파싱된 행 수:', rows.length);
+
+            buildTypeFromCsv(rows);
+            console.log('[v2.23.0] Type 데이터 빌드 완료');
+            console.log('[v2.23.0] 업데이트된 테이블:', Object.keys(window.state.playerDataByTable));
+          } catch (refreshError) {
+            console.error('[v2.23.0] 데이터 새로고침 실패:', refreshError);
+            showFeedback('⚠️ 데이터 새로고침 실패, 페이지를 새로고침해주세요', true);
+          }
 
           // 상태 리셋
-          managementState.originalPlayers = JSON.parse(JSON.stringify(
-            window.state.playerDataByTable[managementState.selectedTable] || []
-          ));
-          managementState.currentPlayers = JSON.parse(JSON.stringify(
-            managementState.originalPlayers
-          ));
-          managementState.changes = { added: [], modified: [], deleted: [] };
+          try {
+            console.log('[v2.23.0] 상태 리셋 시작...');
+            console.log('[v2.23.0] 선택된 테이블:', managementState.selectedTable);
 
-          renderManagementPlayersList();
-          updateChangesSummary();
-          renderPlayerSelection(); // 메인 화면 업데이트
+            const refreshedPlayers = window.state.playerDataByTable[managementState.selectedTable] || [];
+            console.log('[v2.23.0] 새로고침된 플레이어 수:', refreshedPlayers.length);
+
+            managementState.originalPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
+            managementState.currentPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
+            managementState.changes = { added: [], modified: [], deleted: [] };
+
+            console.log('[v2.23.0] 상태 리셋 완료');
+          } catch (resetError) {
+            console.error('[v2.23.0] 상태 리셋 실패:', resetError);
+          }
+
+          try {
+            console.log('[v2.23.0] UI 업데이트 시작...');
+            renderManagementPlayersList();
+            updateChangesSummary();
+            renderPlayerSelection(); // 메인 화면 업데이트
+            console.log('[v2.23.0] UI 업데이트 완료');
+          } catch (uiError) {
+            console.error('[v2.23.0] UI 업데이트 실패:', uiError);
+          }
         } else {
           // Unknown action 오류 특별 처리
           if (result.message && result.message.includes('Unknown action')) {
@@ -4508,17 +4560,38 @@ async function sendDataToGoogleSheet(){
           }
         }
       } catch(err) {
-        console.error('일괄 등록 오류:', err);
+        console.error('[v2.23.0] === 일괄 등록 오류 ===');
+        console.error('[v2.23.0] 오류 타입:', err.constructor.name);
+        console.error('[v2.23.0] 오류 메시지:', err.message);
+        console.error('[v2.23.0] 오류 스택:', err.stack);
+        console.error('[v2.23.0] 전체 오류 객체:', err);
+
         syncStatus.textContent = '❌ 동기화 실패';
         syncStatus.className = 'text-xs text-red-400';
 
-        // 더 친근한 에러 메시지
+        // 상세한 에러 분석
         let errorMessage = err.message;
-        if (errorMessage.includes('Apps Script 재배포')) {
+        let debugInfo = '';
+
+        if (err.message.includes('loadTypeSheet is not defined')) {
+          errorMessage = '데이터 새로고침 함수 오류 (이미 수정됨)';
+          debugInfo = '페이지를 새로고침한 후 다시 시도해주세요';
+        } else if (err.message.includes('Apps Script 재배포')) {
           errorMessage = '⚠️ Apps Script 재배포 필요 (관리 메뉴 참조)';
+        } else if (err.message.includes('NetworkError') || err.message.includes('fetch')) {
+          errorMessage = '네트워크 연결 오류';
+          debugInfo = 'Apps Script URL을 확인하고 인터넷 연결을 확인해주세요';
+        } else if (err.message.includes('JSON')) {
+          errorMessage = 'Apps Script 응답 파싱 오류';
+          debugInfo = 'Apps Script가 올바른 JSON을 반환하지 않습니다';
         }
-        showFeedback(`❌ ${errorMessage}`, true);
+
+        console.error('[v2.23.0] 분석된 오류:', errorMessage);
+        console.error('[v2.23.0] 디버그 정보:', debugInfo);
+
+        showFeedback(`❌ ${errorMessage}${debugInfo ? ` (${debugInfo})` : ''}`, true);
       } finally {
+        console.log('[v2.23.0] === 일괄 등록 종료 ===');
         btn.disabled = false;
         btn.textContent = '✅ 일괄 등록';
       }
@@ -4633,12 +4706,24 @@ async function sendDataToGoogleSheet(){
 
         const result = await response.json();
         if (result.success) {
+          console.log('[v2.23.0] 플레이어 추가 성공:', result);
           showFeedback(`✅ ${name} 추가됨`);
-          // 데이터 새로고침
-          await loadTypeSheet();
+
+          // 데이터 새로고침 - CSV 방식 사용
+          try {
+            console.log('[v2.23.0] 플레이어 추가 후 데이터 새로고침...');
+            const csv = await fetch(CSV_TYPE_URL).then(r => r.text());
+            const rows = parseCSV(csv);
+            buildTypeFromCsv(rows);
+            console.log('[v2.23.0] 플레이어 추가 후 새로고침 완료');
+          } catch (refreshError) {
+            console.error('[v2.23.0] 플레이어 추가 후 새로고침 실패:', refreshError);
+          }
+
           loadPlayersList();
           renderPlayerSelection();
         } else {
+          console.error('[v2.23.0] 플레이어 추가 실패:', result);
           showFeedback(`❌ 추가 실패: ${result.error}`, true);
         }
       } catch(err) {
