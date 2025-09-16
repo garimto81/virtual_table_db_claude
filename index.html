@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.19.0</title>
+  <title>포커 핸드 로거 v2.20.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -516,7 +516,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.19.0';
+  const APP_VERSION = 'v2.20.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -3999,24 +3999,42 @@ async function sendDataToGoogleSheet(){
       });
     }
 
-    // Apps Script URL 저장 버튼
-    document.getElementById('save-apps-url-btn')?.addEventListener('click', () => {
-      const urlInput = document.getElementById('management-apps-url-input');
-      const newUrl = urlInput?.value.trim();
+    // Apps Script URL 저장 버튼 - 지연 실행으로 DOM 로드 보장
+    setTimeout(() => {
+      const saveUrlBtn = document.getElementById('save-apps-url-btn');
+      console.log('[v2.20.0] Apps Script URL 저장 버튼:', saveUrlBtn);
 
-      if (newUrl && newUrl !== APPS_SCRIPT_URL) {
-        if (updateAppsScriptUrl(newUrl)) {
-          const currentUrlSpan = document.getElementById('management-current-url');
-          if (currentUrlSpan) currentUrlSpan.textContent = newUrl;
-          showFeedback('✅ Apps Script URL이 저장되었습니다');
-          urlInput.value = '';
-        } else {
-          showFeedback('❌ 올바른 URL 형식이 아닙니다', true);
-        }
-      } else if (!newUrl) {
-        showFeedback('URL을 입력해주세요', true);
+      if (saveUrlBtn) {
+        saveUrlBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          console.log('[v2.20.0] URL 저장 버튼 클릭됨');
+
+          const urlInput = document.getElementById('management-apps-url-input');
+          const newUrl = urlInput?.value.trim();
+
+          console.log('[v2.20.0] 입력된 URL:', newUrl);
+          console.log('[v2.20.0] 현재 URL:', APPS_SCRIPT_URL);
+
+          if (newUrl && newUrl !== APPS_SCRIPT_URL) {
+            if (updateAppsScriptUrl(newUrl)) {
+              const currentUrlSpan = document.getElementById('management-current-url');
+              if (currentUrlSpan) currentUrlSpan.textContent = newUrl;
+              showFeedback('✅ Apps Script URL이 저장되었습니다');
+              urlInput.value = '';
+            } else {
+              showFeedback('❌ 올바른 URL 형식이 아닙니다', true);
+            }
+          } else if (!newUrl) {
+            showFeedback('URL을 입력해주세요', true);
+          } else if (newUrl === APPS_SCRIPT_URL) {
+            showFeedback('동일한 URL입니다', true);
+          }
+        });
+        console.log('[v2.20.0] URL 저장 버튼 이벤트 리스너 등록 완료');
+      } else {
+        console.error('[v2.20.0] save-apps-url-btn 요소를 찾을 수 없습니다');
       }
-    });
+    }, 100);
 
     // 테이블 관리 버튼 클릭
     document.getElementById('open-table-management-btn')?.addEventListener('click', () => {
