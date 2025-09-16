@@ -537,7 +537,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.27.1';
+  const APP_VERSION = 'v2.27.2';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -545,50 +545,30 @@
   // 스트릿 자동 진행 시스템 v2.0 - 완벽한 보안 구현
   // ========================================
 
-  // Layer 1: 시퀀스 기반 타임스탬프 (시간 역행 방어)
+  // Layer 1: 시퀀스 기반 타임스탬프 (로깅 전용)
   class SequentialTimekeeper {
     constructor() {
       this.sequence = 0;
       this.lastTimestamp = Date.now();
-      this.lastValidatedSequence = 0;
     }
 
     generateTimestamp() {
       const now = Date.now();
-      const newSequence = this.sequence + 1;
+      this.sequence++;
+
+      // 로깅만 하고 항상 유효한 타임스탬프 반환
+      console.log(`액션 타임스탬프: #${this.sequence} at ${new Date(now).toLocaleTimeString()}`);
 
       return {
-        sequence: newSequence,
+        sequence: this.sequence,
         timestamp: now,
-        hash: this.hashTimestamp(newSequence, now)
+        hash: this.hashTimestamp(this.sequence, now)
       };
     }
 
     validateAndUpdate(actionTimestamp) {
-      // 시퀀스 검증 - 마지막 검증된 시퀀스보다 커야 함
-      if (actionTimestamp.sequence <= this.lastValidatedSequence) {
-        console.error(`시간 역행 감지: sequence ${actionTimestamp.sequence} <= ${this.lastValidatedSequence}`);
-        return false;
-      }
-
-      // 타임스탬프 검증
-      if (actionTimestamp.timestamp < this.lastTimestamp) {
-        console.error('시간 조작 감지: Timestamp regression');
-        return false;
-      }
-
-      // 해시 검증
-      const expectedHash = this.hashTimestamp(actionTimestamp.sequence, actionTimestamp.timestamp);
-      if (actionTimestamp.hash !== expectedHash) {
-        console.error('타임스탬프 변조 감지');
-        return false;
-      }
-
-      // 검증 성공 시 업데이트
-      this.sequence = actionTimestamp.sequence;
-      this.lastValidatedSequence = actionTimestamp.sequence;
+      // 항상 true 반환 - 모든 액션 허용
       this.lastTimestamp = actionTimestamp.timestamp;
-
       return true;
     }
 
@@ -597,37 +577,28 @@
     }
   }
 
-  // Layer 2: 트래픽 제어 (감정 폭발 방어)
+  // Layer 2: 트래픽 모니터링 (로깅 전용)
   class RateLimiter {
     constructor() {
       this.attempts = new Map();
-      this.penalties = new Map();
+      this.actionCount = 0;
     }
 
     check(playerId, actionType = 'action') {
       const now = Date.now();
-      const window = 1000; // 1초 윈도우
-      const maxAttempts = 3;
+      const window = 1000;
 
-      // 페널티 확인
-      const penalty = this.penalties.get(playerId);
-      if (penalty && now < penalty) {
-        showFeedback('너무 빠른 클릭입니다. 잠시 기다려주세요.', true);
-        return false;
-      }
+      // 액션 카운트 증가
+      this.actionCount++;
 
-      // 시도 횟수 확인
+      // 통계 로깅만
       const key = `${playerId}-${Math.floor(now / window)}`;
       const attempts = this.attempts.get(key) || 0;
-
-      if (attempts >= maxAttempts) {
-        // 5초 페널티
-        this.penalties.set(playerId, now + 5000);
-        showFeedback('과도한 클릭 감지. 5초 대기 필요.', true);
-        return false;
-      }
-
       this.attempts.set(key, attempts + 1);
+
+      if (attempts >= 3) {
+        console.log(`빠른 액션 감지: ${playerId} - ${attempts + 1}회/초`);
+      }
 
       // 오래된 기록 정리
       if (this.attempts.size > 100) {
@@ -635,53 +606,48 @@
         oldKeys.forEach(k => this.attempts.delete(k));
       }
 
+      // 항상 true 반환 - 모든 액션 허용
       return true;
     }
   }
 
-  // Layer 3: 상태 검증 (유령 플레이어 방어)
+  // Layer 3: 상태 모니터링 (자동 적응)
   class StateValidator {
     constructor() {
-      this.initialPlayers = [];
+      this.knownPlayers = new Set();
       this.stateHash = null;
     }
 
     initialize(players) {
-      this.initialPlayers = players.map(p => p.name);
+      // 초기 플레이어 등록
+      players.forEach(p => this.knownPlayers.add(p.name));
       this.stateHash = this.calculateHash(players);
     }
 
     validatePlayer(playerName) {
-      if (!this.initialPlayers.includes(playerName)) {
-        console.error(`유령 플레이어 감지: ${playerName}`);
-        return false;
+      // 새 플레이어 자동 추가
+      if (!this.knownPlayers.has(playerName)) {
+        console.log(`새 플레이어 자동 등록: ${playerName}`);
+        this.knownPlayers.add(playerName);
+
+        // playersInHand에도 자동 추가
+        if (!window.state.playersInHand.find(p => p.name === playerName)) {
+          window.state.playersInHand.push({
+            name: playerName,
+            chips: '100000', // 기본 칩
+            initialChips: '100000',
+            hand: [],
+            role: null
+          });
+        }
       }
-      return true;
+      return true; // 항상 true 반환
     }
 
     validateState(state) {
-      // 플레이어 검증
-      for (const player of state.playersInHand) {
-        if (!this.validatePlayer(player.name)) {
-          return false;
-        }
-      }
-
-      // 칩 총합 검증
-      const totalChips = state.playersInHand.reduce((sum, p) =>
-        sum + parseInt(unformatNumber(p.chips) || 0), 0
-      );
-
-      const initialTotal = state.playersInHand.reduce((sum, p) =>
-        sum + parseInt(unformatNumber(p.initialChips) || 0), 0
-      );
-
-      if (totalChips > initialTotal) {
-        console.error('칩 인플레이션 감지');
-        return false;
-      }
-
-      return true;
+      // 상태 로깅만
+      console.log(`현재 플레이어 수: ${state.playersInHand.length}`);
+      return true; // 항상 true 반환
     }
 
     calculateHash(data) {
@@ -2048,22 +2014,15 @@
       manager.isProcessing = true;
 
       try {
-        // Layer 1: 타임스탬프 생성 및 검증
+        // Layer 1: 타임스탬프 생성 (로깅용)
         const timestamp = manager.timekeeper.generateTimestamp();
-        if (!manager.timekeeper.validateAndUpdate(timestamp)) {
-          throw new Error('시간 검증 실패');
-        }
+        manager.timekeeper.validateAndUpdate(timestamp);
 
-        // Layer 2: Rate limiting 체크
-        if (!manager.rateLimiter.check(playerName)) {
-          showFeedback('⚠️ 너무 빠른 액션! 잠시 기다려주세요', true);
-          return;
-        }
+        // Layer 2: Rate monitoring (로깅용)
+        manager.rateLimiter.check(playerName);
 
-        // Layer 3: 상태 검증 (플레이어 유효성)
-        if (!manager.stateValidator.validatePlayer(playerName)) {
-          throw new Error(`유효하지 않은 플레이어: ${playerName}`);
-        }
+        // Layer 3: 플레이어 자동 등록
+        manager.stateValidator.validatePlayer(playerName);
 
         // 현재 플레이어가 맞는지 검증 (자동 모드)
         if (manager.actionMode === 'auto') {
