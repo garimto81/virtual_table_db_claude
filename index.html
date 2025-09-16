@@ -2,11 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.28.0
+  Version: 2.29.0
   Last Modified: 2025-09-16 KST
 
   Change Log:
-  - v2.28.0 (2025-09-16): 완전한 오류 방지 시스템 구현
+  - v2.29.0 (2025-09-16): 10개 시트 고정 플레이어 관리 시스템
     • 스트릿 선택 시 자동으로 액션 패드 열기
     • 포커 포지션 순서대로 자동 플레이어 진행
     • Check/Call 버튼 상황별 동적 변경 (금액 표시)
@@ -46,11 +46,11 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v2.28.0</title>
+  <title>포커 핸드 로거 v2.29.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
-  <script src="chip-analysis-module.js?v=2.28.0" defer></script>
+  <script src="chip-analysis-module.js?v=2.29.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
-  <script src="table-management-v59.js?v=2.28.0" defer></script>
+  <script src="table-management-v59.js?v=2.29.0" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -294,14 +294,14 @@
             <button id="add-player-local-btn" class="w-full bg-green-600 hover:bg-green-700 py-1 rounded text-sm">+ 추가</button>
           </div>
 
-          <!-- 현재 플레이어 목록 -->
+          <!-- 현재 플레이어 목록 (10개 시트 고정) -->
           <div id="player-list-section" class="bg-gray-700 p-3 rounded-lg hidden">
             <div class="flex items-center justify-between mb-2">
-              <h4 class="text-sm font-bold text-amber-400">플레이어 목록</h4>
-              <span id="player-count" class="text-xs text-gray-400"></span>
+              <h4 class="text-sm font-bold text-amber-400">플레이어 시트</h4>
+              <span id="player-count" class="text-xs text-amber-300"></span>
             </div>
-            <div id="current-players-list" class="space-y-2 max-h-60 overflow-y-auto">
-              <!-- 플레이어 목록이 동적으로 표시됨 -->
+            <div id="current-players-list" class="h-auto">
+              <!-- 10개 시트가 고정으로 표시됨 -->
             </div>
           </div>
 
@@ -540,7 +540,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.28.0';
+  const APP_VERSION = 'v2.29.0';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -5147,7 +5147,7 @@ async function sendDataToGoogleSheet(){
     }
 
 
-    // 로컬 플레이어 목록 렌더링
+    // 로컬 플레이어 목록 렌더링 - 10개 시트 고정 방식
     function renderManagementPlayersList() {
       const listContainer = document.getElementById('current-players-list');
       const countDisplay = document.getElementById('player-count');
@@ -5155,48 +5155,115 @@ async function sendDataToGoogleSheet(){
       if (!listContainer) return;
 
       const players = managementState.currentPlayers;
-      countDisplay.textContent = `${players.length}명`;
+      countDisplay.textContent = `${players.length}/10명`;
 
-      if (players.length === 0) {
-        listContainer.innerHTML = '<p class="text-gray-400 text-xs">플레이어가 없습니다.</p>';
-        return;
+      // 10개 시트 배열 생성 (1번부터 10번까지)
+      const seats = [];
+      for (let i = 1; i <= 10; i++) {
+        seats.push({
+          seatNumber: i,
+          player: players.find(p => parseInt(p.seat) === i) || null
+        });
       }
 
-      listContainer.innerHTML = players.map((player, index) => {
-        const isModified = managementState.changes.modified.includes(player.name);
-        const isAdded = managementState.changes.added.includes(player.name);
+      // 2열 5개씩 그리드 레이아웃 (컴팩트)
+      listContainer.innerHTML = `
+        <div class="grid grid-cols-2 gap-1">
+          ${seats.map(({ seatNumber, player }) => {
+            const index = player ? players.indexOf(player) : -1;
+            const isModified = player && managementState.changes.modified.includes(player.name);
+            const isAdded = player && managementState.changes.added.includes(player.name);
+            const isEmpty = !player;
 
-        return `
-        <div class="flex items-center justify-between bg-gray-600 p-2 rounded player-list-item ${
-          isAdded ? 'border border-green-500' : isModified ? 'border border-yellow-500' : ''
-        }" data-index="${index}">
-          <div class="flex-1">
-            <span class="font-medium">${player.name}</span>
-            ${isAdded ? '<span class="text-xs text-green-400 ml-2">새로 추가</span>' : ''}
-            ${isModified ? '<span class="text-xs text-yellow-400 ml-2">수정됨</span>' : ''}
-          </div>
-          <div class="flex items-center gap-2">
-            <input type="number" class="bg-gray-700 px-2 py-1 rounded text-sm w-16 local-seat-input"
-                   value="${player.seat || ''}" placeholder="좌석" min="1" max="10"
-                   data-index="${index}">
-            <input type="text" class="bg-gray-700 px-2 py-1 rounded text-sm w-20 local-chips-input"
-                   value="${formatNumber(player.chips || '0')}" placeholder="칩"
-                   data-index="${index}">
-            <button class="text-red-500 hover:text-red-400 local-delete-btn" data-index="${index}">🗑️</button>
-          </div>
+            return `
+            <div class="seat-slot bg-gray-700 p-1 rounded ${
+              isEmpty ? 'opacity-40' : ''
+            } ${
+              isAdded ? 'border border-green-500' : isModified ? 'border border-yellow-500' : 'border border-gray-600'
+            }" data-seat="${seatNumber}">
+              <div class="flex items-center justify-between h-9">
+                <div class="flex items-center gap-1 flex-1">
+                  <span class="text-sm font-bold text-gray-400 w-6 text-center">
+                    ${seatNumber}
+                  </span>
+                  ${player ? `
+                    <div class="flex-1">
+                      <input type="text" class="bg-gray-800 px-1 py-0.5 rounded text-xs w-full player-name-input"
+                             value="${player.name}"
+                             data-index="${index}"
+                             data-seat="${seatNumber}">
+                    </div>
+                  ` : `
+                    <div class="flex-1">
+                      <input type="text" class="bg-gray-800 px-1 py-0.5 rounded text-xs w-full empty-seat-input"
+                             placeholder="이름 입력"
+                             data-seat="${seatNumber}">
+                    </div>
+                  `}
+                </div>
+                <div class="flex items-center gap-1">
+                  ${player ? `
+                    <input type="text" class="bg-gray-800 px-1 py-0.5 rounded text-xs w-16 local-chips-input"
+                           value="${formatNumber(player.chips || '0')}"
+                           placeholder="칩"
+                           data-index="${index}">
+                    <button class="text-red-400 hover:text-red-300 text-xs local-delete-btn px-1"
+                            data-index="${index}">✕</button>
+                  ` : `
+                    <span class="text-gray-500 text-xs w-16 text-center">-</span>
+                  `}
+                </div>
+              </div>
+              ${player && (isAdded || isModified) ? `
+                <div class="text-xs px-6">
+                  ${isAdded ? '<span class="text-green-400 text-xs">✓</span>' : ''}
+                  ${isModified ? '<span class="text-yellow-400 text-xs">✓</span>' : ''}
+                </div>
+              ` : ''}
+            </div>
+          `;
+          }).join('')}
         </div>
       `;
-      }).join('');
 
       // 이벤트 리스너 추가
-      listContainer.querySelectorAll('.local-seat-input').forEach(input => {
+
+      // 빈 자리 입력 처리
+      listContainer.querySelectorAll('.empty-seat-input').forEach(input => {
         input.addEventListener('change', (e) => {
-          const index = parseInt(e.target.dataset.index);
-          const newSeat = e.target.value;
-          updateLocalPlayerSeat(index, newSeat);
+          const seatNumber = parseInt(e.target.dataset.seat);
+          const playerName = e.target.value.trim();
+
+          if (playerName) {
+            addPlayerToSeat(playerName, seatNumber);
+            e.target.value = '';
+          }
         });
       });
 
+      // 플레이어 이름 수정
+      listContainer.querySelectorAll('.player-name-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          const newName = e.target.value.trim();
+
+          if (index >= 0 && newName) {
+            const player = managementState.currentPlayers[index];
+            if (player && player.name !== newName) {
+              player.name = newName;
+
+              if (!managementState.changes.added.includes(player.name)) {
+                if (!managementState.changes.modified.includes(player.name)) {
+                  managementState.changes.modified.push(player.name);
+                }
+              }
+              updateChangesSummary();
+            }
+          }
+        });
+      });
+
+      // 칩 입력 처리
       listContainer.querySelectorAll('.local-chips-input').forEach(input => {
         input.addEventListener('input', (e) => {
           const index = parseInt(e.target.dataset.index);
@@ -5214,38 +5281,33 @@ async function sendDataToGoogleSheet(){
       });
     }
 
-    // 로컬 플레이어 추가
-    document.getElementById('add-player-local-btn')?.addEventListener('click', () => {
-      const nameInput = document.getElementById('new-player-name');
-      const seatInput = document.getElementById('new-player-seat');
-      const chipsInput = document.getElementById('new-player-chips');
-
-      const name = nameInput.value.trim();
-      const seat = seatInput.value;
-      const chips = unformatNumber(chipsInput.value) || '0';
-
-      if (!name) {
-        showFeedback('플레이어 이름을 입력하세요', true);
-        return;
-      }
+    // 특정 시트에 플레이어 추가
+    function addPlayerToSeat(name, seatNumber) {
+      if (!name) return;
 
       // 중복 체크
       if (managementState.currentPlayers.some(p => p.name === name)) {
-        showFeedback('이미 존재하는 플레이어입니다', true);
+        showFeedback(`${name}은(는) 이미 존재합니다`, true);
         return;
       }
 
       // 좌석 중복 체크
-      if (seat && managementState.currentPlayers.some(p => p.seat === seat)) {
-        showFeedback(`좌석 ${seat}번은 이미 사용 중입니다`, true);
+      if (managementState.currentPlayers.some(p => parseInt(p.seat) === seatNumber)) {
+        showFeedback(`좌석 ${seatNumber}번은 이미 사용 중입니다`, true);
         return;
       }
 
-      // 로컬 추가
+      // 플레이어 수 제한 (10명)
+      if (managementState.currentPlayers.length >= 10) {
+        showFeedback('최대 10명까지만 등록 가능합니다', true);
+        return;
+      }
+
+      // 추가
       const newPlayer = {
         name: name,
-        seat: seat,
-        chips: chips,
+        seat: String(seatNumber),
+        chips: '100000', // 기본 칩
         table: managementState.selectedTable,
         notable: false,
         status: 'IN'
@@ -5254,15 +5316,20 @@ async function sendDataToGoogleSheet(){
       managementState.currentPlayers.push(newPlayer);
       managementState.changes.added.push(name);
 
-      // 입력 필드 초기화
-      nameInput.value = '';
-      seatInput.value = '';
-      chipsInput.value = '';
-
       renderManagementPlayersList();
       updateChangesSummary();
-      showFeedback(`${name} 추가됨 (미등록)`);
-    });
+      showFeedback(`${name} 좌석 ${seatNumber}번에 추가됨`);
+    }
+
+    // 기존 플레이어 추가 UI 숨기기 (10개 시트에서 직접 입력하므로)
+    const addPlayerBtn = document.getElementById('add-player-local-btn');
+    if (addPlayerBtn) {
+      addPlayerBtn.style.display = 'none';
+    }
+    const addSection = document.getElementById('player-add-section');
+    if (addSection) {
+      addSection.style.display = 'none';
+    }
 
     // 로컬 플레이어 좌석 업데이트
     function updateLocalPlayerSeat(index, newSeat) {
