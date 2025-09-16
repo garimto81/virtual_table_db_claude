@@ -275,6 +275,114 @@ function cashOutPlayer(playerName, tableName, finalChips) {
   }
 }
 
+// 플레이어 추가 (새로운 함수)
+function addPlayer(playerData) {
+  try {
+    const sheet = _open().getSheetByName('Type');
+    if (!sheet) return {success: false, message: 'Type 시트를 찾을 수 없습니다'};
+
+    const data = sheet.getDataRange().getValues();
+
+    // 좌석 중복 체크
+    if (playerData.seat) {
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][TYPE_COLUMNS.TABLE] === playerData.table &&
+            data[i][TYPE_COLUMNS.SEAT] === playerData.seat &&
+            data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+          return {success: false, message: `좌석 ${playerData.seat}번은 이미 사용 중입니다`};
+        }
+      }
+    }
+
+    // 같은 이름의 플레이어가 이미 있는지 체크
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][TYPE_COLUMNS.PLAYER] === playerData.name &&
+          data[i][TYPE_COLUMNS.TABLE] === playerData.table &&
+          data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+        return {success: false, message: '이미 존재하는 플레이어입니다'};
+      }
+    }
+
+    // 새 행 추가
+    const newRow = sheet.getLastRow() + 1;
+    sheet.getRange(newRow, RANGE_COLUMNS.CAMERA).setValue('');
+    sheet.getRange(newRow, RANGE_COLUMNS.PLAYER).setValue(playerData.name);
+    sheet.getRange(newRow, RANGE_COLUMNS.TABLE).setValue(playerData.table);
+    sheet.getRange(newRow, RANGE_COLUMNS.NOTABLE).setValue('FALSE');
+    sheet.getRange(newRow, RANGE_COLUMNS.CHIPS).setValue(playerData.chips || 0);
+    sheet.getRange(newRow, RANGE_COLUMNS.UPDATED_AT).setValue(new Date());
+    sheet.getRange(newRow, RANGE_COLUMNS.SEAT).setValue(playerData.seat || '');
+    sheet.getRange(newRow, RANGE_COLUMNS.STATUS).setValue(playerData.status || 'IN');
+
+    return {success: true, message: '플레이어가 추가되었습니다'};
+  } catch (error) {
+    console.error('addPlayer error:', error);
+    return {success: false, message: error.toString()};
+  }
+}
+
+// 플레이어 좌석 업데이트
+function updatePlayerSeat(playerName, tableName, newSeat) {
+  try {
+    const sheet = _open().getSheetByName('Type');
+    const data = sheet.getDataRange().getValues();
+
+    // 좌석 중복 체크 (새 좌석이 있을 경우)
+    if (newSeat) {
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][TYPE_COLUMNS.TABLE] === tableName &&
+            data[i][TYPE_COLUMNS.SEAT] === newSeat &&
+            data[i][TYPE_COLUMNS.STATUS] === 'IN' &&
+            data[i][TYPE_COLUMNS.PLAYER] !== playerName) {
+          return {success: false, message: `좌석 ${newSeat}번은 이미 사용 중입니다`};
+        }
+      }
+    }
+
+    // 플레이어 찾기
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][TYPE_COLUMNS.PLAYER] === playerName &&
+          data[i][TYPE_COLUMNS.TABLE] === tableName &&
+          data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+        const row = i + 1;
+        sheet.getRange(row, RANGE_COLUMNS.SEAT).setValue(newSeat || '');
+        sheet.getRange(row, RANGE_COLUMNS.UPDATED_AT).setValue(new Date());
+        return {success: true, message: '좌석이 업데이트되었습니다'};
+      }
+    }
+
+    return {success: false, message: '플레이어를 찾을 수 없습니다'};
+  } catch (error) {
+    console.error('updatePlayerSeat error:', error);
+    return {success: false, message: error.toString()};
+  }
+}
+
+// 플레이어 칩 업데이트
+function updatePlayerChips(playerName, tableName, newChips) {
+  try {
+    const sheet = _open().getSheetByName('Type');
+    const data = sheet.getDataRange().getValues();
+
+    // 플레이어 찾기
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][TYPE_COLUMNS.PLAYER] === playerName &&
+          data[i][TYPE_COLUMNS.TABLE] === tableName &&
+          data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+        const row = i + 1;
+        sheet.getRange(row, RANGE_COLUMNS.CHIPS).setValue(newChips || 0);
+        sheet.getRange(row, RANGE_COLUMNS.UPDATED_AT).setValue(new Date());
+        return {success: true, message: '칩이 업데이트되었습니다'};
+      }
+    }
+
+    return {success: false, message: '플레이어를 찾을 수 없습니다'};
+  } catch (error) {
+    console.error('updatePlayerChips error:', error);
+    return {success: false, message: error.toString()};
+  }
+}
+
 // 플레이어 삭제 (행 자체를 삭제)
 function deletePlayer(playerName, tableName) {
   try {
@@ -417,26 +525,41 @@ function doGet(e) {
 function doPost(e) {
   try {
     const body = _parseRequestBody(e) || {};
-    
+
     // 액션 기반 라우팅
     if (body.action) {
       switch(body.action) {
         // 테이블 관리
         case 'getTableList':
           return _json(getTableList());
-        
+
         // 플레이어 관리
         case 'getPlayersByTable':
           return _json(getPlayersByTable(body.tableName));
-        
+
         case 'upsertPlayer':
           return _json(upsertPlayer(body.playerData));
-        
+
         case 'cashOutPlayer':
           return _json(cashOutPlayer(body.playerName, body.tableName, body.finalChips));
-        
+
         case 'deletePlayer':
-          return _json(deletePlayer(body.playerName, body.tableName));
+          return _json(deletePlayer(body.player, body.table));
+
+        case 'addPlayer':
+          return _json(addPlayer({
+            name: body.player,
+            table: body.table,
+            seat: body.seat,
+            chips: body.chips,
+            status: body.status || 'IN'
+          }));
+
+        case 'updateSeat':
+          return _json(updatePlayerSeat(body.player, body.table, body.seat));
+
+        case 'updateChips':
+          return _json(updatePlayerChips(body.player, body.table, body.chips));
         
         // v56 기능
         case 'updateHandEdit':

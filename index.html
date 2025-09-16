@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.10.9
-  Last Modified: 2025-09-15 KST
-  
+  Version: 2.14.0
+  Last Modified: 2025-09-16 KST
+
   Change Log:
+  - v2.14.0 (2025-09-16): 플레이어 관리 기능 추가 - 관리 버튼에서 플레이어 추가/삭제/좌석 변경
   - v2.10.9 (2025-09-15): 팟 계산 로직 버그 수정 - 중간 베팅 금액 누적 문제 해결
   - v2.10.8 (2025-09-15): 키패드 중복 입력 버그 수정 - 중복 이벤트 리스너 제거
   - v2.10.7 (2025-09-15): 버튼/SB/BB 선택 로직 개선 - 전체 플레이어 리스트에서 선택 가능
@@ -36,7 +37,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.10.6</title>
+  <title>포커 핸드 로거 v2.14.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -210,9 +211,26 @@
       <!-- 플레이어 관리 탭 -->
       <div id="tab-content-players" class="tab-content">
         <h3 class="text-lg font-bold mb-3">플레이어 관리</h3>
-        <div id="player-management-content" class="space-y-2">
-          <!-- 플레이어 관리 내용이 여기 표시됨 -->
-          <p class="text-gray-400 text-sm">플레이어 선택 후 정보를 수정할 수 있습니다.</p>
+        <div id="player-management-content" class="space-y-3">
+          <!-- 새 플레이어 추가 섹션 -->
+          <div class="bg-gray-700 p-3 rounded-lg">
+            <h4 class="text-sm font-bold mb-2 text-amber-400">플레이어 추가</h4>
+            <div class="grid grid-cols-3 gap-2 mb-2">
+              <input type="text" id="new-player-name" class="bg-gray-600 px-2 py-1 rounded text-sm" placeholder="이름">
+              <input type="number" id="new-player-seat" class="bg-gray-600 px-2 py-1 rounded text-sm" placeholder="좌석" min="1" max="10">
+              <input type="text" id="new-player-chips" class="bg-gray-600 px-2 py-1 rounded text-sm" placeholder="칩">
+            </div>
+            <button id="add-player-btn" class="w-full bg-green-600 hover:bg-green-700 py-1 rounded text-sm">+ 플레이어 추가</button>
+          </div>
+
+          <!-- 현재 플레이어 목록 -->
+          <div class="bg-gray-700 p-3 rounded-lg">
+            <h4 class="text-sm font-bold mb-2 text-amber-400">현재 플레이어</h4>
+            <div id="current-players-list" class="space-y-2 max-h-60 overflow-y-auto">
+              <!-- 플레이어 목록이 동적으로 표시됨 -->
+              <p class="text-gray-400 text-xs">테이블을 선택하면 플레이어가 표시됩니다.</p>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -453,7 +471,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.13.0';
+  const APP_VERSION = 'v2.14.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -3946,15 +3964,223 @@ async function sendDataToGoogleSheet(){
       }
     }
     
-    // 관리 모달 이벤트 리스너 - 테이블 관리 모듈로 변경
+    // 관리 모달 이벤트 리스너
     if (el.managePlayersBtn) {
       el.managePlayersBtn.addEventListener('click', () => {
-        if (typeof openTableManagement === 'function') {
-          openTableManagement(); // 새로운 테이블 관리 시스템
-        } else {
-          openRegistrationModal(); // 기존 시스템 폴백
-        }
+        openRegistrationModal();
+        loadPlayersList(); // 플레이어 목록 로드
       });
+    }
+
+    // 플레이어 목록 로드 함수
+    function loadPlayersList() {
+      const listContainer = document.getElementById('current-players-list');
+      if (!listContainer) return;
+
+      const table = window.state.selectedTable;
+      if (!table) {
+        listContainer.innerHTML = '<p class="text-gray-400 text-xs">테이블을 선택하면 플레이어가 표시됩니다.</p>';
+        return;
+      }
+
+      const players = window.state.playerDataByTable[table] || [];
+      if (players.length === 0) {
+        listContainer.innerHTML = '<p class="text-gray-400 text-xs">플레이어가 없습니다.</p>';
+        return;
+      }
+
+      listContainer.innerHTML = players.map(player => `
+        <div class="flex items-center justify-between bg-gray-600 p-2 rounded player-list-item" data-player="${player.name}">
+          <div class="flex-1">
+            <span class="font-medium">${player.name}</span>
+            ${player.seat ? `<span class="text-xs text-gray-400 ml-2">좌석 ${player.seat}</span>` : ''}
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="number" class="bg-gray-700 px-2 py-1 rounded text-sm w-16 seat-input"
+                   value="${player.seat || ''}" placeholder="좌석" min="1" max="10"
+                   data-player="${player.name}">
+            <input type="text" class="bg-gray-700 px-2 py-1 rounded text-sm w-20 chips-input"
+                   value="${formatNumber(player.chips || '0')}" placeholder="칩"
+                   data-player="${player.name}">
+            <button class="text-red-500 hover:text-red-400 delete-player-btn" data-player="${player.name}">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+
+      // 이벤트 리스너 추가
+      listContainer.querySelectorAll('.seat-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const playerName = e.target.dataset.player;
+          const newSeat = e.target.value;
+          updatePlayerSeat(playerName, newSeat);
+        });
+      });
+
+      listContainer.querySelectorAll('.chips-input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const playerName = e.target.dataset.player;
+          const newChips = unformatNumber(e.target.value);
+          e.target.value = formatNumber(newChips);
+          updatePlayerChips(playerName, newChips);
+        });
+      });
+
+      listContainer.querySelectorAll('.delete-player-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const playerName = e.target.dataset.player;
+          if (confirm(`${playerName}을(를) 삭제하시겠습니까?`)) {
+            deletePlayer(playerName);
+          }
+        });
+      });
+    }
+
+    // 플레이어 추가 버튼 이벤트
+    document.getElementById('add-player-btn')?.addEventListener('click', () => {
+      const nameInput = document.getElementById('new-player-name');
+      const seatInput = document.getElementById('new-player-seat');
+      const chipsInput = document.getElementById('new-player-chips');
+
+      const name = nameInput.value.trim();
+      const seat = seatInput.value;
+      const chips = unformatNumber(chipsInput.value) || '0';
+
+      if (!name) {
+        showFeedback('플레이어 이름을 입력하세요', true);
+        return;
+      }
+
+      if (!window.state.selectedTable) {
+        showFeedback('먼저 테이블을 선택하세요', true);
+        return;
+      }
+
+      addNewPlayer(name, seat, chips);
+
+      // 입력 필드 초기화
+      nameInput.value = '';
+      seatInput.value = '';
+      chipsInput.value = '';
+    });
+
+    // 플레이어 추가 함수
+    async function addNewPlayer(name, seat, chips) {
+      try {
+        const formData = new FormData();
+        formData.append('action', 'addPlayer');
+        formData.append('table', window.state.selectedTable);
+        formData.append('player', name);
+        formData.append('seat', seat || '');
+        formData.append('chips', chips);
+        formData.append('status', 'IN');
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showFeedback(`✅ ${name} 추가됨`);
+          // 데이터 새로고침
+          await loadTypeSheet();
+          loadPlayersList();
+          renderPlayerSelection();
+        } else {
+          showFeedback(`❌ 추가 실패: ${result.error}`, true);
+        }
+      } catch(err) {
+        console.error('플레이어 추가 오류:', err);
+        showFeedback('플레이어 추가 중 오류 발생', true);
+      }
+    }
+
+    // 플레이어 좌석 업데이트
+    async function updatePlayerSeat(playerName, newSeat) {
+      try {
+        const formData = new FormData();
+        formData.append('action', 'updateSeat');
+        formData.append('table', window.state.selectedTable);
+        formData.append('player', playerName);
+        formData.append('seat', newSeat || '');
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showFeedback(`✅ ${playerName} 좌석 ${newSeat}으로 변경`);
+          // 메모리 업데이트
+          const player = window.state.playerDataByTable[window.state.selectedTable]?.find(p => p.name === playerName);
+          if (player) player.seat = newSeat;
+          renderPlayerSelection();
+        } else {
+          showFeedback(`❌ 좌석 변경 실패: ${result.error}`, true);
+        }
+      } catch(err) {
+        console.error('좌석 업데이트 오류:', err);
+        showFeedback('좌석 변경 중 오류 발생', true);
+      }
+    }
+
+    // 플레이어 칩 업데이트
+    async function updatePlayerChips(playerName, newChips) {
+      try {
+        const formData = new FormData();
+        formData.append('action', 'updateChips');
+        formData.append('table', window.state.selectedTable);
+        formData.append('player', playerName);
+        formData.append('chips', newChips);
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          // 메모리 업데이트
+          const player = window.state.playerDataByTable[window.state.selectedTable]?.find(p => p.name === playerName);
+          if (player) player.chips = newChips;
+        }
+      } catch(err) {
+        console.error('칩 업데이트 오류:', err);
+      }
+    }
+
+    // 플레이어 삭제
+    async function deletePlayer(playerName) {
+      try {
+        const formData = new FormData();
+        formData.append('action', 'deletePlayer');
+        formData.append('table', window.state.selectedTable);
+        formData.append('player', playerName);
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+        if (result.success) {
+          showFeedback(`✅ ${playerName} 삭제됨`);
+          // 메모리에서 제거
+          const players = window.state.playerDataByTable[window.state.selectedTable];
+          if (players) {
+            const index = players.findIndex(p => p.name === playerName);
+            if (index !== -1) players.splice(index, 1);
+          }
+          loadPlayersList();
+          renderPlayerSelection();
+        } else {
+          showFeedback(`❌ 삭제 실패: ${result.error}`, true);
+        }
+      } catch(err) {
+        console.error('플레이어 삭제 오류:', err);
+        showFeedback('플레이어 삭제 중 오류 발생', true);
+      }
     }
     
     // ========================================
