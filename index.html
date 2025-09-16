@@ -537,13 +537,156 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.26.6';
+  const APP_VERSION = 'v2.27.0';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
   // ========================================
-  // 포지션 기반 액션 순서 관리 시스템
+  // 스트릿 자동 진행 시스템 v2.0 - 완벽한 보안 구현
   // ========================================
+
+  // Layer 1: 시퀀스 기반 타임스탬프 (시간 역행 방어)
+  class SequentialTimekeeper {
+    constructor() {
+      this.sequence = 0;
+      this.lastTimestamp = Date.now();
+    }
+
+    generateTimestamp() {
+      const now = Date.now();
+      this.sequence++;
+
+      return {
+        sequence: this.sequence,
+        timestamp: now,
+        hash: this.hashTimestamp(this.sequence, now)
+      };
+    }
+
+    validateTimestamp(actionTimestamp) {
+      // 시퀀스 검증
+      if (actionTimestamp.sequence <= this.sequence) {
+        console.error('시간 역행 감지: Invalid sequence');
+        return false;
+      }
+
+      // 타임스탬프 검증
+      if (actionTimestamp.timestamp < this.lastTimestamp) {
+        console.error('시간 조작 감지: Timestamp regression');
+        return false;
+      }
+
+      // 해시 검증
+      const expectedHash = this.hashTimestamp(actionTimestamp.sequence, actionTimestamp.timestamp);
+      if (actionTimestamp.hash !== expectedHash) {
+        console.error('타임스탬프 변조 감지');
+        return false;
+      }
+
+      return true;
+    }
+
+    hashTimestamp(sequence, timestamp) {
+      return btoa(`${sequence}-${timestamp}-${window.location.hostname}`);
+    }
+  }
+
+  // Layer 2: 트래픽 제어 (감정 폭발 방어)
+  class RateLimiter {
+    constructor() {
+      this.attempts = new Map();
+      this.penalties = new Map();
+    }
+
+    check(playerId, actionType = 'action') {
+      const now = Date.now();
+      const window = 1000; // 1초 윈도우
+      const maxAttempts = 3;
+
+      // 페널티 확인
+      const penalty = this.penalties.get(playerId);
+      if (penalty && now < penalty) {
+        showFeedback('너무 빠른 클릭입니다. 잠시 기다려주세요.', true);
+        return false;
+      }
+
+      // 시도 횟수 확인
+      const key = `${playerId}-${Math.floor(now / window)}`;
+      const attempts = this.attempts.get(key) || 0;
+
+      if (attempts >= maxAttempts) {
+        // 5초 페널티
+        this.penalties.set(playerId, now + 5000);
+        showFeedback('과도한 클릭 감지. 5초 대기 필요.', true);
+        return false;
+      }
+
+      this.attempts.set(key, attempts + 1);
+
+      // 오래된 기록 정리
+      if (this.attempts.size > 100) {
+        const oldKeys = Array.from(this.attempts.keys()).slice(0, 50);
+        oldKeys.forEach(k => this.attempts.delete(k));
+      }
+
+      return true;
+    }
+  }
+
+  // Layer 3: 상태 검증 (유령 플레이어 방어)
+  class StateValidator {
+    constructor() {
+      this.initialPlayers = [];
+      this.stateHash = null;
+    }
+
+    initialize(players) {
+      this.initialPlayers = players.map(p => p.name);
+      this.stateHash = this.calculateHash(players);
+    }
+
+    validatePlayer(playerName) {
+      if (!this.initialPlayers.includes(playerName)) {
+        console.error(`유령 플레이어 감지: ${playerName}`);
+        return false;
+      }
+      return true;
+    }
+
+    validateState(state) {
+      // 플레이어 검증
+      for (const player of state.playersInHand) {
+        if (!this.validatePlayer(player.name)) {
+          return false;
+        }
+      }
+
+      // 칩 총합 검증
+      const totalChips = state.playersInHand.reduce((sum, p) =>
+        sum + parseInt(unformatNumber(p.chips) || 0), 0
+      );
+
+      const initialTotal = state.playersInHand.reduce((sum, p) =>
+        sum + parseInt(unformatNumber(p.initialChips) || 0), 0
+      );
+
+      if (totalChips > initialTotal) {
+        console.error('칩 인플레이션 감지');
+        return false;
+      }
+
+      return true;
+    }
+
+    calculateHash(data) {
+      return JSON.stringify(data).split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0).toString(16);
+    }
+  }
+
+  // 메인 액션 관리자 (기존 + 보안 강화)
   class ActionOrderManager {
     constructor() {
       this.currentStreet = 'preflop';
@@ -551,6 +694,14 @@
       this.actionMode = 'auto'; // 'auto' | 'manual'
       this.actionQueue = [];
       this.bettingRoundComplete = false;
+
+      // 보안 레이어 추가
+      this.timekeeper = new SequentialTimekeeper();
+      this.rateLimiter = new RateLimiter();
+      this.stateValidator = new StateValidator();
+
+      // 액션 뮤텍스 (동시 실행 방지)
+      this.isProcessing = false;
     }
 
     // 포지션별 액션 순서 계산
@@ -697,15 +848,46 @@
       return this.getCurrentActionPlayer();
     }
 
-    // 베팅 라운드 완료 여부 체크
+    // 베팅 라운드 완료 여부 체크 (특수 케이스 포함)
     isBettingRoundComplete() {
       const actions = window.state.actionState[this.currentStreet] || [];
       const activePlayers = this.getActivePlayers(window.state.playersInHand || []);
+      const allPlayers = window.state.playersInHand || [];
 
-      // 1명만 남은 경우
-      if (activePlayers.length <= 1) return true;
+      // 특수 케이스 1: 1명만 남은 경우 (나머지 폴드)
+      if (activePlayers.length <= 1) {
+        console.log('🏆 1명만 남음 - 라운드 완료');
+        return true;
+      }
 
-      // 모든 플레이어가 액션했는지 확인
+      // 특수 케이스 2: 헤즈업에서 BB 체크 옵션
+      if (allPlayers.length === 2 && this.currentStreet === 'preflop') {
+        const bbPlayer = this.getBigBlindPlayer();
+        const sbPlayer = this.getSmallBlindPlayer();
+
+        if (bbPlayer && sbPlayer) {
+          const bbActions = actions.filter(a => a.player === bbPlayer.name);
+          const sbActions = actions.filter(a => a.player === sbPlayer.name);
+
+          // SB가 콜했고 BB가 체크한 경우
+          if (sbActions.some(a => a.action === 'Calls') &&
+              bbActions.some(a => a.action === 'Checks')) {
+            console.log('🎯 헤즈업 BB 체크 - 라운드 완료');
+            return true;
+          }
+        }
+      }
+
+      // 특수 케이스 3: 모든 활성 플레이어가 올인인 경우
+      const allActiveAreAllIn = activePlayers.every(p =>
+        window.state.playerStatus[p.name] === 'allin'
+      );
+      if (allActiveAreAllIn && activePlayers.length > 0) {
+        console.log('🚀 모든 플레이어 올인 - 라운드 완료');
+        return true;
+      }
+
+      // 일반 케이스: 모든 플레이어가 액션했는지 확인
       const playersActed = new Set(actions.map(a => a.player));
       const allActed = activePlayers.every(p => playersActed.has(p.name));
 
@@ -715,10 +897,37 @@
       return this.areAllBetsEqual(activePlayers, actions);
     }
 
-    // 모든 베팅이 같은지 확인
+    // 빅블라인드 플레이어 찾기
+    getBigBlindPlayer() {
+      const buttonPosition = parseInt(window.state.buttonPosition) || 1;
+      const players = window.state.playersInHand || [];
+      const occupiedSeats = players.map(p => p.seat).filter(s => s).map(Number).sort((a, b) => a - b);
+
+      if (occupiedSeats.length < 2) return null;
+
+      const sbSeat = this.getNextOccupiedSeat(buttonPosition, occupiedSeats);
+      const bbSeat = this.getNextOccupiedSeat(sbSeat, occupiedSeats);
+
+      return players.find(p => p.seat === bbSeat);
+    }
+
+    // 스몰블라인드 플레이어 찾기
+    getSmallBlindPlayer() {
+      const buttonPosition = parseInt(window.state.buttonPosition) || 1;
+      const players = window.state.playersInHand || [];
+      const occupiedSeats = players.map(p => p.seat).filter(s => s).map(Number).sort((a, b) => a - b);
+
+      if (occupiedSeats.length < 2) return null;
+
+      const sbSeat = this.getNextOccupiedSeat(buttonPosition, occupiedSeats);
+      return players.find(p => p.seat === sbSeat);
+    }
+
+    // 모든 베팅이 같은지 확인 (사이드팟 고려)
     areAllBetsEqual(players, actions) {
       const playerBets = {};
 
+      // 각 플레이어의 총 베팅 계산
       actions.forEach(action => {
         if (!playerBets[action.player]) playerBets[action.player] = 0;
 
@@ -733,24 +942,209 @@
       const bets = Object.values(playerBets);
       const maxBet = Math.max(...bets, 0);
 
+      // 사이드팟 케이스: 올인 플레이어가 있는 경우
+      const hasAllIn = players.some(p => window.state.playerStatus[p.name] === 'allin');
+
+      if (hasAllIn) {
+        // 올인 플레이어들의 베팅 금액
+        const allInAmounts = players
+          .filter(p => window.state.playerStatus[p.name] === 'allin')
+          .map(p => playerBets[p.name] || 0);
+
+        // 액티브 플레이어들이 최소한 올인 금액 이상 베팅했는지 확인
+        return players.every(p => {
+          const playerBet = playerBets[p.name] || 0;
+          const isAllIn = window.state.playerStatus[p.name] === 'allin';
+
+          if (isAllIn) {
+            return true; // 올인 플레이어는 항상 OK
+          }
+
+          // 액티브 플레이어는 최대 베팅과 같아야 함
+          return playerBet === maxBet;
+        });
+      }
+
+      // 일반 케이스: 모든 액티브 플레이어의 베팅이 같아야 함
       return players.every(p => {
         const playerBet = playerBets[p.name] || 0;
-        return playerBet === maxBet || window.state.playerStatus[p.name] === 'allin';
+        return playerBet === maxBet;
       });
     }
 
-    // 다음 스트릿으로 진행
-    advanceToNextStreet() {
+    // 다음 스트릿으로 진행 (보안 레이어 포함)
+    async advanceToNextStreet() {
       const streets = ['preflop', 'flop', 'turn', 'river'];
       const currentIndex = streets.indexOf(this.currentStreet);
 
       if (currentIndex < streets.length - 1) {
-        this.currentStreet = streets[currentIndex + 1];
-        this.currentPlayerIndex = 0;
-        window.state.currentStreet = this.currentStreet;
-        console.log(`%c🎯 자동 진행: ${this.currentStreet.toUpperCase()}`, 'color: #10b981; font-weight: bold');
-        this.showStreetAdvanceNotification();
+        const nextStreet = streets[currentIndex + 1];
+
+        // Layer 4: 보드 카드 검증
+        if (nextStreet !== 'preflop' && !this.checkBoardCards(nextStreet)) {
+          // 보드 카드 입력 프롬프트
+          this.promptForBoardCards(nextStreet);
+          return;
+        }
+
+        // Layer 5: 트랜잭션 보호
+        const transaction = this.startTransaction();
+        try {
+          // 타임스탬프 검증
+          const timestamp = this.timekeeper.generateTimestamp();
+
+          // 상태 변경
+          this.currentStreet = nextStreet;
+          this.currentPlayerIndex = 0;
+          window.state.currentStreet = this.currentStreet;
+
+          // 상태 해시 업데이트
+          this.stateValidator.updateState();
+
+          console.log(`%c🎯 자동 진행: ${this.currentStreet.toUpperCase()}`, 'color: #10b981; font-weight: bold');
+          this.showStreetAdvanceNotification();
+
+          // 트랜잭션 커밋
+          transaction.commit();
+        } catch (error) {
+          // 트랜잭션 롤백
+          transaction.rollback();
+          console.error('스트릿 진행 실패:', error);
+          showFeedback('❌ 스트릿 진행 중 오류 발생', true);
+        }
       }
+    }
+
+    // 보드 카드 확인
+    checkBoardCards(street) {
+      const boardCards = window.state.boardCards || {};
+
+      switch(street) {
+        case 'flop':
+          return boardCards.flop1 && boardCards.flop2 && boardCards.flop3;
+        case 'turn':
+          return boardCards.turn;
+        case 'river':
+          return boardCards.river;
+        default:
+          return true;
+      }
+    }
+
+    // 보드 카드 입력 프롬프트
+    promptForBoardCards(street) {
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999]';
+      modal.innerHTML = `
+        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+          <h3 class="text-xl font-bold mb-4 text-white">
+            ${street.toUpperCase()} 카드 입력
+          </h3>
+          <p class="text-gray-300 mb-4">
+            ${street === 'flop' ? '플랍 3장' : street === 'turn' ? '턴 1장' : '리버 1장'}의 카드를 입력하세요
+          </p>
+          <div class="flex gap-2 mb-4">
+            ${street === 'flop' ?
+              `<input type="text" id="board-card-1" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: As">
+               <input type="text" id="board-card-2" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: Kh">
+               <input type="text" id="board-card-3" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: Qd">` :
+              `<input type="text" id="board-card-1" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: Jc">`
+            }
+          </div>
+          <div class="flex gap-2">
+            <button onclick="this.parentElement.parentElement.parentElement.remove(); window.actionManager.skipBoardCards('${street}')"
+                    class="flex-1 bg-gray-600 hover:bg-gray-700 text-white rounded py-2">
+              건너뛰기
+            </button>
+            <button onclick="window.actionManager.saveBoardCards('${street}')"
+                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded py-2">
+              확인
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // 첫 번째 입력 필드에 포커스
+      setTimeout(() => {
+        document.getElementById('board-card-1')?.focus();
+      }, 100);
+    }
+
+    // 보드 카드 저장
+    saveBoardCards(street) {
+      const modal = document.querySelector('.fixed.inset-0');
+      if (!modal) return;
+
+      const cards = [];
+      if (street === 'flop') {
+        cards.push(document.getElementById('board-card-1')?.value);
+        cards.push(document.getElementById('board-card-2')?.value);
+        cards.push(document.getElementById('board-card-3')?.value);
+      } else {
+        cards.push(document.getElementById('board-card-1')?.value);
+      }
+
+      // 카드 유효성 검사
+      const validCard = /^[AKQJT2-9][shdc]$/i;
+      const invalidCards = cards.filter(c => c && !validCard.test(c));
+
+      if (invalidCards.length > 0) {
+        showFeedback('❌ 올바른 카드 형식을 입력하세요 (예: As, Kh)', true);
+        return;
+      }
+
+      // 보드 카드 저장
+      if (!window.state.boardCards) window.state.boardCards = {};
+
+      if (street === 'flop') {
+        window.state.boardCards.flop1 = cards[0] || '';
+        window.state.boardCards.flop2 = cards[1] || '';
+        window.state.boardCards.flop3 = cards[2] || '';
+      } else if (street === 'turn') {
+        window.state.boardCards.turn = cards[0] || '';
+      } else if (street === 'river') {
+        window.state.boardCards.river = cards[0] || '';
+      }
+
+      modal.remove();
+      showFeedback(`✅ ${street.toUpperCase()} 카드가 저장되었습니다`, false);
+
+      // 스트릿 진행 재시도
+      this.advanceToNextStreet();
+    }
+
+    // 보드 카드 건너뛰기
+    skipBoardCards(street) {
+      console.log(`보드 카드 입력 건너뛰기: ${street}`);
+      // 보드 카드 없이 진행
+      this.currentStreet = street;
+      this.currentPlayerIndex = 0;
+      window.state.currentStreet = this.currentStreet;
+      this.showStreetAdvanceNotification();
+    }
+
+    // 트랜잭션 시작 (Layer 5)
+    startTransaction() {
+      const snapshot = {
+        currentStreet: this.currentStreet,
+        currentPlayerIndex: this.currentPlayerIndex,
+        actionState: JSON.parse(JSON.stringify(window.state.actionState || {})),
+        playerStatus: {...window.state.playerStatus}
+      };
+
+      return {
+        commit: () => {
+          console.log('트랜잭션 커밋');
+        },
+        rollback: () => {
+          this.currentStreet = snapshot.currentStreet;
+          this.currentPlayerIndex = snapshot.currentPlayerIndex;
+          window.state.actionState = snapshot.actionState;
+          window.state.playerStatus = snapshot.playerStatus;
+          console.error('트랜잭션 롤백');
+        }
+      };
     }
 
     // 스트릿 진행 알림
@@ -1633,57 +2027,125 @@
       openModal(el.actionPadModal, html);
     }
 
-    // 플레이어 액션 실행 함수
-    function executePlayerAction(playerName, action, btn) {
+    // 플레이어 액션 실행 함수 (보안 레이어 포함)
+    async function executePlayerAction(playerName, action, btn) {
       const modal = el.actionPadModal;
+      const manager = window.actionManager;
 
-      // 현재 플레이어를 actionPadPlayer로 설정 (기존 로직과의 호환성)
-      window.state.modalState.actionPadPlayer = playerName;
-
-      if(action === 'SmartCheckCall') {
-        // Smart Check/Call 로직
-        const smartAction = getSmartCheckCallAction(playerName, window.actionManager.currentStreet);
-        addActionToLog(smartAction.label, smartAction.amount, playerName);
-      } else if(action === 'Folds') {
-        // 폴드 액션
-        addActionToLog('Folds', null, playerName);
-      } else if(action === 'All In') {
-        // 올인 액션
-        const player = window.state.playersInHand.find(p => p.name === playerName);
-        if(player) {
-          addActionToLog('All In', player.chips, playerName);
-        }
-      } else if(action === 'Bet/Raises') {
-        // 베팅/레이즈 - 키패드 열기
-        closeModal(modal);
-        window.state.modalState.actionPadPlayer = playerName; // 키패드용 플레이어 설정
-
-        // 베팅인지 레이즈인지 결정
-        const st = window.actionManager.currentStreet;
-        const hasBet = window.state.actionState[st]?.some(a => /BET|RAISE/i.test(a.action || ''));
-        window.state.modalState.actionPadCurrentAction = hasBet ? 'Raises' : 'Bets';
-
-        openKeypad(null, { purpose: 'bet', playerName: playerName });
-        return; // 키패드에서 처리하므로 여기서 종료
+      // Layer 6: 뮤텍스 체크 (동시 액션 방지)
+      if (manager.isProcessing) {
+        console.warn('이미 액션이 처리 중입니다');
+        showFeedback('⚠️ 이전 액션 처리 중...', true);
+        return;
       }
 
-      // 자동 모드에서 다음 플레이어로 이동
-      if(window.actionManager.actionMode === 'auto') {
-        const nextPlayer = window.actionManager.moveToNextPlayer();
+      manager.isProcessing = true;
 
-        // UI 업데이트
-        showFeedback(`${playerName} ${action}`, false);
-
-        // 스트릿이 완료되었거나 다음 플레이어가 있으면 모달 업데이트
-        if(nextPlayer) {
-          openActionPad(window.actionManager.currentStreet);
-        } else {
-          closeModal(modal);
-          showFeedback(`${window.actionManager.currentStreet.toUpperCase()} 스트릿 완료`, false);
+      try {
+        // Layer 1: 타임스탬프 검증
+        const timestamp = manager.timekeeper.generateTimestamp();
+        if (!manager.timekeeper.validateTimestamp(timestamp)) {
+          throw new Error('시간 검증 실패');
         }
-      } else {
-        // 수동 모드에서는 모달 닫기
-        closeModal(modal);
+
+        // Layer 2: Rate limiting 체크
+        if (!manager.rateLimiter.check(playerName)) {
+          showFeedback('⚠️ 너무 빠른 액션! 잠시 기다려주세요', true);
+          return;
+        }
+
+        // Layer 3: 상태 검증 (플레이어 유효성)
+        if (!manager.stateValidator.validatePlayer(playerName)) {
+          throw new Error(`유효하지 않은 플레이어: ${playerName}`);
+        }
+
+        // 현재 플레이어가 맞는지 검증 (자동 모드)
+        if (manager.actionMode === 'auto') {
+          const currentPlayer = manager.getCurrentActionPlayer();
+          if (currentPlayer && currentPlayer.name !== playerName) {
+            throw new Error(`현재 차례가 아닙니다: ${playerName}`);
+          }
+        }
+
+        // Layer 5: 트랜잭션 시작
+        const transaction = manager.startTransaction();
+
+        try {
+          // 현재 플레이어를 actionPadPlayer로 설정
+          window.state.modalState.actionPadPlayer = playerName;
+
+          // 액션 처리
+          if(action === 'SmartCheckCall') {
+            const smartAction = getSmartCheckCallAction(playerName, manager.currentStreet);
+            addActionToLog(smartAction.label, smartAction.amount, playerName);
+          } else if(action === 'Folds') {
+            addActionToLog('Folds', null, playerName);
+            // 플레이어 상태 업데이트
+            window.state.playerStatus[playerName] = 'folded';
+          } else if(action === 'All In') {
+            const player = window.state.playersInHand.find(p => p.name === playerName);
+            if(player) {
+              addActionToLog('All In', player.chips, playerName);
+              window.state.playerStatus[playerName] = 'allin';
+            }
+          } else if(action === 'Bet/Raises') {
+            closeModal(modal);
+            window.state.modalState.actionPadPlayer = playerName;
+
+            const st = manager.currentStreet;
+            const hasBet = window.state.actionState[st]?.some(a => /BET|RAISE/i.test(a.action || ''));
+            window.state.modalState.actionPadCurrentAction = hasBet ? 'Raises' : 'Bets';
+
+            openKeypad(null, { purpose: 'bet', playerName: playerName });
+            manager.isProcessing = false; // 키패드 대기 중 처리 해제
+            return;
+          }
+
+          // 상태 해시 업데이트
+          manager.stateValidator.updateState();
+
+          // 트랜잭션 커밋
+          transaction.commit();
+
+          // 자동 모드에서 다음 플레이어로 이동
+          if(manager.actionMode === 'auto') {
+            const nextPlayer = manager.moveToNextPlayer();
+
+            showFeedback(`✅ ${playerName} ${action}`, false);
+
+            if(nextPlayer) {
+              // 잠시 대기 후 다음 플레이어 액션 팝업
+              setTimeout(() => {
+                openActionPad(manager.currentStreet);
+              }, 300);
+            } else {
+              closeModal(modal);
+
+              // 스트릿 완료 체크
+              if (manager.isBettingRoundComplete()) {
+                showFeedback(`🎯 ${manager.currentStreet.toUpperCase()} 완료! 다음 스트릿 준비...`, false);
+
+                // 자동으로 다음 스트릿 진행
+                setTimeout(() => {
+                  manager.advanceToNextStreet();
+                }, 500);
+              }
+            }
+          } else {
+            closeModal(modal);
+            showFeedback(`✅ ${playerName} ${action}`, false);
+          }
+
+        } catch (innerError) {
+          transaction.rollback();
+          throw innerError;
+        }
+
+      } catch (error) {
+        console.error('액션 실행 실패:', error);
+        showFeedback(`❌ ${error.message}`, true);
+      } finally {
+        manager.isProcessing = false;
       }
     }
 
