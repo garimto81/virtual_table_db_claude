@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.25.3</title>
+  <title>포커 핸드 로거 v2.26.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -532,10 +532,238 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.25.3';
+  const APP_VERSION = 'v2.26.0';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
-  
+
+  // ========================================
+  // 포지션 기반 액션 순서 관리 시스템
+  // ========================================
+  class ActionOrderManager {
+    constructor() {
+      this.currentStreet = 'preflop';
+      this.currentPlayerIndex = 0;
+      this.actionMode = 'auto'; // 'auto' | 'manual'
+      this.actionQueue = [];
+      this.bettingRoundComplete = false;
+    }
+
+    // 포지션별 액션 순서 계산
+    calculateActionOrder(street) {
+      const playersInHand = window.state.playersInHand || [];
+      if (playersInHand.length === 0) return [];
+
+      const buttonPosition = parseInt(window.state.buttonPosition) || 1;
+      const activePlayers = this.getActivePlayers(playersInHand);
+
+      if (street === 'preflop') {
+        return this.getPreflopOrder(activePlayers, buttonPosition);
+      } else {
+        return this.getPostflopOrder(activePlayers, buttonPosition);
+      }
+    }
+
+    // 활성 플레이어 필터링 (폴드/올인 제외)
+    getActivePlayers(players) {
+      return players.filter(p =>
+        window.state.playerStatus[p.name] !== 'folded' &&
+        window.state.playerStatus[p.name] !== 'allin'
+      );
+    }
+
+    // 프리플랍 순서 (UTG → BTN → SB → BB)
+    getPreflopOrder(players, buttonPosition) {
+      if (players.length === 0) return [];
+
+      const seatMap = {};
+      players.forEach(p => {
+        if (p.seat) seatMap[p.seat] = p;
+      });
+
+      const occupiedSeats = Object.keys(seatMap).map(Number).sort((a, b) => a - b);
+      const order = [];
+
+      // UTG부터 시작하여 BTN까지
+      let utgSeat = this.getNextOccupiedSeat(buttonPosition, occupiedSeats);
+      if (occupiedSeats.length > 2) {
+        utgSeat = this.getNextOccupiedSeat(utgSeat, occupiedSeats); // SB 스킵
+        utgSeat = this.getNextOccupiedSeat(utgSeat, occupiedSeats); // BB 스킵
+      }
+
+      let currentSeat = utgSeat;
+      const visited = new Set();
+
+      while (!visited.has(currentSeat) && order.length < players.length) {
+        visited.add(currentSeat);
+        if (seatMap[currentSeat]) {
+          order.push(seatMap[currentSeat]);
+        }
+        currentSeat = this.getNextOccupiedSeat(currentSeat, occupiedSeats);
+
+        // BTN까지 도달했으면 SB, BB 추가
+        if (currentSeat === buttonPosition) {
+          if (seatMap[currentSeat]) order.push(seatMap[currentSeat]);
+
+          // SB 추가
+          const sbSeat = this.getNextOccupiedSeat(buttonPosition, occupiedSeats);
+          if (seatMap[sbSeat]) order.push(seatMap[sbSeat]);
+
+          // BB 추가
+          const bbSeat = this.getNextOccupiedSeat(sbSeat, occupiedSeats);
+          if (seatMap[bbSeat]) order.push(seatMap[bbSeat]);
+          break;
+        }
+      }
+
+      return order;
+    }
+
+    // 포스트플랍 순서 (SB → BB → UTG → BTN)
+    getPostflopOrder(players, buttonPosition) {
+      if (players.length === 0) return [];
+
+      const seatMap = {};
+      players.forEach(p => {
+        if (p.seat) seatMap[p.seat] = p;
+      });
+
+      const occupiedSeats = Object.keys(seatMap).map(Number).sort((a, b) => a - b);
+      const order = [];
+
+      // SB부터 시작
+      let sbSeat = this.getNextOccupiedSeat(buttonPosition, occupiedSeats);
+      let currentSeat = sbSeat;
+      const visited = new Set();
+
+      while (!visited.has(currentSeat) && order.length < players.length) {
+        visited.add(currentSeat);
+        if (seatMap[currentSeat]) {
+          order.push(seatMap[currentSeat]);
+        }
+        currentSeat = this.getNextOccupiedSeat(currentSeat, occupiedSeats);
+      }
+
+      return order;
+    }
+
+    // 다음 점유된 좌석 찾기
+    getNextOccupiedSeat(currentSeat, occupiedSeats) {
+      const maxSeat = Math.max(...occupiedSeats);
+      let nextSeat = currentSeat + 1;
+
+      while (nextSeat <= maxSeat + occupiedSeats.length) {
+        const seat = ((nextSeat - 1) % maxSeat) + 1;
+        if (occupiedSeats.includes(seat)) {
+          return seat;
+        }
+        nextSeat++;
+      }
+
+      return occupiedSeats[0];
+    }
+
+    // 현재 액션할 플레이어 반환
+    getCurrentActionPlayer() {
+      if (this.actionMode === 'manual') return null;
+
+      const actionOrder = this.calculateActionOrder(this.currentStreet);
+      if (actionOrder.length === 0) return null;
+
+      return actionOrder[this.currentPlayerIndex % actionOrder.length];
+    }
+
+    // 다음 플레이어로 이동
+    moveToNextPlayer() {
+      const actionOrder = this.calculateActionOrder(this.currentStreet);
+      if (actionOrder.length === 0) return null;
+
+      this.currentPlayerIndex++;
+
+      // 베팅 라운드 완료 체크
+      if (this.currentPlayerIndex >= actionOrder.length) {
+        if (this.isBettingRoundComplete()) {
+          this.advanceToNextStreet();
+          return null;
+        } else {
+          this.currentPlayerIndex = 0; // 다시 처음부터
+        }
+      }
+
+      return this.getCurrentActionPlayer();
+    }
+
+    // 베팅 라운드 완료 여부 체크
+    isBettingRoundComplete() {
+      const actions = window.state.actionState[this.currentStreet] || [];
+      const activePlayers = this.getActivePlayers(window.state.playersInHand || []);
+
+      // 1명만 남은 경우
+      if (activePlayers.length <= 1) return true;
+
+      // 모든 플레이어가 액션했는지 확인
+      const playersActed = new Set(actions.map(a => a.player));
+      const allActed = activePlayers.every(p => playersActed.has(p.name));
+
+      if (!allActed) return false;
+
+      // 베팅 금액이 맞는지 확인
+      return this.areAllBetsEqual(activePlayers, actions);
+    }
+
+    // 모든 베팅이 같은지 확인
+    areAllBetsEqual(players, actions) {
+      const playerBets = {};
+
+      actions.forEach(action => {
+        if (!playerBets[action.player]) playerBets[action.player] = 0;
+
+        if (action.action.includes('Call') || action.action.includes('Raise') || action.action.includes('Bet')) {
+          playerBets[action.player] = action.amount || 0;
+        } else if (action.action === 'All In') {
+          const player = window.state.playersInHand.find(p => p.name === action.player);
+          playerBets[action.player] = player ? parseInt(unformatNumber(player.chips), 10) : 0;
+        }
+      });
+
+      const bets = Object.values(playerBets);
+      const maxBet = Math.max(...bets, 0);
+
+      return players.every(p => {
+        const playerBet = playerBets[p.name] || 0;
+        return playerBet === maxBet || window.state.playerStatus[p.name] === 'allin';
+      });
+    }
+
+    // 다음 스트릿으로 진행
+    advanceToNextStreet() {
+      const streets = ['preflop', 'flop', 'turn', 'river'];
+      const currentIndex = streets.indexOf(this.currentStreet);
+
+      if (currentIndex < streets.length - 1) {
+        this.currentStreet = streets[currentIndex + 1];
+        this.currentPlayerIndex = 0;
+        window.state.currentStreet = this.currentStreet;
+        console.log(`%c🎯 자동 진행: ${this.currentStreet.toUpperCase()}`, 'color: #10b981; font-weight: bold');
+        this.showStreetAdvanceNotification();
+      }
+    }
+
+    // 스트릿 진행 알림
+    showStreetAdvanceNotification() {
+      showFeedback(`🎯 ${this.currentStreet.toUpperCase()} 스트릿으로 자동 진행`, false);
+    }
+
+    // 모드 전환
+    toggleMode() {
+      this.actionMode = this.actionMode === 'auto' ? 'manual' : 'auto';
+      console.log(`%c액션 모드 변경: ${this.actionMode}`, 'color: #f59e0b; font-weight: bold');
+      return this.actionMode;
+    }
+  }
+
+  // 전역 액션 관리자 인스턴스
+  window.actionManager = new ActionOrderManager();
+
   // 모든 버전 표시를 업데이트하는 함수
   function updateAllVersionDisplays() {
     // 버전 표시 엘리먼트 업데이트
@@ -1272,56 +1500,174 @@
       };
     }
 
+    // 새로운 스트릿 기반 액션 시스템
     function openActionPad(street){
       if(window.state.playersInHand.length<1){ showFeedback('먼저 플레이어를 선택해주세요.', true); return; }
-      window.state.modalState.actionPadStreet=street;
-      // 액션 추가 시 해당 스트리트로 자동 전환
+
+      // 액션 관리자 동기화
+      window.actionManager.currentStreet = street;
       window.state.currentStreet = street;
-      
-      // 액션 순서 가져오기
-      const actionOrder = getActionOrder(street);
-      
-      // Folded/All-in 플레이어 제외하여 활성 플레이어만 필터
-      const activePlayers = actionOrder
-        .map(name => window.state.playersInHand.find(p => p.name === name))
-        .filter(p => p && 
-          window.state.playerStatus[p.name] !== 'folded' && 
-          window.state.playerStatus[p.name] !== 'allin'
-        );
-      
+      window.state.modalState.actionPadStreet = street;
+
+      const activePlayers = window.actionManager.getActivePlayers(window.state.playersInHand);
       if(activePlayers.length === 0) {
         showFeedback('베팅 가능한 플레이어가 없습니다.', true);
         return;
       }
-      
-      // 다음 액션 플레이어 하이라이트
-      const nextPlayer = getNextActionPlayer(street);
-      
-      const playersHTML = activePlayers.map(p => {
-        const isNext = p.name === nextPlayer;
-        const btnClass = isNext ? 'bg-amber-600 animate-pulse' : 'bg-gray-700';
-        const nextIndicator = isNext ? ' ➤' : '';
-        return `<button class="btn ${btnClass} p-2 rounded-md" data-player-name="${p.name}">${p.name}${nextIndicator}</button>`;
-      }).join('');
-      
-      const html=`<div class="bg-gray-800 rounded-lg p-4 w-full max-w-md">
-        <h2 class="text-xl font-bold text-amber-400 mb-4 text-center">${street.toUpperCase()} 액션</h2>
-        <div class="text-xs text-gray-400 mb-2 text-center">
-          ${nextPlayer ? `다음 액션: ${nextPlayer}` : '플레이어를 선택하세요'}
-        </div>
-        <div id="action-pad-players" class="grid grid-cols-3 gap-2 mb-4">${playersHTML}</div>
-        <div id="action-pad-actions" class="grid grid-cols-3 gap-2 mb-4 hidden">
-          <button class="btn bg-red-600 p-3 rounded-md" data-action="Folds">Fold</button>
-          <button id="smart-check-call-btn" class="btn bg-green-600 p-3 rounded-md" data-action="SmartCheckCall">
-            <span class="action-label">Check</span>
-            <span class="amount-label"></span>
+
+      // 현재 액션할 플레이어
+      const currentPlayer = window.actionManager.getCurrentActionPlayer();
+      const actionOrder = window.actionManager.calculateActionOrder(street);
+
+      // 액션 모드 토글 버튼
+      const modeIcon = window.actionManager.actionMode === 'auto' ? '🤖' : '👆';
+      const modeText = window.actionManager.actionMode === 'auto' ? '자동 순서' : '수동 선택';
+
+      // 액션 큐 표시
+      const queueDisplay = actionOrder.map((p, index) => {
+        const isCurrent = currentPlayer && p.name === currentPlayer.name;
+        const hasActed = (window.state.actionState[street] || []).some(a => a.player === p.name);
+
+        let statusIcon = '⏳';
+        let statusClass = 'text-gray-400';
+
+        if (hasActed) {
+          statusIcon = '✅';
+          statusClass = 'text-green-400';
+        } else if (isCurrent) {
+          statusIcon = '🎯';
+          statusClass = 'text-amber-400 animate-pulse';
+        }
+
+        return `<span class="${statusClass}">${statusIcon} ${p.name}</span>`;
+      }).join(' → ');
+
+      const html=`<div class="bg-gray-800 rounded-lg p-4 w-full max-w-lg">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-amber-400">${street.toUpperCase()} 액션</h2>
+          <button id="toggle-action-mode" class="text-sm bg-gray-700 px-3 py-1 rounded">
+            ${modeIcon} ${modeText}
           </button>
-          <button class="btn bg-amber-500 p-3 rounded-md" data-action="Bet/Raises">Bet/Raise</button>
-          <button class="btn bg-red-800 font-bold col-span-3 p-3 rounded-md" data-action="All In">ALL IN</button>
         </div>
-        <button id="close-action-pad" class="btn mt-4 w-full bg-gray-600 py-2 rounded-md">닫기</button>
+
+        <!-- 액션 큐 표시 -->
+        <div class="bg-gray-900 p-3 rounded mb-4">
+          <div class="text-xs text-gray-400 mb-1">액션 순서:</div>
+          <div class="text-sm">${queueDisplay}</div>
+          ${currentPlayer ? `<div class="text-xs text-amber-400 mt-2">현재 차례: ${currentPlayer.name}</div>` : ''}
+        </div>
+
+        <!-- 현재 플레이어 액션 버튼 -->
+        ${currentPlayer && window.actionManager.actionMode === 'auto' ? `
+          <div class="mb-4">
+            <div class="text-center text-lg font-bold text-amber-400 mb-3">${currentPlayer.name}의 액션</div>
+            <div id="current-player-actions" class="grid grid-cols-2 gap-2">
+              <button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds" data-player="${currentPlayer.name}">
+                ❌ Fold
+              </button>
+              <button id="smart-check-call-btn" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md" data-action="SmartCheckCall" data-player="${currentPlayer.name}">
+                <span class="action-label">✅ Check</span>
+                <span class="amount-label"></span>
+              </button>
+              <button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Bet/Raises" data-player="${currentPlayer.name}">
+                💰 Bet/Raise
+              </button>
+              <button class="btn bg-red-800 hover:bg-red-900 font-bold p-3 rounded-md" data-action="All In" data-player="${currentPlayer.name}">
+                🚀 ALL IN
+              </button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 수동 모드 또는 모든 플레이어 선택 -->
+        ${window.actionManager.actionMode === 'manual' || !currentPlayer ? `
+          <div class="mb-4">
+            <div class="text-sm text-gray-400 mb-2">플레이어 선택:</div>
+            <div id="action-pad-players" class="grid grid-cols-3 gap-2 mb-3">
+              ${activePlayers.map(p => {
+                const hasActed = (window.state.actionState[street] || []).some(a => a.player === p.name);
+                const btnClass = hasActed ? 'bg-gray-600' : 'bg-gray-700 hover:bg-gray-600';
+                const indicator = hasActed ? ' ✅' : '';
+                return `<button class="btn ${btnClass} p-2 rounded-md" data-player-name="${p.name}">${p.name}${indicator}</button>`;
+              }).join('')}
+            </div>
+            <div id="action-pad-actions" class="grid grid-cols-2 gap-2 hidden">
+              <button class="btn bg-red-600 p-3 rounded-md" data-action="Folds">❌ Fold</button>
+              <button id="manual-smart-check-call-btn" class="btn bg-green-600 p-3 rounded-md" data-action="SmartCheckCall">
+                <span class="action-label">✅ Check</span>
+                <span class="amount-label"></span>
+              </button>
+              <button class="btn bg-blue-600 p-3 rounded-md" data-action="Bet/Raises">💰 Bet/Raise</button>
+              <button class="btn bg-red-800 font-bold p-3 rounded-md" data-action="All In">🚀 ALL IN</button>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- 컨트롤 버튼 -->
+        <div class="flex gap-2">
+          ${window.actionManager.actionMode === 'auto' && currentPlayer ? `
+            <button id="skip-current-player" class="btn bg-yellow-600 hover:bg-yellow-700 px-3 py-2 rounded text-sm">
+              ⏭️ 스킵
+            </button>
+          ` : ''}
+          <button id="close-action-pad" class="btn flex-1 bg-gray-600 hover:bg-gray-700 py-2 rounded-md">닫기</button>
+        </div>
       </div>`;
+
       openModal(el.actionPadModal, html);
+
+      // Smart Check/Call 버튼 업데이트
+      updateSmartCheckCallButton();
+    }
+
+    // 플레이어 액션 실행 함수
+    function executePlayerAction(playerName, action, btn) {
+      const modal = el.actionPadModal;
+
+      // 현재 플레이어를 actionPadPlayer로 설정 (기존 로직과의 호환성)
+      window.state.modalState.actionPadPlayer = playerName;
+
+      if(action === 'SmartCheckCall') {
+        // Smart Check/Call 로직
+        const smartAction = getSmartCheckCallAction(playerName, window.actionManager.currentStreet);
+        addActionToLog(smartAction.label, smartAction.amount, playerName);
+      } else if(action === 'Folds') {
+        // 폴드 액션
+        addActionToLog('Folds', null, playerName);
+      } else if(action === 'All In') {
+        // 올인 액션
+        const player = window.state.playersInHand.find(p => p.name === playerName);
+        if(player) {
+          addActionToLog('All In', player.chips, playerName);
+        }
+      } else if(action === 'Bet/Raises') {
+        // 베팅/레이즈 - 키패드 열기
+        closeModal(modal);
+        window.state.modalState.actionPadPlayer = playerName; // 키패드용 플레이어 설정
+        openKeypad(playerName, { purpose: 'bet' });
+        return; // 키패드에서 처리하므로 여기서 종료
+      }
+
+      // 자동 모드에서 다음 플레이어로 이동
+      if(window.actionManager.actionMode === 'auto') {
+        const nextPlayer = window.actionManager.moveToNextPlayer();
+
+        // UI 업데이트
+        showFeedback(`${playerName} ${action}`, false);
+
+        // 스트릿이 완료되었거나 다음 플레이어가 있으면 모달 업데이트
+        if(nextPlayer) {
+          setTimeout(() => openActionPad(window.actionManager.currentStreet), 500);
+        } else {
+          setTimeout(() => {
+            closeModal(modal);
+            showFeedback(`${window.actionManager.currentStreet.toUpperCase()} 스트릿 완료`, false);
+          }, 500);
+        }
+      } else {
+        // 수동 모드에서는 모달 닫기
+        closeModal(modal);
+      }
     }
 
     // 칩 입력 개선 함수
@@ -1541,14 +1887,24 @@
       }
       closeModal(el.cardSelectorModal);
     }
-    function addActionToLog(action, amount=null){
+    function addActionToLog(action, amount=null, player=null){
       const { actionPadStreet, actionPadPlayer } = window.state.modalState;
-      
+      const playerName = player || actionPadPlayer;
+
       // 플레이어 상태 업데이트
       if (action === 'Folds') {
-        window.state.playerStatus[actionPadPlayer] = 'folded';
+        window.state.playerStatus[playerName] = 'folded';
       } else if (action === 'All In') {
-        window.state.playerStatus[actionPadPlayer] = 'allin';
+        window.state.playerStatus[playerName] = 'allin';
+      } else if (action.includes('Call')) {
+        window.state.playerStatus[playerName] = 'called';
+      } else if (action.includes('Bet') || action.includes('Raise')) {
+        window.state.playerStatus[playerName] = 'bet';
+      }
+
+      // 액션 관리자와 동기화
+      if(window.actionManager && window.actionManager.actionMode === 'auto') {
+        window.actionManager.currentStreet = actionPadStreet;
       }
       
       if (amount){
@@ -3772,30 +4128,86 @@ async function sendDataToGoogleSheet(){
         }
       });
 
-      // 액션 패드 내부 버튼
+      // 새로운 액션 패드 내부 버튼 이벤트
       el.actionPadModal.addEventListener('click', (e)=>{
         // 모달 배경 클릭 시 닫기
         if(e.target === el.actionPadModal) {
           closeModal(el.actionPadModal);
           return;
         }
-        
+
         const btn = e.target.closest('button'); if(!btn) return;
-        if(btn.id==='close-action-pad'){ closeModal(el.actionPadModal); return; }
+
+        // 닫기 버튼
+        if(btn.id==='close-action-pad'){
+          closeModal(el.actionPadModal);
+          return;
+        }
+
+        // 액션 모드 토글
+        if(btn.id==='toggle-action-mode') {
+          const newMode = window.actionManager.toggleMode();
+          showFeedback(`액션 모드: ${newMode === 'auto' ? '🤖 자동 순서' : '👆 수동 선택'}`, false);
+          // 모달 다시 열기 (UI 업데이트)
+          setTimeout(() => openActionPad(window.actionManager.currentStreet), 300);
+          return;
+        }
+
+        // 현재 플레이어 스킵
+        if(btn.id==='skip-current-player') {
+          const nextPlayer = window.actionManager.moveToNextPlayer();
+          showFeedback(`플레이어 스킵됨. ${nextPlayer ? `다음: ${nextPlayer.name}` : '스트릿 완료'}`, false);
+          setTimeout(() => openActionPad(window.actionManager.currentStreet), 300);
+          return;
+        }
+
+        // 자동 모드에서 현재 플레이어 액션
+        if(btn.dataset.player && window.actionManager.actionMode === 'auto') {
+          const playerName = btn.dataset.player;
+          const action = btn.dataset.action;
+
+          // 액션 실행
+          executePlayerAction(playerName, action, btn);
+          return;
+        }
+
+        // 수동 모드 플레이어 선택
         const modal = el.actionPadModal;
-        if(btn.parentElement.id==='action-pad-players'){
+        if(btn.parentElement?.id==='action-pad-players'){
           window.state.modalState.actionPadPlayer = btn.dataset.playerName;
-          modal.querySelector('#action-pad-players').classList.add('hidden');
-          modal.querySelector('#action-pad-actions').classList.remove('hidden');
-          
-          // 스마트 Check/Call 버튼 업데이트
-          if(window.state.smartCheckCall) {
-            const smartBtn = modal.querySelector('#smart-check-call-btn');
-            const smartAction = getSmartCheckCallAction(btn.dataset.playerName, window.state.modalState.actionPadStreet);
-            smartBtn.querySelector('.action-label').textContent = smartAction.label;
-            smartBtn.dataset.smartAction = JSON.stringify(smartAction);
+          const actionSection = modal.querySelector('#action-pad-actions');
+          if(actionSection) {
+            modal.querySelector('#action-pad-players').classList.add('hidden');
+            actionSection.classList.remove('hidden');
+
+            // 수동 모드 스마트 Check/Call 버튼 업데이트
+            const smartBtn = modal.querySelector('#manual-smart-check-call-btn');
+            if(smartBtn && window.state.smartCheckCall) {
+              const smartAction = getSmartCheckCallAction(btn.dataset.playerName, window.state.modalState.actionPadStreet);
+              smartBtn.querySelector('.action-label').textContent = smartAction.label;
+              smartBtn.dataset.smartAction = JSON.stringify(smartAction);
+            }
           }
-        }else if(btn.parentElement.id==='action-pad-actions'){
+          return;
+        }
+
+        // 수동 모드 액션 처리
+        if(btn.parentElement?.id==='action-pad-actions'){
+          const action = btn.dataset.action;
+          const playerName = window.state.modalState.actionPadPlayer;
+
+          if(!playerName) {
+            showFeedback('플레이어를 선택해주세요.', true);
+            return;
+          }
+
+          // 수동 모드에서 액션 실행
+          executePlayerAction(playerName, action, btn);
+          return;
+        }
+
+        // 기존 호환성을 위한 처리 (삭제 예정)
+        if(btn.parentElement?.id==='action-pad-actions-legacy'){
           const action = btn.dataset.action;
           if(action==='Bet/Raises'){
             const st = window.state.modalState.actionPadStreet;
