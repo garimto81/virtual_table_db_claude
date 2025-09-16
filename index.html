@@ -1647,7 +1647,7 @@
         const hasBet = window.state.actionState[st]?.some(a => /BET|RAISE/i.test(a.action || ''));
         window.state.modalState.actionPadCurrentAction = hasBet ? 'Raises' : 'Bets';
 
-        openKeypad(playerName, { purpose: 'bet' });
+        openKeypad(playerName, { purpose: 'bet', playerName: playerName });
         return; // 키패드에서 처리하므로 여기서 종료
       }
 
@@ -4326,7 +4326,8 @@ async function sendDataToGoogleSheet(){
               showFeedback(`${window.state.camPreset.cam2 || 'Cam2'}${padded} 입력됨`);
             }
           }else if(purpose==='bet'){
-            if(finalAmt) addActionToLog(window.state.modalState.actionPadCurrentAction, finalAmt);
+            const { playerName } = window.state.modalState.keypadOptions;
+            if(finalAmt) addActionToLog(window.state.modalState.actionPadCurrentAction, finalAmt, playerName);
           }else if(purpose==='pot'){
             // Pot correction: 입력한 값 그대로 저장 (이전 팟 크기를 빼지 않음)
             const potSize = finalAmt; // 포맷된 값 그대로 사용
