@@ -2,10 +2,11 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.26.5
+  Version: 2.26.6
   Last Modified: 2025-09-16 KST
 
   Change Log:
+  - v2.26.6 (2025-09-16): Check/Call 버튼 동적 업데이트 - 상황에 따라 Check 또는 Call(금액) 자동 표시
   - v2.26.5 (2025-09-16): 팝업 애니메이션 제거 - 모든 모달과 액션 패드가 즉시 표시되도록 개선
   - v2.26.4 (2025-09-16): 베팅 칩 입력 버그 완전 수정 - openKeypad 호출 방식 통일 및 자동 모드 연동 개선
   - v2.26.3 (2025-09-16): 베팅 액수 입력 오류 수정 - 키패드에서 플레이어 정보 전달 로직 개선
@@ -45,7 +46,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.26.5</title>
+  <title>포커 핸드 로거 v2.26.6</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -84,7 +85,7 @@
           <button id="settings-btn" class="text-gray-400 hover:text-amber-400" title="설정">
             ⚙️
           </button>
-          <span id="version-display" class="text-gray-400">v2.26.5</span>
+          <span id="version-display" class="text-gray-400">v2.26.6</span>
         </div>
       </div>
     </div>
@@ -539,7 +540,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.26.5';
+  const APP_VERSION = 'v2.26.6';
   const VERSION_DATE = '2025-09-16';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -1549,6 +1550,20 @@
         return `<span class="${statusClass}">${statusIcon} ${p.name}</span>`;
       }).join(' → ');
 
+      // Check/Call 액션 결정 (현재 플레이어용)
+      let checkCallButtonHTML = '';
+      if(currentPlayer) {
+        const smartAction = getSmartCheckCallAction(currentPlayer.name, street);
+        const btnColor = smartAction.action === 'Checks' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700';
+        const btnIcon = smartAction.action === 'Checks' ? '✅' : '📞';
+        const btnText = smartAction.action === 'Checks' ? 'Check' : `Call ${formatNumber(smartAction.amount)}`;
+
+        checkCallButtonHTML = `
+          <button id="smart-check-call-btn" class="btn ${btnColor} p-3 rounded-md" data-action="SmartCheckCall" data-player="${currentPlayer.name}">
+            ${btnIcon} ${btnText}
+          </button>`;
+      }
+
       const html=`<div class="bg-gray-800 rounded-lg p-4 w-full max-w-lg">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-amber-400">${street.toUpperCase()} 액션</h2>
@@ -1572,10 +1587,7 @@
               <button class="btn bg-red-600 hover:bg-red-700 p-3 rounded-md" data-action="Folds" data-player="${currentPlayer.name}">
                 ❌ Fold
               </button>
-              <button id="smart-check-call-btn" class="btn bg-green-600 hover:bg-green-700 p-3 rounded-md" data-action="SmartCheckCall" data-player="${currentPlayer.name}">
-                <span class="action-label">✅ Check</span>
-                <span class="amount-label"></span>
-              </button>
+              ${checkCallButtonHTML}
               <button class="btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md" data-action="Bet/Raises" data-player="${currentPlayer.name}">
                 💰 Bet/Raise
               </button>
@@ -4197,11 +4209,21 @@ async function sendDataToGoogleSheet(){
             modal.querySelector('#action-pad-players').classList.add('hidden');
             actionSection.classList.remove('hidden');
 
-            // 수동 모드 스마트 Check/Call 버튼 업데이트
+            // 수동 모드 Check/Call 버튼 업데이트
             const smartBtn = modal.querySelector('#manual-smart-check-call-btn');
-            if(smartBtn && window.state.smartCheckCall) {
-              const smartAction = getSmartCheckCallAction(btn.dataset.playerName, window.state.modalState.actionPadStreet);
-              smartBtn.querySelector('.action-label').textContent = smartAction.label;
+            if(smartBtn) {
+              const playerName = btn.dataset.playerName;
+              const street = window.state.modalState.actionPadStreet;
+              const smartAction = getSmartCheckCallAction(playerName, street);
+
+              // 버튼 색상과 텍스트 업데이트
+              if(smartAction.action === 'Checks') {
+                smartBtn.className = 'btn bg-green-600 hover:bg-green-700 p-3 rounded-md';
+                smartBtn.innerHTML = '✅ Check';
+              } else {
+                smartBtn.className = 'btn bg-blue-600 hover:bg-blue-700 p-3 rounded-md';
+                smartBtn.innerHTML = `📞 Call ${formatNumber(smartAction.amount)}`;
+              }
               smartBtn.dataset.smartAction = JSON.stringify(smartAction);
             }
           }
