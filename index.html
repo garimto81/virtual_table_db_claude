@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.15.0</title>
+  <title>포커 핸드 로거 v2.16.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -103,7 +103,7 @@
             <span id="time-display" class="bg-gray-900/50 p-1 rounded-md font-mono text-xs"></span>
           </div>
           <div class="flex items-center gap-1">
-            <button id="manage-players-btn" class="btn bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs">📋 테이블</button>
+            <button id="manage-players-btn" class="btn bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded-md text-xs">관리</button>
             <button id="refresh-data" class="text-lg" title="데이터 새로고침">🔄</button>
           </div>
         </div>
@@ -195,15 +195,29 @@
   <div id="action-pad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="keypad-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
   <div id="load-hand-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0"></div>
-  <!-- 테이블 관리 모달 -->
+  <!-- 관리 모달 -->
   <div id="registration-modal" class="modal fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 hidden opacity-0">
     <div class="bg-gray-800 rounded-lg p-4 max-w-lg w-full max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-4">
-        <h2 class="text-xl font-bold text-amber-400">테이블 관리</h2>
+        <h2 class="text-xl font-bold text-amber-400">관리 설정</h2>
         <button id="close-registration-modal" class="text-2xl hover:text-gray-400">&times;</button>
       </div>
 
-      <div id="player-management-content" class="space-y-3">
+      <!-- 메인 관리 버튼들 -->
+      <div id="management-menu" class="grid grid-cols-2 gap-3 mb-4">
+        <button id="open-table-management-btn" class="bg-blue-600 hover:bg-blue-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center">
+          <span class="text-2xl mb-1">📋</span>
+          <span>테이블 관리</span>
+        </button>
+        <button class="bg-gray-700 py-3 px-4 rounded-lg text-sm font-medium flex flex-col items-center opacity-50 cursor-not-allowed" disabled>
+          <span class="text-2xl mb-1">🎲</span>
+          <span>칩 관리</span>
+          <span class="text-xs text-gray-400">(준비 중)</span>
+        </button>
+      </div>
+
+      <!-- 테이블 관리 섹션 (초기에 숨김) -->
+      <div id="player-management-content" class="space-y-3 hidden">
           <!-- 테이블 선택 섹션 -->
           <div class="bg-gray-700 p-3 rounded-lg">
             <div class="flex items-center justify-between mb-2">
@@ -480,7 +494,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.15.0';
+  const APP_VERSION = 'v2.16.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -3951,9 +3965,18 @@ async function sendDataToGoogleSheet(){
     if (el.managePlayersBtn) {
       el.managePlayersBtn.addEventListener('click', () => {
         openRegistrationModal();
-        initPlayerManagement(); // 플레이어 관리 초기화
+        // 초기화: 모든 섹션 숨기기
+        document.getElementById('management-menu').classList.remove('hidden');
+        document.getElementById('player-management-content').classList.add('hidden');
       });
     }
+
+    // 테이블 관리 버튼 클릭
+    document.getElementById('open-table-management-btn')?.addEventListener('click', () => {
+      document.getElementById('management-menu').classList.add('hidden');
+      document.getElementById('player-management-content').classList.remove('hidden');
+      initPlayerManagement();
+    });
 
     // 플레이어 관리 시스템 상태
     let managementState = {
@@ -3997,7 +4020,9 @@ async function sendDataToGoogleSheet(){
 
       try {
         // Type 시트에서 테이블 목록 가져오기
-        await loadTypeSheet();
+        const csv = await fetch(CSV_TYPE_URL).then(r => r.text());
+        const rows = parseCSV(csv);
+        parseTypeData(rows);
         const tables = Object.keys(window.state.playerDataByTable);
 
         if (tables.length === 0) {
