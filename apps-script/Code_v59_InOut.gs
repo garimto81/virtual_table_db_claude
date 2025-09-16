@@ -51,15 +51,20 @@ function _open() {
 }
 
 function _parseRequestBody(e) {
-  // FormData 방식
-  if (e && e.parameter && e.parameter.payload) {
-    try {
-      return JSON.parse(e.parameter.payload);
-    } catch (err) {
-      console.error('FormData 파싱 실패:', err);
+  // FormData 방식 - e.parameter에 직접 접근
+  if (e && e.parameter) {
+    // payload가 있으면 payload 파싱 시도 (구버전 호환)
+    if (e.parameter.payload) {
+      try {
+        return JSON.parse(e.parameter.payload);
+      } catch (err) {
+        console.error('Payload 파싱 실패:', err);
+      }
     }
+    // FormData로 전송된 경우 parameter 직접 반환
+    return e.parameter;
   }
-  
+
   // JSON Body 방식
   if (e && e.postData && e.postData.type === 'application/json') {
     try {
@@ -68,8 +73,8 @@ function _parseRequestBody(e) {
       console.error('JSON 파싱 실패:', err);
     }
   }
-  
-  return e?.parameter || {};
+
+  return {};
 }
 
 // ===== 테이블 관리 API =====

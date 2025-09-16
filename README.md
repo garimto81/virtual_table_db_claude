@@ -1,6 +1,6 @@
 # 🎰 Virtual Data - Poker Hand Logger
 
-> 실시간 포커 핸드 기록 및 분석 시스템 v2.18.0
+> 실시간 포커 핸드 기록 및 분석 시스템 v2.19.0
 
 ## 📋 개요
 
@@ -104,6 +104,13 @@ virtual_data/
 | I | 포지션 | BTN/SB/BB |
 
 ## 🔄 최근 업데이트
+
+### v2.19.0 (2025-09-16)
+- 🔧 **버그 수정**
+  - Apps Script FormData 파싱 문제 해결
+  - batchUpdate 액션 "Unknown action" 오류 수정
+  - e.parameter 직접 접근 방식으로 변경
+  - 구버전 payload 방식과 호환성 유지
 
 ### v2.18.0 (2025-09-16)
 - 🎨 **UI 개선**
