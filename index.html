@@ -38,7 +38,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-  <title>포커 핸드 로거 v2.21.0</title>
+  <title>포커 핸드 로거 v2.22.0</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -229,6 +229,20 @@
             <div id="current-url-display" class="bg-gray-800 p-2 rounded border border-gray-600">
               <div class="text-xs text-gray-400 mb-1">현재 저장된 URL:</div>
               <div id="management-current-url" class="text-xs text-amber-400 break-all font-mono"></div>
+            </div>
+
+            <!-- 재배포 안내 메시지 -->
+            <div class="bg-blue-900 border border-blue-700 p-2 rounded text-xs">
+              <div class="text-blue-300 font-semibold mb-1">📌 Apps Script 재배포 필요</div>
+              <div class="text-blue-200">
+                "Unknown action: batchUpdate" 오류가 발생하면:
+                <ol class="list-decimal list-inside mt-1 text-blue-100">
+                  <li>apps-script/Code_v59_InOut.gs 파일 복사</li>
+                  <li>Google Apps Script에 붙여넣기</li>
+                  <li>배포 → 새 배포 관리 → 편집 → 버전: 새 버전</li>
+                  <li>새 URL을 아래에 입력하여 저장</li>
+                </ol>
+              </div>
             </div>
 
             <!-- URL 입력 -->
@@ -525,7 +539,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.21.0';
+  const APP_VERSION = 'v2.22.0';
   const VERSION_DATE = '2025-09-15';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
   
@@ -4028,20 +4042,20 @@ async function sendDataToGoogleSheet(){
     // Apps Script URL 저장 버튼 - 지연 실행으로 DOM 로드 보장
     setTimeout(() => {
       const saveUrlBtn = document.getElementById('save-apps-url-btn');
-      console.log('[v2.21.0] Apps Script URL 저장 버튼:', saveUrlBtn);
+      console.log('[v2.22.0] Apps Script URL 저장 버튼:', saveUrlBtn);
 
       if (saveUrlBtn) {
         saveUrlBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          console.log('[v2.21.0] URL 저장 버튼 클릭됨');
+          console.log('[v2.22.0] URL 저장 버튼 클릭됨');
 
           const urlInput = document.getElementById('management-apps-url-input');
           const urlStatus = document.getElementById('url-save-status');
           const currentUrlSpan = document.getElementById('management-current-url');
           const newUrl = urlInput?.value.trim();
 
-          console.log('[v2.21.0] 입력된 URL:', newUrl);
-          console.log('[v2.21.0] 현재 URL:', APPS_SCRIPT_URL);
+          console.log('[v2.22.0] 입력된 URL:', newUrl);
+          console.log('[v2.22.0] 현재 URL:', APPS_SCRIPT_URL);
 
           // 상태 메시지 표시 함수
           function showUrlStatus(message, isSuccess) {
@@ -4095,9 +4109,9 @@ async function sendDataToGoogleSheet(){
             showFeedback('동일한 URL입니다', true);
           }
         });
-        console.log('[v2.21.0] URL 저장 버튼 이벤트 리스너 등록 완료');
+        console.log('[v2.22.0] URL 저장 버튼 이벤트 리스너 등록 완료');
       } else {
-        console.error('[v2.21.0] save-apps-url-btn 요소를 찾을 수 없습니다');
+        console.error('[v2.22.0] save-apps-url-btn 요소를 찾을 수 없습니다');
       }
     }, 100);
 
@@ -4486,13 +4500,24 @@ async function sendDataToGoogleSheet(){
           updateChangesSummary();
           renderPlayerSelection(); // 메인 화면 업데이트
         } else {
-          throw new Error(result.message || '등록 실패');
+          // Unknown action 오류 특별 처리
+          if (result.message && result.message.includes('Unknown action')) {
+            throw new Error('Apps Script 재배포가 필요합니다. 관리 → Apps Script URL 설정 참조');
+          } else {
+            throw new Error(result.message || '등록 실패');
+          }
         }
       } catch(err) {
         console.error('일괄 등록 오류:', err);
         syncStatus.textContent = '❌ 동기화 실패';
         syncStatus.className = 'text-xs text-red-400';
-        showFeedback(`❌ 등록 실패: ${err.message}`, true);
+
+        // 더 친근한 에러 메시지
+        let errorMessage = err.message;
+        if (errorMessage.includes('Apps Script 재배포')) {
+          errorMessage = '⚠️ Apps Script 재배포 필요 (관리 메뉴 참조)';
+        }
+        showFeedback(`❌ ${errorMessage}`, true);
       } finally {
         btn.disabled = false;
         btn.textContent = '✅ 일괄 등록';
