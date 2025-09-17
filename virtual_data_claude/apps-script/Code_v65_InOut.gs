@@ -1,6 +1,23 @@
 /****************************************************
- * Poker Hand Logger - Apps Script Backend v62
+ * Poker Hand Logger - Apps Script Backend v65
  * Type 시트 기반 - IN/OUT 두 가지 상태만 사용
+ *
+ * v65 변경사항 (2025-09-17):
+ * - updatePlayerChips 함수 개선: 기존 플레이어 없으면 새로 추가
+ * - 칩 수정 시 중복 제거 로직 자동 실행 추가
+ * - 칩 수정으로 인한 중복 플레이어 생성 문제 해결
+ *
+ * v64 변경사항:
+ * - 중복 제거를 일괄 등록 시 자동 처리하도록 아키텍처 변경
+ * - batchUpdatePlayers()에서 중복 제거를 마지막에 실행
+ * - 별도 중복 제거 버튼 제거 (프론트엔드에서 처리)
+ *
+ * v63 변경사항:
+ * - 중복 플레이어 감지 및 제거 시스템 구현
+ * - removeDuplicatePlayers() 함수 추가
+ * - addPlayer() 및 batchUpdatePlayers()에 자동 중복 제거 로직 추가
+ * - 'removeDuplicates' API 액션 추가
+ * - 테이블_플레이어 조합으로 강화된 중복 감지
  *
  * v62 변경사항:
  * - 삭제 로직 디버깅 강화 (상세 로그 추가)
@@ -11,11 +28,11 @@
  * - 중복 플레이어 처리 로직 개선
  * - sortSheet 이중 호출 버그 수정
  * - 일괄 업데이트 시 자동 정렬
- * 
+ *
  * Type 시트 구조:
  * A: Camera Preset
  * B: Player
- * C: Table  
+ * C: Table
  * D: Notable
  * E: Chips
  * F: UpdatedAt
@@ -290,7 +307,61 @@ function cashOutPlayer(playerName, tableName, finalChips) {
   }
 }
 
-// 플레이어 추가 (새로운 함수)
+// 중복 플레이어 감지 및 제거 함수
+function removeDuplicatePlayers() {
+  try {
+    const sheet = _open().getSheetByName('Type');
+    if (!sheet) return {success: false, message: 'Type 시트를 찾을 수 없습니다'};
+
+    const data = sheet.getDataRange().getValues();
+    const seenPlayers = new Map(); // table_player 조합으로 중복 체크
+    const duplicateRows = [];
+
+    console.log('[v3.2.9] 중복 플레이어 감지 시작...');
+
+    // 중복 플레이어 찾기 (헤더 제외하고 시작)
+    for (let i = 1; i < data.length; i++) {
+      const playerName = data[i][TYPE_COLUMNS.PLAYER];
+      const tableName = data[i][TYPE_COLUMNS.TABLE];
+      const status = data[i][TYPE_COLUMNS.STATUS];
+
+      // IN 상태 플레이어만 체크
+      if (status === 'IN' && playerName && tableName) {
+        const key = `${tableName}_${playerName}`;
+
+        if (seenPlayers.has(key)) {
+          // 중복 발견 - 나중 행을 삭제 대상으로 표시
+          duplicateRows.push(i + 1); // 1-based row number
+          console.log(`[v3.2.9] 중복 플레이어 발견: ${playerName} (테이블: ${tableName}) - 행 ${i + 1} 삭제 예정`);
+        } else {
+          seenPlayers.set(key, i + 1); // 첫 번째 발견된 행 저장
+        }
+      }
+    }
+
+    // 중복 행 삭제 (역순으로 삭제해야 행 번호가 안 꼬임)
+    if (duplicateRows.length > 0) {
+      duplicateRows.sort((a, b) => b - a); // 내림차순 정렬
+
+      for (const rowNum of duplicateRows) {
+        console.log(`[v3.2.9] 중복 행 삭제: ${rowNum}`);
+        sheet.deleteRow(rowNum);
+      }
+
+      console.log(`[v3.2.9] 중복 플레이어 ${duplicateRows.length}개 삭제 완료`);
+      return {success: true, message: `중복 플레이어 ${duplicateRows.length}개 제거됨`};
+    } else {
+      console.log('[v3.2.9] 중복 플레이어 없음');
+      return {success: true, message: '중복 플레이어 없음'};
+    }
+
+  } catch (error) {
+    console.error('[v3.2.9] removeDuplicatePlayers error:', error);
+    return {success: false, message: error.toString()};
+  }
+}
+
+// 플레이어 추가 (새로운 함수) - 중복 체크 강화
 function addPlayer(playerData) {
   try {
     const sheet = _open().getSheetByName('Type');
@@ -309,11 +380,12 @@ function addPlayer(playerData) {
       }
     }
 
-    // 같은 이름의 플레이어가 이미 있는지 체크
+    // 같은 이름의 플레이어가 이미 있는지 체크 (강화된 검사)
     for (let i = 1; i < data.length; i++) {
       if (data[i][TYPE_COLUMNS.PLAYER] === playerData.name &&
           data[i][TYPE_COLUMNS.TABLE] === playerData.table &&
           data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+        console.log(`[v3.2.9] 중복 플레이어 추가 시도 차단: ${playerData.name} (테이블: ${playerData.table})`);
         return {success: false, message: '이미 존재하는 플레이어입니다'};
       }
     }
@@ -329,7 +401,14 @@ function addPlayer(playerData) {
     sheet.getRange(newRow, RANGE_COLUMNS.SEAT).setValue(playerData.seat || '');
     sheet.getRange(newRow, RANGE_COLUMNS.STATUS).setValue(playerData.status || 'IN');
 
-    return {success: true, message: '플레이어가 추가되었습니다'};
+    // 추가 완료 후 중복 제거
+    const cleanupResult = removeDuplicatePlayers();
+    console.log('[v3.2.9] 플레이어 추가 후 중복 정리:', cleanupResult);
+
+    return {
+      success: true,
+      message: `플레이어가 추가되었습니다${cleanupResult.success && cleanupResult.message.includes('개') ? ' (중복 ' + cleanupResult.message + ' 제거됨)' : ''}`
+    };
   } catch (error) {
     console.error('addPlayer error:', error);
     return {success: false, message: error.toString()};
@@ -379,7 +458,9 @@ function updatePlayerChips(playerName, tableName, newChips) {
     const sheet = _open().getSheetByName('Type');
     const data = sheet.getDataRange().getValues();
 
-    // 플레이어 찾기
+    console.log(`[v3.2.9] updatePlayerChips 시작: ${playerName}, ${tableName}, ${newChips}`);
+
+    // 기존 플레이어 찾기 (IN 상태)
     for (let i = 1; i < data.length; i++) {
       if (data[i][TYPE_COLUMNS.PLAYER] === playerName &&
           data[i][TYPE_COLUMNS.TABLE] === tableName &&
@@ -387,27 +468,62 @@ function updatePlayerChips(playerName, tableName, newChips) {
         const row = i + 1;
         sheet.getRange(row, RANGE_COLUMNS.CHIPS).setValue(newChips || 0);
         sheet.getRange(row, RANGE_COLUMNS.UPDATED_AT).setValue(new Date());
-        return {success: true, message: '칩이 업데이트되었습니다'};
+
+        console.log(`[v3.2.9] 기존 플레이어 칩 업데이트 완료: 행 ${row}`);
+
+        // 칩 업데이트 후 중복 제거 실행
+        const cleanupResult = removeDuplicatePlayers();
+        console.log('[v3.2.9] 칩 업데이트 후 중복 정리:', cleanupResult);
+
+        return {
+          success: true,
+          message: `칩이 업데이트되었습니다${cleanupResult.success && cleanupResult.message.includes('개') ? ' (' + cleanupResult.message + ')' : ''}`
+        };
       }
     }
 
-    return {success: false, message: '플레이어를 찾을 수 없습니다'};
+    console.log(`[v3.2.9] 기존 플레이어 없음 - 새로 추가: ${playerName} (${tableName})`);
+
+    // 기존 플레이어가 없으면 새로 추가
+    const newRow = sheet.getLastRow() + 1;
+    const timestamp = new Date();
+
+    sheet.getRange(newRow, RANGE_COLUMNS.CAMERA).setValue(''); // 기본값
+    sheet.getRange(newRow, RANGE_COLUMNS.PLAYER).setValue(playerName);
+    sheet.getRange(newRow, RANGE_COLUMNS.TABLE).setValue(tableName);
+    sheet.getRange(newRow, RANGE_COLUMNS.NOTABLE).setValue('');
+    sheet.getRange(newRow, RANGE_COLUMNS.CHIPS).setValue(newChips || 0);
+    sheet.getRange(newRow, RANGE_COLUMNS.UPDATED_AT).setValue(timestamp);
+    sheet.getRange(newRow, RANGE_COLUMNS.SEAT).setValue('');
+    sheet.getRange(newRow, RANGE_COLUMNS.STATUS).setValue('IN');
+
+    console.log(`[v3.2.9] 새 플레이어 추가 완료: 행 ${newRow}`);
+
+    // 새 플레이어 추가 후 중복 제거 실행
+    const cleanupResult = removeDuplicatePlayers();
+    console.log('[v3.2.9] 새 플레이어 추가 후 중복 정리:', cleanupResult);
+
+    return {
+      success: true,
+      message: `플레이어가 추가되고 칩이 설정되었습니다${cleanupResult.success && cleanupResult.message.includes('개') ? ' (' + cleanupResult.message + ')' : ''}`
+    };
+
   } catch (error) {
     console.error('updatePlayerChips error:', error);
     return {success: false, message: error.toString()};
   }
 }
 
-// 일괄 업데이트 함수
+// 일괄 업데이트 함수 - 마지막에 중복 제거
 function batchUpdatePlayers(tableName, playersJson, deletedJson) {
   try {
     const sheet = _open().getSheetByName('Type');
     const players = typeof playersJson === 'string' ? JSON.parse(playersJson) : playersJson;
     const deleted = typeof deletedJson === 'string' ? JSON.parse(deletedJson) : deletedJson;
 
-    console.log(`[batchUpdate 시작] 테이블: ${tableName}`);
-    console.log(`[batchUpdate] 플레이어: ${JSON.stringify(players)}`);
-    console.log(`[batchUpdate] 삭제 대상: ${JSON.stringify(deleted)}`);
+    console.log(`[v3.2.9 batchUpdate 시작] 테이블: ${tableName}`);
+    console.log(`[v3.2.9 batchUpdate] 플레이어: ${JSON.stringify(players)}`);
+    console.log(`[v3.2.9 batchUpdate] 삭제 대상: ${JSON.stringify(deleted)}`);
 
     if (!sheet) return {success: false, message: 'Type 시트를 찾을 수 없습니다'};
 
@@ -490,13 +606,18 @@ function batchUpdatePlayers(tableName, playersJson, deletedJson) {
     const sortResult = sortTypeSheet();
     console.log(`[정렬 결과] ${sortResult ? '성공' : '실패'}`);
 
+    // 4. 마지막에 중복 플레이어 제거
+    const cleanupResult = removeDuplicatePlayers();
+    console.log('[v3.2.9 batchUpdate] 마지막 중복 제거 결과:', cleanupResult);
+
     const result = {
       success: true,
-      message: '일괄 업데이트, 삭제 및 정렬 완료',
+      message: '일괄 업데이트, 삭제, 정렬 및 중복 제거 완료',
       processed: {
         updated: players.length,
         deleted: deleted.length,
-        deletedRows: rowsToDelete.length
+        deletedRows: rowsToDelete.length,
+        duplicatesRemoved: cleanupResult.success ? (cleanupResult.message.includes('개') ? cleanupResult.message : '0개') : '실패'
       }
     };
 
@@ -734,6 +855,9 @@ function doPost(e) {
             success: sortResult,
             message: sortResult ? '시트 정렬 완료' : '정렬 실패'
           });
+
+        case 'removeDuplicates':
+          return _json(removeDuplicatePlayers());
 
         // v56 기능
         case 'updateHandEdit':

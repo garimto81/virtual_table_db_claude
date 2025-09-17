@@ -1,6 +1,6 @@
 # 🎰 Virtual Data - Poker Hand Logger
 
-> 실시간 포커 핸드 기록 및 분석 시스템 v3.2.7
+> 실시간 포커 핸드 기록 및 분석 시스템 v3.3.0
 
 ## 📋 개요
 
@@ -18,6 +18,25 @@ Google Sheets와 연동되는 웹 기반 포커 핸드 로거입니다. 실시�
 - ⚡ 모바일 최적화 - 터치/제스처/오프라인 지원 (v3.2.0 신기능)
 
 ## 📝 최근 업데이트
+
+### v3.3.0 (2025-09-17) - 칩 수정 시 중복 플레이어 생성 문제 해결
+- 🔧 **updatePlayerChips 개선**: 기존 플레이어 없으면 새로 추가하는 로직 구현
+- 🧹 **자동 중복 제거**: 칩 수정 시에도 중복 제거 로직 자동 실행
+- 📦 **Apps Script v65**: 칩 수정 관련 모든 중복 문제 해결
+- ✅ **문제 해결**: 칩 수정으로 인한 중복 플레이어 생성 완전 방지
+
+### v3.2.9 (2025-09-17) - 중복 제거 아키텍처 개선
+- 🗑️ **별도 버튼 제거**: 중복 제거 버튼을 삭제하고 자동 처리로 변경
+- ⚡ **일괄 등록 통합**: 일괄 등록 시 마지막에 중복 제거 자동 실행
+- 📦 **Apps Script v64**: 중복 제거 로직을 batchUpdatePlayers 끝에서 실행
+- 🔄 **사용자 경험 개선**: 별도 액션 없이 자동으로 중복 처리
+
+### v3.2.8 (2025-09-17) - 중복 플레이어 감지 및 제거 시스템
+- 🧹 **중복 제거 시스템**: Apps Script v63에 removeDuplicatePlayers() 함수 추가
+- 🔄 **자동 중복 제거**: 플레이어 추가/수정 시 자동으로 중복 감지 및 제거
+- 🛠️ **프론트엔드 중복 제거**: 관리 모달에 중복 제거 버튼 추가
+- 🚫 **자동 등록 제거**: 중복 방지를 위해 자동 플레이어 등록 로직 비활성화
+- 🔍 **강화된 검증**: 테이블_플레이어 조합으로 정확한 중복 감지
 
 ### v3.2.7 (2025-09-17) - Apps Script 삭제 로직 강화
 - 🔍 **삭제 디버깅 강화**: Apps Script에 상세 로그 및 디버깅 정보 추가
@@ -93,7 +112,7 @@ Google Sheets와 연동되는 웹 기반 포커 핸드 로거입니다. 실시�
 ```bash
 1. 템플릿 시트 복사
 2. Apps Script 열기 (확장 프로그램 → Apps Script)
-3. Code_v59_InOut.gs 붙여넣기
+3. Code_v63_InOut.gs 붙여넣기
 4. 웹 앱으로 배포
 ```
 
@@ -113,7 +132,7 @@ python -m http.server 8000
 ## 🛠 기술 스택
 
 - **Frontend**: Vanilla JavaScript, Tailwind CSS
-- **Backend**: Google Apps Script v59
+- **Backend**: Google Apps Script v63
 - **Database**: Google Sheets
 - **API**: Gemini Vision API (칩 분석)
 
@@ -131,7 +150,7 @@ virtual_data/
 ├── chip-analysis-module.js       # 칩 분석 모듈
 ├── table-management-v59.js       # 테이블 관리 모듈
 ├── apps-script/
-│   └── Code_v59_InOut.gs        # Google Apps Script 백엔드
+│   └── Code_v63_InOut.gs        # Google Apps Script 백엔드
 ├── docs/
 │   ├── DEVELOPMENT.md           # 개발 계획
 │   ├── MOBILE_POPUP_REMOVAL_PLAN.md  # 모바일 최적화 계획
@@ -369,7 +388,7 @@ virtual_data/
 ### Apps Script 배포
 1. [Google Apps Script](https://script.google.com) 접속
 2. 새 프로젝트 생성
-3. `Code_v59_InOut.gs` 내용 붙여넣기
+3. `Code_v63_InOut.gs` 내용 붙여넣기
 4. 스프레드시트 ID 설정
 5. 웹 앱으로 배포 (액세스: 모든 사용자)
 
@@ -385,12 +404,36 @@ python -m http.server 8000
 http://localhost:8000
 ```
 
+## 📚 프로젝트 문서
+
+### 문서 구조
+```
+📁 docs/
+├── 📖 README.md                    # 문서 센터 메인
+├── 🚀 development/                 # 개발 가이드 및 로드맵
+├── 🧪 testing/                     # 테스트 계획 및 품질 보증
+├── 🌐 deployment/                  # 배포 가이드 및 운영
+└── 📦 archive/                     # 완료된 프로젝트 아카이브
+
+📁 test/                            # 로컬 테스트 환경
+📁 apps-script/                     # Apps Script 백엔드 소스
+📁 archive/                         # 참고용 아카이브 파일
+```
+
+### 주요 문서
+- [📚 문서 센터](docs/README.md) - 모든 문서의 인덱스
+- [🚀 개발 가이드](docs/development/DEVELOPMENT.md) - 개발 로드맵 및 기술 사양
+- [🧪 테스트 계획](docs/testing/TEST_PLAN.md) - 종합 테스트 전략
+- [🌐 배포 가이드](docs/deployment/DEPLOYMENT_GUIDE.md) - 운영 환경 배포
+- [🧪 로컬 테스트](test/README.md) - Apps Script 로컬 테스트 환경
+
 ## ⚠️ 주의사항
 
 1. **권한 설정**: 웹 앱 배포 시 "모든 사용자" 액세스 허용
 2. **CORS**: form-urlencoded 방식으로 전송하여 CORS 문제 회피
 3. **시트 이름**: Hand, Index, Type 시트 이름 변경 금지
 4. **API 제한**: Google Apps Script 일일 실행 시간 제한 고려
+5. **브라우저 캐시**: 업데이트 후 Ctrl+Shift+R로 강제 새로고침
 
 ## 📧 문의
 
