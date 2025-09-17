@@ -2,11 +2,12 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 3.2.0
+  Version: 3.2.6
   Last Modified: 2025-09-17 KST
 
   Change Log:
-  - v3.2.5 (2025-09-17): 정렬 기준 변경 (Table > Seat)
+  - v3.2.6 (2025-09-17): 시트 정렬 버튼 제거, 플레이어 삭제 로직 개선
+  - v3.2.6 (2025-09-17): 정렬 기준 변경 (Table > Seat)
   - v3.2.4 (2025-09-17): Google Sheets 자동 정렬 기능 추가
   - v3.2.3 (2025-09-17): 디버귵 로그 개선 및 캐시 버스팅
   - v3.2.2 (2025-09-17): 플레이어 삭제 성능 최적화
@@ -72,7 +73,7 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v3.2.5</title>
+  <title>포커 핸드 로거 v3.2.6</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -438,11 +439,6 @@
                 ✅ 일괄 등록
               </button>
             </div>
-            <div class="flex gap-2 mt-2">
-              <button id="sort-sheet-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 py-1.5 rounded text-sm">
-                🔄 시트 정렬
-              </button>
-            </div>
             <div id="changes-summary" class="mt-2 text-xs text-gray-400"></div>
           </div>
         </div>
@@ -688,7 +684,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.2.5';
+  const APP_VERSION = 'v3.2.6';
   const VERSION_DATE = '2025-09-17';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -3710,7 +3706,7 @@
         const seat = String(r[6]||'').trim(); // G열: Seat
         const status = String(r[7]||'IN').trim().toUpperCase(); // H열: Status (기본값: IN)
 
-        console.log(`[v3.2.2] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
+        console.log(`[v3.2.6] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
 
         // IN 상태인 플레이어만 처리 (빈 값이면 IN으로 간주)
         if(player && table && status === 'IN'){
@@ -3724,20 +3720,20 @@
               seat,
               status // 상태도 저장
             });
-            console.log(`[v3.2.2] ✅ ${player} 추가됨 (${table})`);
+            console.log(`[v3.2.6] ✅ ${player} 추가됨 (${table})`);
           } else {
-            console.log(`[v3.2.2] ⚠️ ${player} 중복 건너뜀 (${table})`);
+            console.log(`[v3.2.6] ⚠️ ${player} 중복 건너뜀 (${table})`);
           }
         } else {
-          console.log(`[v3.2.2] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
+          console.log(`[v3.2.6] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
         }
       }
 
       // 처리 결과 요약 로그
-      console.log(`[v3.2.2] === buildTypeFromCsv 완료 ===`);
-      console.log(`[v3.2.2] 총 테이블 수: ${Object.keys(byTable).length}`);
+      console.log(`[v3.2.6] === buildTypeFromCsv 완료 ===`);
+      console.log(`[v3.2.6] 총 테이블 수: ${Object.keys(byTable).length}`);
       Object.keys(byTable).forEach(table => {
-        console.log(`[v3.2.2] ${table}: ${byTable[table].length}명 (IN 상태만)`);
+        console.log(`[v3.2.6] ${table}: ${byTable[table].length}명 (IN 상태만)`);
       });
 
       window.state.playerDataByTable=byTable;
@@ -5435,20 +5431,20 @@ async function sendDataToGoogleSheet(){
     // Apps Script URL 저장 버튼 - 지연 실행으로 DOM 로드 보장
     setTimeout(() => {
       const saveUrlBtn = document.getElementById('save-apps-url-btn');
-      console.log('[v3.2.2] Apps Script URL 저장 버튼:', saveUrlBtn);
+      console.log('[v3.2.6] Apps Script URL 저장 버튼:', saveUrlBtn);
 
       if (saveUrlBtn) {
         saveUrlBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          console.log('[v3.2.2] URL 저장 버튼 클릭됨');
+          console.log('[v3.2.6] URL 저장 버튼 클릭됨');
 
           const urlInput = document.getElementById('management-apps-url-input');
           const urlStatus = document.getElementById('url-save-status');
           const currentUrlSpan = document.getElementById('management-current-url');
           const newUrl = urlInput?.value.trim();
 
-          console.log('[v3.2.2] 입력된 URL:', newUrl);
-          console.log('[v3.2.2] 현재 URL:', APPS_SCRIPT_URL);
+          console.log('[v3.2.6] 입력된 URL:', newUrl);
+          console.log('[v3.2.6] 현재 URL:', APPS_SCRIPT_URL);
 
           // 상태 메시지 표시 함수
           function showUrlStatus(message, isSuccess) {
@@ -5502,9 +5498,9 @@ async function sendDataToGoogleSheet(){
             showFeedback('동일한 URL입니다', true);
           }
         });
-        console.log('[v3.2.2] URL 저장 버튼 이벤트 리스너 등록 완료');
+        console.log('[v3.2.6] URL 저장 버튼 이벤트 리스너 등록 완료');
       } else {
-        console.error('[v3.2.2] save-apps-url-btn 요소를 찾을 수 없습니다');
+        console.error('[v3.2.6] save-apps-url-btn 요소를 찾을 수 없습니다');
       }
     }, 100);
 
@@ -5805,27 +5801,35 @@ async function sendDataToGoogleSheet(){
     // 로컬 플레이어 삭제 - 전역 스코프로 노출 (서버 통신 없음)
     window.deleteLocalPlayer = function(index) {
       const player = window.managementState.currentPlayers[index];
-      if (!player) return;
+      if (!player) {
+        console.log('[v3.2.6] 삭제할 플레이어 없음:', index);
+        return;
+      }
+
+      console.log('[v3.2.6] 플레이어 삭제:', player.name, 'index:', index);
 
       // ActionHistory를 사용한 즉시 삭제
       const originalIndex = index;
       const originalPlayer = { ...player };
+      const originalName = player.name;  // 이름 별도 저장
 
       // 즉시 UI 업데이트
       window.managementState.currentPlayers.splice(index, 1);
 
       // 변경 사항 추적
-      if (window.managementState.changes.added.includes(player.name)) {
+      if (window.managementState.changes.added.includes(originalName)) {
         // 새로 추가한 항목이면 added에서 제거
-        window.managementState.changes.added = window.managementState.changes.added.filter(n => n !== player.name);
+        window.managementState.changes.added = window.managementState.changes.added.filter(n => n !== originalName);
       } else {
         // 기존 항목이면 deleted에 추가
-        if (!window.managementState.changes.deleted.includes(player.name)) {
-          window.managementState.changes.deleted.push(player.name);
+        if (!window.managementState.changes.deleted.includes(originalName)) {
+          window.managementState.changes.deleted.push(originalName);
         }
         // modified에서 제거
-        window.managementState.changes.modified = window.managementState.changes.modified.filter(n => n !== player.name);
+        window.managementState.changes.modified = window.managementState.changes.modified.filter(n => n !== originalName);
       }
+
+      console.log('[v3.2.6] 삭제 후 changes:', window.managementState.changes);
 
       renderManagementPlayersList();
       updateChangesSummary();
@@ -5902,42 +5906,6 @@ async function sendDataToGoogleSheet(){
       }
     });
 
-    // 시트 정렬 버튼
-    document.getElementById('sort-sheet-btn')?.addEventListener('click', async () => {
-      if (window.actionHistory) {
-        window.actionHistory.showSnackbar('시트 정렬 중...', null, 'info');
-      }
-
-      try {
-        const formData = new FormData();
-        formData.append('action', 'sortSheet');
-
-        const response = await fetch(APPS_SCRIPT_URL, {
-          method: 'POST',
-          body: formData
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-          if (window.actionHistory) {
-            window.actionHistory.showSnackbar('✅ 시트가 정렬되었습니다', null, 'success');
-          }
-          console.log('[v3.2.5] 시트 정렬 완료');
-        } else {
-          if (window.actionHistory) {
-            window.actionHistory.showSnackbar('❌ 정렬 실패', null, 'error');
-          }
-          console.error('[v3.2.5] 시트 정렬 실패:', result.message);
-        }
-      } catch (error) {
-        console.error('[v3.2.5] 시트 정렬 오류:', error);
-        if (window.actionHistory) {
-          window.actionHistory.showSnackbar('❌ 정렬 중 오류 발생', null, 'error');
-        }
-      }
-    });
-
     // 일괄 등록
     document.getElementById('batch-register-btn')?.addEventListener('click', async () => {
       const { added, modified, deleted } = window.managementState.changes;
@@ -5964,13 +5932,13 @@ async function sendDataToGoogleSheet(){
       await executeWithLock(async () => {
 
       try {
-        console.log('[v3.2.2] === 일괄 등록 시작 ===');
-        console.log('[v3.2.2] 선택된 테이블:', window.managementState.selectedTable);
-        console.log('[v3.2.2] 현재 플레이어 수:', window.managementState.currentPlayers.length);
-        console.log('[v3.2.2] 추가될 플레이어:', added);
-        console.log('[v3.2.2] 수정될 플레이어:', modified);
-        console.log('[v3.2.2] 삭제될 플레이어:', deleted);
-        console.log('[v3.2.2] Apps Script URL:', APPS_SCRIPT_URL);
+        console.log('[v3.2.6] === 일괄 등록 시작 ===');
+        console.log('[v3.2.6] 선택된 테이블:', window.managementState.selectedTable);
+        console.log('[v3.2.6] 현재 플레이어 수:', window.managementState.currentPlayers.length);
+        console.log('[v3.2.6] 추가될 플레이어:', added);
+        console.log('[v3.2.6] 수정될 플레이어:', modified);
+        console.log('[v3.2.6] 삭제될 플레이어:', deleted);
+        console.log('[v3.2.6] Apps Script URL:', APPS_SCRIPT_URL);
 
         // 일괄 처리 요청
         const formData = new FormData();
@@ -5979,16 +5947,16 @@ async function sendDataToGoogleSheet(){
         formData.append('players', JSON.stringify(window.managementState.currentPlayers));
         formData.append('deleted', JSON.stringify(deleted));
 
-        console.log('[v3.2.2] FormData 생성 완료');
-        console.log('[v3.2.2] 전송할 플레이어 데이터:', JSON.stringify(window.managementState.currentPlayers, null, 2));
-        console.log('[v3.2.2] 삭제할 플레이어 이름들:', JSON.stringify(deleted, null, 2));
+        console.log('[v3.2.6] FormData 생성 완료');
+        console.log('[v3.2.6] 전송할 플레이어 데이터:', JSON.stringify(window.managementState.currentPlayers, null, 2));
+        console.log('[v3.2.6] 삭제할 플레이어 이름들:', JSON.stringify(deleted, null, 2));
 
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           body: formData
         });
 
-        console.log('[v3.2.2] 응답 수신:', response.status, response.statusText);
+        console.log('[v3.2.6] 응답 수신:', response.status, response.statusText);
 
         if (!response.ok) {
           console.log(`HTTP ${response.status}: ${response.statusText}`);
@@ -5997,10 +5965,10 @@ async function sendDataToGoogleSheet(){
         }
 
         const result = await response.json();
-        console.log('[v3.2.2] 응답 데이터:', result);
+        console.log('[v3.2.6] 응답 데이터:', result);
 
         if (result.success) {
-          console.log('[v3.2.2] 일괄 등록 성공:', result);
+          console.log('[v3.2.6] 일괄 등록 성공:', result);
           syncStatus.textContent = '✅ 동기화 완료';
           syncStatus.className = 'text-xs text-green-400';
 
@@ -6013,47 +5981,47 @@ async function sendDataToGoogleSheet(){
 
           // 데이터 새로고침 - CSV 방식 사용
           try {
-            console.log('[v3.2.2] 데이터 새로고침 시작...');
-            console.log('[v3.2.2] CSV_TYPE_URL:', CSV_TYPE_URL);
+            console.log('[v3.2.6] 데이터 새로고침 시작...');
+            console.log('[v3.2.6] CSV_TYPE_URL:', CSV_TYPE_URL);
 
             const csv = await fetch(CSV_TYPE_URL).then(r => {
-              console.log('[v3.2.2] CSV 응답 상태:', r.status, r.statusText);
+              console.log('[v3.2.6] CSV 응답 상태:', r.status, r.statusText);
               return r.text();
             });
 
-            console.log('[v3.2.2] CSV 데이터 길이:', csv.length);
-            console.log('[v3.2.2] CSV 첫 100자:', csv.substring(0, 100));
+            console.log('[v3.2.6] CSV 데이터 길이:', csv.length);
+            console.log('[v3.2.6] CSV 첫 100자:', csv.substring(0, 100));
 
             const rows = parseCSV(csv);
-            console.log('[v3.2.2] 파싱된 행 수:', rows.length);
+            console.log('[v3.2.6] 파싱된 행 수:', rows.length);
 
             buildTypeFromCsv(rows);
-            console.log('[v3.2.2] Type 데이터 빌드 완료');
-            console.log('[v3.2.2] 업데이트된 테이블:', Object.keys(window.state.playerDataByTable));
+            console.log('[v3.2.6] Type 데이터 빌드 완료');
+            console.log('[v3.2.6] 업데이트된 테이블:', Object.keys(window.state.playerDataByTable));
           } catch (refreshError) {
-            console.error('[v3.2.2] 데이터 새로고침 실패:', refreshError);
+            console.error('[v3.2.6] 데이터 새로고침 실패:', refreshError);
             showFeedback('⚠️ 데이터 새로고침 실패, 페이지를 새로고침해주세요', true);
           }
 
           // 상태 리셋
           try {
-            console.log('[v3.2.2] 상태 리셋 시작...');
-            console.log('[v3.2.2] 선택된 테이블:', window.managementState.selectedTable);
+            console.log('[v3.2.6] 상태 리셋 시작...');
+            console.log('[v3.2.6] 선택된 테이블:', window.managementState.selectedTable);
 
             const refreshedPlayers = window.state.playerDataByTable[window.managementState.selectedTable] || [];
-            console.log('[v3.2.2] 새로고침된 플레이어 수:', refreshedPlayers.length);
+            console.log('[v3.2.6] 새로고침된 플레이어 수:', refreshedPlayers.length);
 
             window.managementState.originalPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
             window.managementState.currentPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
             window.managementState.changes = { added: [], modified: [], deleted: [] };
 
-            console.log('[v3.2.2] 상태 리셋 완료');
+            console.log('[v3.2.6] 상태 리셋 완료');
           } catch (resetError) {
-            console.error('[v3.2.2] 상태 리셋 실패:', resetError);
+            console.error('[v3.2.6] 상태 리셋 실패:', resetError);
           }
 
           try {
-            console.log('[v3.2.2] UI 업데이트 시작...');
+            console.log('[v3.2.6] UI 업데이트 시작...');
             renderManagementPlayersList();
             updateChangesSummary();
             renderPlayerSelection(); // 메인 화면 업데이트
@@ -6061,18 +6029,18 @@ async function sendDataToGoogleSheet(){
             // 전체 UI 새로고침 (즉시 반영을 위해)
             if (typeof renderAll === 'function') {
               renderAll();
-              console.log('[v3.2.2] 전체 UI 새로고침 완료');
+              console.log('[v3.2.6] 전체 UI 새로고침 완료');
             }
 
             // 플레이어 데이터 다시 렌더링
             if (typeof updatePlayersDisplay === 'function') {
               updatePlayersDisplay();
-              console.log('[v3.2.2] 플레이어 디스플레이 새로고침 완료');
+              console.log('[v3.2.6] 플레이어 디스플레이 새로고침 완료');
             }
 
-            console.log('[v3.2.2] UI 업데이트 완료 - 모든 변경사항이 즉시 적용됨');
+            console.log('[v3.2.6] UI 업데이트 완료 - 모든 변경사항이 즉시 적용됨');
           } catch (uiError) {
-            console.error('[v3.2.2] UI 업데이트 실패:', uiError);
+            console.error('[v3.2.6] UI 업데이트 실패:', uiError);
           }
         } else {
           // 오류 처리
@@ -6091,11 +6059,11 @@ async function sendDataToGoogleSheet(){
           }
         }
       } catch(err) {
-        console.error('[v3.2.2] === 일괄 등록 오류 ===');
-        console.error('[v3.2.2] 오류 타입:', err.constructor.name);
-        console.error('[v3.2.2] 오류 메시지:', err.message);
-        console.error('[v3.2.2] 오류 스택:', err.stack);
-        console.error('[v3.2.2] 전체 오류 객체:', err);
+        console.error('[v3.2.6] === 일괄 등록 오류 ===');
+        console.error('[v3.2.6] 오류 타입:', err.constructor.name);
+        console.error('[v3.2.6] 오류 메시지:', err.message);
+        console.error('[v3.2.6] 오류 스택:', err.stack);
+        console.error('[v3.2.6] 전체 오류 객체:', err);
 
         syncStatus.textContent = '❌ 동기화 실패';
         syncStatus.className = 'text-xs text-red-400';
@@ -6117,12 +6085,12 @@ async function sendDataToGoogleSheet(){
           debugInfo = 'Apps Script가 올바른 JSON을 반환하지 않습니다';
         }
 
-        console.error('[v3.2.2] 분석된 오류:', errorMessage);
-        console.error('[v3.2.2] 디버그 정보:', debugInfo);
+        console.error('[v3.2.6] 분석된 오류:', errorMessage);
+        console.error('[v3.2.6] 디버그 정보:', debugInfo);
 
         showFeedback(`❌ ${errorMessage}${debugInfo ? ` (${debugInfo})` : ''}`, true);
       } finally {
-        console.log('[v3.2.2] === 일괄 등록 종료 ===');
+        console.log('[v3.2.6] === 일괄 등록 종료 ===');
       }
     }, '플레이어 등록', '플레이어 정보를 서버에 저장하고 있습니다...');
     });
@@ -6238,24 +6206,24 @@ async function sendDataToGoogleSheet(){
 
         const result = await response.json();
         if (result.success) {
-          console.log('[v3.2.2] 플레이어 추가 성공:', result);
+          console.log('[v3.2.6] 플레이어 추가 성공:', result);
           showFeedback(`✅ ${name} 추가됨`);
 
           // 데이터 새로고침 - CSV 방식 사용
           try {
-            console.log('[v3.2.2] 플레이어 추가 후 데이터 새로고침...');
+            console.log('[v3.2.6] 플레이어 추가 후 데이터 새로고침...');
             const csv = await fetch(CSV_TYPE_URL).then(r => r.text());
             const rows = parseCSV(csv);
             buildTypeFromCsv(rows);
-            console.log('[v3.2.2] 플레이어 추가 후 새로고침 완료');
+            console.log('[v3.2.6] 플레이어 추가 후 새로고침 완료');
           } catch (refreshError) {
-            console.error('[v3.2.2] 플레이어 추가 후 새로고침 실패:', refreshError);
+            console.error('[v3.2.6] 플레이어 추가 후 새로고침 실패:', refreshError);
           }
 
           loadPlayersList();
           renderPlayerSelection();
         } else {
-          console.error('[v3.2.2] 플레이어 추가 실패:', result);
+          console.error('[v3.2.6] 플레이어 추가 실패:', result);
           showFeedback(`❌ 추가 실패: ${result.error}`, true);
         }
       } catch(err) {

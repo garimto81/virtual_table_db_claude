@@ -676,9 +676,10 @@ function doPost(e) {
           return _json(batchUpdatePlayers(body.table, body.players, body.deleted));
 
         case 'sortSheet':
+          const sortResult = sortTypeSheet();
           return _json({
-            success: sortTypeSheet(),
-            message: sortTypeSheet() ? '시트 정렬 완료' : '정렬 실패'
+            success: sortResult,
+            message: sortResult ? '시트 정렬 완료' : '정렬 실패'
           });
 
         // v56 기능
