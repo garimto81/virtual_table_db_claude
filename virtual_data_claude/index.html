@@ -6,6 +6,7 @@
   Last Modified: 2025-09-17 KST
 
   Change Log:
+  - v3.2.2 (2025-09-17): 플레이어 삭제 성능 최적화
   - v3.2.1 (2025-09-17): 플레이어 삭제 로직 버그 수정
   - v3.2.0 (2025-09-17): Phase 3 - 모바일 최적화 완성
     • 터치 인터페이스 최적화 (44x44px 최소 크기)
@@ -68,7 +69,7 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v3.2.1</title>
+  <title>포커 핸드 로거 v3.2.2</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -679,7 +680,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.2.1';
+  const APP_VERSION = 'v3.2.2';
   const VERSION_DATE = '2025-09-17';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -5508,8 +5509,8 @@ async function sendDataToGoogleSheet(){
       openTableSelectorModal();
     });
 
-    // 플레이어 관리 시스템 상태
-    let managementState = {
+    // 플레이어 관리 시스템 상태 - 전역 스코프로 노출
+    window.managementState = {
       selectedTable: '',
       originalPlayers: [],
       currentPlayers: [],
@@ -5523,7 +5524,7 @@ async function sendDataToGoogleSheet(){
     // 플레이어 관리 초기화
     function initPlayerManagement() {
       // 초기 상태로 리셋
-      managementState = {
+      window.managementState = {
         selectedTable: '',
         originalPlayers: [],
         currentPlayers: [],
@@ -5543,16 +5544,16 @@ async function sendDataToGoogleSheet(){
       console.log('[DEBUG] onManagementTableSelected 호출됨, tableName:', tableName);
       if (!tableName) return;
 
-      managementState.selectedTable = tableName;
-      managementState.originalPlayers = JSON.parse(JSON.stringify(
+      window.managementState.selectedTable = tableName;
+      window.managementState.originalPlayers = JSON.parse(JSON.stringify(
         window.state.playerDataByTable[tableName] || []
       ));
-      managementState.currentPlayers = JSON.parse(JSON.stringify(
-        managementState.originalPlayers
+      window.managementState.currentPlayers = JSON.parse(JSON.stringify(
+        window.managementState.originalPlayers
       ));
-      managementState.changes = { added: [], modified: [], deleted: [] };
+      window.managementState.changes = { added: [], modified: [], deleted: [] };
 
-      console.log('[DEBUG] managementState 설정됨:', managementState);
+      console.log('[DEBUG] managementState 설정됨:', window.managementState);
 
       // UI 업데이트 - 테이블 정보는 항상 표시
       document.getElementById('selected-table-name').textContent = tableName;
@@ -5577,7 +5578,7 @@ async function sendDataToGoogleSheet(){
         return;
       }
 
-      const players = managementState.currentPlayers;
+      const players = window.managementState.currentPlayers;
       console.log('[DEBUG] 렌더링할 플레이어:', players);
       countDisplay.textContent = `${players.length}/10명`;
 
@@ -5595,8 +5596,8 @@ async function sendDataToGoogleSheet(){
         <div class="grid grid-cols-2 gap-1">
           ${seats.map(({ seatNumber, player }) => {
             const index = player ? players.indexOf(player) : -1;
-            const isModified = player && managementState.changes.modified.includes(player.name);
-            const isAdded = player && managementState.changes.added.includes(player.name);
+            const isModified = player && window.managementState.changes.modified.includes(player.name);
+            const isAdded = player && window.managementState.changes.added.includes(player.name);
             const isEmpty = !player;
 
             return `
@@ -5673,13 +5674,13 @@ async function sendDataToGoogleSheet(){
           const newName = e.target.value.trim();
 
           if (index >= 0 && newName) {
-            const player = managementState.currentPlayers[index];
+            const player = window.managementState.currentPlayers[index];
             if (player && player.name !== newName) {
               player.name = newName;
 
-              if (!managementState.changes.added.includes(player.name)) {
-                if (!managementState.changes.modified.includes(player.name)) {
-                  managementState.changes.modified.push(player.name);
+              if (!window.managementState.changes.added.includes(player.name)) {
+                if (!window.managementState.changes.modified.includes(player.name)) {
+                  window.managementState.changes.modified.push(player.name);
                 }
               }
               updateChangesSummary();
@@ -5707,19 +5708,19 @@ async function sendDataToGoogleSheet(){
       if (!name) return;
 
       // 중복 체크
-      if (managementState.currentPlayers.some(p => p.name === name)) {
+      if (window.managementState.currentPlayers.some(p => p.name === name)) {
         showFeedback(`${name}은(는) 이미 존재합니다`, true);
         return;
       }
 
       // 좌석 중복 체크
-      if (managementState.currentPlayers.some(p => parseInt(p.seat) === seatNumber)) {
+      if (window.managementState.currentPlayers.some(p => parseInt(p.seat) === seatNumber)) {
         showFeedback(`좌석 ${seatNumber}번은 이미 사용 중입니다`, true);
         return;
       }
 
       // 플레이어 수 제한 (10명)
-      if (managementState.currentPlayers.length >= 10) {
+      if (window.managementState.currentPlayers.length >= 10) {
         showFeedback('최대 10명까지만 등록 가능합니다', true);
         return;
       }
@@ -5729,13 +5730,13 @@ async function sendDataToGoogleSheet(){
         name: name,
         seat: String(seatNumber),
         chips: '100000', // 기본 칩
-        table: managementState.selectedTable,
+        table: window.managementState.selectedTable,
         notable: false,
         status: 'IN'
       };
 
-      managementState.currentPlayers.push(newPlayer);
-      managementState.changes.added.push(name);
+      window.managementState.currentPlayers.push(newPlayer);
+      window.managementState.changes.added.push(name);
 
       renderManagementPlayersList();
       updateChangesSummary();
@@ -5754,11 +5755,11 @@ async function sendDataToGoogleSheet(){
 
     // 로컬 플레이어 좌석 업데이트
     function updateLocalPlayerSeat(index, newSeat) {
-      const player = managementState.currentPlayers[index];
+      const player = window.managementState.currentPlayers[index];
       if (!player) return;
 
       // 좌석 중복 체크
-      if (newSeat && managementState.currentPlayers.some((p, i) => i !== index && p.seat === newSeat)) {
+      if (newSeat && window.managementState.currentPlayers.some((p, i) => i !== index && p.seat === newSeat)) {
         showFeedback(`좌석 ${newSeat}번은 이미 사용 중입니다`, true);
         renderManagementPlayersList();
         return;
@@ -5767,9 +5768,9 @@ async function sendDataToGoogleSheet(){
       player.seat = newSeat;
 
       // 변경 사항 추적
-      if (!managementState.changes.added.includes(player.name)) {
-        if (!managementState.changes.modified.includes(player.name)) {
-          managementState.changes.modified.push(player.name);
+      if (!window.managementState.changes.added.includes(player.name)) {
+        if (!window.managementState.changes.modified.includes(player.name)) {
+          window.managementState.changes.modified.push(player.name);
         }
       }
 
@@ -5778,52 +5779,44 @@ async function sendDataToGoogleSheet(){
 
     // 로컬 플레이어 칩 업데이트
     function updateLocalPlayerChips(index, newChips) {
-      const player = managementState.currentPlayers[index];
+      const player = window.managementState.currentPlayers[index];
       if (!player) return;
 
       player.chips = newChips;
 
       // 변경 사항 추적
-      if (!managementState.changes.added.includes(player.name)) {
-        if (!managementState.changes.modified.includes(player.name)) {
-          managementState.changes.modified.push(player.name);
+      if (!window.managementState.changes.added.includes(player.name)) {
+        if (!window.managementState.changes.modified.includes(player.name)) {
+          window.managementState.changes.modified.push(player.name);
         }
       }
 
       updateChangesSummary();
     }
 
-    // 로컬 플레이어 삭제
-    async function deleteLocalPlayer(index) {
-      console.log('[DEBUG] deleteLocalPlayer 호출됨, index:', index);
-      console.log('[DEBUG] 현재 플레이어 목록:', managementState.currentPlayers);
-
-      const player = managementState.currentPlayers[index];
-      if (!player) {
-        console.log('[DEBUG] 플레이어를 찾을 수 없음, index:', index);
-        return;
-      }
-
-      console.log('[DEBUG] 삭제할 플레이어:', player);
+    // 로컬 플레이어 삭제 - 전역 스코프로 노출 (서버 통신 없음)
+    window.deleteLocalPlayer = function(index) {
+      const player = window.managementState.currentPlayers[index];
+      if (!player) return;
 
       // ActionHistory를 사용한 즉시 삭제
       const originalIndex = index;
       const originalPlayer = { ...player };
 
       // 즉시 UI 업데이트
-      managementState.currentPlayers.splice(index, 1);
+      window.managementState.currentPlayers.splice(index, 1);
 
       // 변경 사항 추적
-      if (managementState.changes.added.includes(player.name)) {
+      if (window.managementState.changes.added.includes(player.name)) {
         // 새로 추가한 항목이면 added에서 제거
-        managementState.changes.added = managementState.changes.added.filter(n => n !== player.name);
+        window.managementState.changes.added = window.managementState.changes.added.filter(n => n !== player.name);
       } else {
         // 기존 항목이면 deleted에 추가
-        if (!managementState.changes.deleted.includes(player.name)) {
-          managementState.changes.deleted.push(player.name);
+        if (!window.managementState.changes.deleted.includes(player.name)) {
+          window.managementState.changes.deleted.push(player.name);
         }
         // modified에서 제거
-        managementState.changes.modified = managementState.changes.modified.filter(n => n !== player.name);
+        window.managementState.changes.modified = window.managementState.changes.modified.filter(n => n !== player.name);
       }
 
       renderManagementPlayersList();
@@ -5831,13 +5824,13 @@ async function sendDataToGoogleSheet(){
 
       // 스낵바 표시 (실행취소 가능)
       if (window.actionHistory) {
-        window.actionHistory.showSnackbar(`${player.name} 삭제됨`, () => {
+        window.actionHistory.showSnackbar(`${player.name} 삭제됨 (로컬)`, () => {
           // 실행 취소 로직
-          managementState.currentPlayers.splice(originalIndex, 0, originalPlayer);
+          window.managementState.currentPlayers.splice(originalIndex, 0, originalPlayer);
 
           // 변경 사항 복구
-          if (managementState.changes.deleted.includes(originalPlayer.name)) {
-            managementState.changes.deleted = managementState.changes.deleted.filter(n => n !== originalPlayer.name);
+          if (window.managementState.changes.deleted.includes(originalPlayer.name)) {
+            window.managementState.changes.deleted = window.managementState.changes.deleted.filter(n => n !== originalPlayer.name);
           }
 
           renderManagementPlayersList();
@@ -5851,7 +5844,7 @@ async function sendDataToGoogleSheet(){
     // 변경 사항 요약 업데이트
     function updateChangesSummary() {
       const summary = document.getElementById('changes-summary');
-      const { added, modified, deleted } = managementState.changes;
+      const { added, modified, deleted } = window.managementState.changes;
 
       const parts = [];
       if (added.length > 0) parts.push(`추가: ${added.length}명`);
@@ -5859,12 +5852,13 @@ async function sendDataToGoogleSheet(){
       if (deleted.length > 0) parts.push(`삭제: ${deleted.length}명`);
 
       if (parts.length > 0) {
-        summary.textContent = `변경 사항: ${parts.join(', ')}`;
+        summary.innerHTML = `<span class="text-yellow-400">⚠️ 미등록 변경사항:</span> ${parts.join(', ')}<br>
+        <span class="text-xs text-gray-500">일괄 등록 버튼을 눌러 서버에 저장하세요</span>`;
         summary.classList.remove('text-gray-400');
-        summary.classList.add('text-amber-400');
+        summary.classList.add('text-amber-300');
       } else {
         summary.textContent = '변경 사항 없음';
-        summary.classList.remove('text-amber-400');
+        summary.classList.remove('text-amber-300');
         summary.classList.add('text-gray-400');
       }
     }
@@ -5873,15 +5867,15 @@ async function sendDataToGoogleSheet(){
     document.getElementById('reset-changes-btn')?.addEventListener('click', () => {
       // 백업 데이터 생성 (실행취소용)
       const backup = {
-        players: JSON.parse(JSON.stringify(managementState.currentPlayers)),
-        changes: JSON.parse(JSON.stringify(managementState.changes))
+        players: JSON.parse(JSON.stringify(window.managementState.currentPlayers)),
+        changes: JSON.parse(JSON.stringify(window.managementState.changes))
       };
 
       // 원본 데이터로 복원
-      managementState.currentPlayers = JSON.parse(JSON.stringify(
-        managementState.originalPlayers
+      window.managementState.currentPlayers = JSON.parse(JSON.stringify(
+        window.managementState.originalPlayers
       ));
-      managementState.changes = { added: [], modified: [], deleted: [] };
+      window.managementState.changes = { added: [], modified: [], deleted: [] };
 
       renderManagementPlayersList();
       updateChangesSummary();
@@ -5890,8 +5884,8 @@ async function sendDataToGoogleSheet(){
       if (window.actionHistory) {
         window.actionHistory.showSnackbar('변경 사항이 초기화되었습니다', () => {
           // 실행 취소 - 이전 상태로 복구
-          managementState.currentPlayers = backup.players;
-          managementState.changes = backup.changes;
+          window.managementState.currentPlayers = backup.players;
+          window.managementState.changes = backup.changes;
           renderManagementPlayersList();
           updateChangesSummary();
         });
@@ -5902,7 +5896,7 @@ async function sendDataToGoogleSheet(){
 
     // 일괄 등록 (Phase 2: BatchProcessor 사용)
     document.getElementById('batch-register-btn')?.addEventListener('click', async () => {
-      const { added, modified, deleted } = managementState.changes;
+      const { added, modified, deleted } = window.managementState.changes;
 
       if (added.length === 0 && modified.length === 0 && deleted.length === 0) {
         if (window.actionHistory) {
@@ -5920,7 +5914,7 @@ async function sendDataToGoogleSheet(){
 
         // 삭제 작업들
         deleted.forEach(name => {
-          const player = managementState.originalPlayers.find(p => p.name === name);
+          const player = window.managementState.originalPlayers.find(p => p.name === name);
           if (player) {
             actions.push(new DeletePlayerAction(player));
           }
@@ -5928,8 +5922,8 @@ async function sendDataToGoogleSheet(){
 
         // 수정 작업들
         modified.forEach(name => {
-          const oldPlayer = managementState.originalPlayers.find(p => p.name === name);
-          const newPlayer = managementState.currentPlayers.find(p => p.name === name);
+          const oldPlayer = window.managementState.originalPlayers.find(p => p.name === name);
+          const newPlayer = window.managementState.currentPlayers.find(p => p.name === name);
           if (oldPlayer && newPlayer) {
             actions.push(new UpdatePlayerAction(oldPlayer, newPlayer));
           }
@@ -5937,7 +5931,7 @@ async function sendDataToGoogleSheet(){
 
         // 추가 작업들
         added.forEach(name => {
-          const player = managementState.currentPlayers.find(p => p.name === name);
+          const player = window.managementState.currentPlayers.find(p => p.name === name);
           if (player) {
             actions.push(new AddPlayerAction(player));
           }
@@ -5976,20 +5970,20 @@ async function sendDataToGoogleSheet(){
 
       try {
         console.log('[v2.24.0] === 일괄 등록 시작 ===');
-        console.log('[v2.24.0] 선택된 테이블:', managementState.selectedTable);
-        console.log('[v2.24.0] 현재 플레이어 수:', managementState.currentPlayers.length);
+        console.log('[v2.24.0] 선택된 테이블:', window.managementState.selectedTable);
+        console.log('[v2.24.0] 현재 플레이어 수:', window.managementState.currentPlayers.length);
         console.log('[v2.24.0] 삭제될 플레이어:', deleted);
         console.log('[v2.24.0] Apps Script URL:', APPS_SCRIPT_URL);
 
         // 일괄 처리 요청
         const formData = new FormData();
         formData.append('action', 'batchUpdate');
-        formData.append('table', managementState.selectedTable);
-        formData.append('players', JSON.stringify(managementState.currentPlayers));
+        formData.append('table', window.managementState.selectedTable);
+        formData.append('players', JSON.stringify(window.managementState.currentPlayers));
         formData.append('deleted', JSON.stringify(deleted));
 
         console.log('[v2.24.0] FormData 생성 완료');
-        console.log('[v2.24.0] 전송할 플레이어 데이터:', JSON.stringify(managementState.currentPlayers, null, 2));
+        console.log('[v2.24.0] 전송할 플레이어 데이터:', JSON.stringify(window.managementState.currentPlayers, null, 2));
 
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
@@ -6046,14 +6040,14 @@ async function sendDataToGoogleSheet(){
           // 상태 리셋
           try {
             console.log('[v2.24.0] 상태 리셋 시작...');
-            console.log('[v2.24.0] 선택된 테이블:', managementState.selectedTable);
+            console.log('[v2.24.0] 선택된 테이블:', window.managementState.selectedTable);
 
-            const refreshedPlayers = window.state.playerDataByTable[managementState.selectedTable] || [];
+            const refreshedPlayers = window.state.playerDataByTable[window.managementState.selectedTable] || [];
             console.log('[v2.24.0] 새로고침된 플레이어 수:', refreshedPlayers.length);
 
-            managementState.originalPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
-            managementState.currentPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
-            managementState.changes = { added: [], modified: [], deleted: [] };
+            window.managementState.originalPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
+            window.managementState.currentPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
+            window.managementState.changes = { added: [], modified: [], deleted: [] };
 
             console.log('[v2.24.0] 상태 리셋 완료');
           } catch (resetError) {
@@ -6188,6 +6182,8 @@ async function sendDataToGoogleSheet(){
         });
       });
 
+      // 구버전 삭제 버튼 - 사용하지 않음
+      /*
       listContainer.querySelectorAll('.delete-player-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const playerName = e.target.dataset.player;
@@ -6195,6 +6191,7 @@ async function sendDataToGoogleSheet(){
           deletePlayer(playerName);
         });
       });
+      */
     }
 
     // 플레이어 추가 버튼 이벤트
@@ -6324,7 +6321,10 @@ async function sendDataToGoogleSheet(){
       }
     }
 
-    // 플레이어 삭제
+    // 플레이어 삭제 (구버전 - 사용하지 않음)
+    // 새로운 관리 시스템에서는 deleteLocalPlayer를 사용하고
+    // 서버 동기화는 일괄 등록 시에만 처리
+    /*
     async function deletePlayer(playerName) {
       try {
         const formData = new FormData();
@@ -6356,6 +6356,7 @@ async function sendDataToGoogleSheet(){
         showFeedback('플레이어 삭제 중 오류 발생', true);
       }
     }
+    */
     
     // ========================================
     // 설정 모달 이벤트 핸들러
