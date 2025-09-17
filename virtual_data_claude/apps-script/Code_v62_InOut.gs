@@ -1,6 +1,16 @@
 /****************************************************
- * Poker Hand Logger - Apps Script Backend v59
+ * Poker Hand Logger - Apps Script Backend v62
  * Type 시트 기반 - IN/OUT 두 가지 상태만 사용
+ *
+ * v62 변경사항:
+ * - 삭제 로직 디버깅 강화 (상세 로그 추가)
+ * - 삭제 조건 완화 (STATUS 조건 제거)
+ * - 에러 처리 개선 (상세 오류 정보 제공)
+ * - 삭제 로직 변경: OUT 처리 → 실제 행 삭제
+ * - 삭제 후 자동 시트 재정렬
+ * - 중복 플레이어 처리 로직 개선
+ * - sortSheet 이중 호출 버그 수정
+ * - 일괄 업데이트 시 자동 정렬
  * 
  * Type 시트 구조:
  * A: Camera Preset
@@ -395,39 +405,67 @@ function batchUpdatePlayers(tableName, playersJson, deletedJson) {
     const players = typeof playersJson === 'string' ? JSON.parse(playersJson) : playersJson;
     const deleted = typeof deletedJson === 'string' ? JSON.parse(deletedJson) : deletedJson;
 
+    console.log(`[batchUpdate 시작] 테이블: ${tableName}`);
+    console.log(`[batchUpdate] 플레이어: ${JSON.stringify(players)}`);
+    console.log(`[batchUpdate] 삭제 대상: ${JSON.stringify(deleted)}`);
+
     if (!sheet) return {success: false, message: 'Type 시트를 찾을 수 없습니다'};
 
     const data = sheet.getDataRange().getValues();
     const now = new Date();
+    const rowsToDelete = [];
 
-    // 1. 삭제 처리 - OUT 상태로 변경
+    console.log(`[시트 데이터] 총 ${data.length}개 행`);
+
+    // 1. 삭제 처리 - 실제 행 삭제 (조건 완화)
     for (const playerName of deleted) {
+      console.log(`[삭제 검색] ${playerName} in ${tableName}`);
+
       for (let i = 1; i < data.length; i++) {
-        if (data[i][TYPE_COLUMNS.PLAYER] === playerName &&
-            data[i][TYPE_COLUMNS.TABLE] === tableName &&
-            data[i][TYPE_COLUMNS.STATUS] === 'IN') {
-          sheet.getRange(i + 1, RANGE_COLUMNS.STATUS).setValue('OUT');
-          sheet.getRange(i + 1, RANGE_COLUMNS.UPDATED_AT).setValue(now);
-          data[i][TYPE_COLUMNS.STATUS] = 'OUT';
+        const rowData = data[i];
+        const rowPlayer = rowData[TYPE_COLUMNS.PLAYER];
+        const rowTable = rowData[TYPE_COLUMNS.TABLE];
+        const rowStatus = rowData[TYPE_COLUMNS.STATUS];
+
+        console.log(`[삭제 비교] Row ${i + 1}: ${rowPlayer} | ${rowTable} | ${rowStatus}`);
+
+        // 조건 완화: 이름과 테이블만 매칭 (STATUS 조건 제거)
+        if (rowPlayer === playerName && rowTable === tableName) {
+          rowsToDelete.push(i + 1); // 1-based row number
+          console.log(`[삭제 대상 선정] ${playerName} - Row ${i + 1}`);
           break;
         }
       }
     }
 
+    // 삭제할 행들을 내림차순으로 정렬하여 삭제 (인덱스 변경 방지)
+    rowsToDelete.sort((a, b) => b - a);
+
+    for (const rowIndex of rowsToDelete) {
+      console.log(`[행 삭제] Row ${rowIndex}`);
+      sheet.deleteRow(rowIndex);
+    }
+
+    console.log(`[삭제 완료] ${rowsToDelete.length}개 행 삭제됨`);
+
+    // 데이터 재로드 (삭제 후)
+    const updatedData = sheet.getDataRange().getValues();
+
     // 2. 업데이트 및 추가 처리
     for (const player of players) {
       let found = false;
 
-      // 기존 플레이어 찾기
-      for (let i = 1; i < data.length; i++) {
-        if (data[i][TYPE_COLUMNS.PLAYER] === player.name &&
-            data[i][TYPE_COLUMNS.TABLE] === tableName &&
-            data[i][TYPE_COLUMNS.STATUS] === 'IN') {
+      // 기존 플레이어 찾기 (업데이트된 데이터 사용)
+      for (let i = 1; i < updatedData.length; i++) {
+        if (updatedData[i][TYPE_COLUMNS.PLAYER] === player.name &&
+            updatedData[i][TYPE_COLUMNS.TABLE] === tableName &&
+            updatedData[i][TYPE_COLUMNS.STATUS] === 'IN') {
           // 업데이트
           const row = i + 1;
           sheet.getRange(row, RANGE_COLUMNS.SEAT).setValue(player.seat || '');
           sheet.getRange(row, RANGE_COLUMNS.CHIPS).setValue(player.chips || 0);
           sheet.getRange(row, RANGE_COLUMNS.UPDATED_AT).setValue(now);
+          console.log(`[업데이트] ${player.name} - Row ${row}`);
           found = true;
           break;
         }
@@ -444,23 +482,38 @@ function batchUpdatePlayers(tableName, playersJson, deletedJson) {
         sheet.getRange(newRow, RANGE_COLUMNS.UPDATED_AT).setValue(now);
         sheet.getRange(newRow, RANGE_COLUMNS.SEAT).setValue(player.seat || '');
         sheet.getRange(newRow, RANGE_COLUMNS.STATUS).setValue('IN');
+        console.log(`[추가] ${player.name} - Row ${newRow}`);
       }
     }
 
     // 3. 시트 정렬 수행
-    sortTypeSheet();
+    const sortResult = sortTypeSheet();
+    console.log(`[정렬 결과] ${sortResult ? '성공' : '실패'}`);
 
-    return {
+    const result = {
       success: true,
-      message: '일괄 업데이트 및 정렬 완료',
+      message: '일괄 업데이트, 삭제 및 정렬 완료',
       processed: {
         updated: players.length,
-        deleted: deleted.length
+        deleted: deleted.length,
+        deletedRows: rowsToDelete.length
       }
     };
+
+    console.log(`[batchUpdate 완료] ${JSON.stringify(result)}`);
+    return result;
   } catch (error) {
-    console.error('batchUpdatePlayers error:', error);
-    return {success: false, message: error.toString()};
+    console.error(`[batchUpdate 오류] ${error.toString()}`);
+    console.error(`[batchUpdate 오류] Stack: ${error.stack}`);
+    return {
+      success: false,
+      message: `오류: ${error.toString()}`,
+      error: {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      }
+    };
   }
 }
 
