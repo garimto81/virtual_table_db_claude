@@ -2,10 +2,17 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 3.3.0
+  Version: 3.3.3
   Last Modified: 2025-09-17 KST
 
   Change Log:
+  - v3.3.3 (2025-09-17): 유연한 칩 처리 시스템
+    • 칩 초과 베팅 허용 - 경고만 표시하고 진햗
+    • 마이너스 칩 허용 및 시각적 표시 (빨간색)
+    • 수동 칩 조정으로 유연한 처리 가능
+    • 현실적인 상황에 대응하는 설계
+  - v3.3.2 (2025-09-17): 칩 초과 베팅 방지 시스템 (deprecated)
+  - v3.3.1 (2025-09-17): 칩 초과 베팅 자동 올인 처리 (deprecated)
   - v3.3.0 (2025-09-17): 칩 수정 시 중복 플레이어 생성 문제 해결
     • Apps Script v65로 업그레이드
     • updatePlayerChips 함수 개선: 기존 플레이어 없으면 새로 추가
@@ -88,7 +95,7 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v3.3.0</title>
+  <title>포커 핸드 로거 v3.3.3</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -699,7 +706,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.3.0';
+  const APP_VERSION = 'v3.3.3';
   const VERSION_DATE = '2025-09-17';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -2084,12 +2091,17 @@
       
       el.playerDetailsSection.innerHTML = window.state.playersInHand.map(p=>{
         const roleClass=(p.role==='winner')?'is-winner':'';
-        const winnerBadge = p.role === 'winner' && finalPot > 0 ? 
+        const winnerBadge = p.role === 'winner' && finalPot > 0 ?
           `<span class="ml-2 text-amber-300 font-bold text-xs animate-pulse">🏆 +${formatNumber(finalPot)}</span>` : '';
-        
+
+        // 칩 표시 스타일 (마이너스일 때 빨간색)
+        const chipValue = parseInt(unformatNumber(p.chips) || 0, 10);
+        const chipClass = chipValue < 0 ? 'bg-red-900 text-red-300' : 'bg-gray-700';
+        const chipWarning = chipValue < 0 ? '⚠️ ' : '';
+
         return `<div class="player-card flex items-center gap-2 text-sm border-b border-gray-700 pb-1 ${roleClass}" data-player-name="${p.name}">
           <div class="w-1/4 truncate font-bold">${p.name}${winnerBadge}</div>
-          <div class="w-1/2"><button class="player-chip-btn btn bg-gray-700 w-full p-1 rounded-md text-xs text-left" data-player-name="${p.name}">${formatNumber(p.chips) || '0'}</button></div>
+          <div class="w-1/2"><button class="player-chip-btn btn ${chipClass} w-full p-1 rounded-md text-xs text-left" data-player-name="${p.name}">${chipWarning}${formatNumber(p.chips) || '0'}</button></div>
           <div class="w-1/4 card-placeholder h-10 flex justify-center items-center gap-1" data-player-name="${p.name}" data-count="2">
             ${p.hand?.length? p.hand.map(formatCardDisplay).join('') : '<span class="text-gray-400 text-lg">+</span>'}
           </div>
@@ -2628,14 +2640,37 @@
       window.state.modalState.keypadTarget=targetInput;
       window.state.modalState.keypadOptions=options;
       const initial = options.prefill !== undefined ? options.prefill : (targetInput?targetInput.value:'');
+
+      // 베팅 키패드인 경우 플레이어 칩 확인
+      let playerChips = 0;
+      let chipWarning = '';
+      if(options.purpose === 'bet' && options.playerName) {
+        const player = window.state.playersInHand.find(p => p.name === options.playerName);
+        if(player) {
+          playerChips = parseInt(unformatNumber(player.chips), 10);
+          chipWarning = `<div class="text-xs text-gray-400 text-center mb-1">보유 칩: ${formatNumber(playerChips)}</div>`;
+        }
+      } else if(options.purpose === 'bet' && window.state.modalState.actionPadPlayer) {
+        const player = window.state.playersInHand.find(p => p.name === window.state.modalState.actionPadPlayer);
+        if(player) {
+          playerChips = parseInt(unformatNumber(player.chips), 10);
+          chipWarning = `<div class="text-xs text-gray-400 text-center mb-1">보유 칩: ${formatNumber(playerChips)}</div>`;
+        }
+      }
+
       const html=`<div class="bg-gray-800 rounded-lg p-2 w-full max-w-xs">
+        ${chipWarning}
         <div id="keypad-display" class="bg-gray-900 text-right text-2xl font-mono p-2 rounded mb-2 h-12">${initial}</div>
+        <div id="keypad-warning" class="text-xs text-amber-400 text-center mb-2 hidden">⚠️ 칩 부족 - 올인으로 처리됩니다</div>
         <div class="grid grid-cols-3 gap-2 text-xl font-bold">
           ${['7','8','9','4','5','6','1','2','3','0','00','000'].map(k=>`<button class="keypad-btn btn bg-gray-700 p-3 rounded-md">${k}</button>`).join('')}
         </div>
-        <div class="grid grid-cols-2 gap-2 mt-2">
+        <div class="grid grid-cols-${options.purpose === 'bet' ? '3' : '2'} gap-2 mt-2">
           <button class="keypad-btn btn bg-gray-600 text-amber-400 p-3 rounded-md">C</button>
           <button class="keypad-btn btn bg-gray-600 text-amber-400 p-3 rounded-md">←</button>
+          ${options.purpose === 'bet' && playerChips > 0 ?
+            `<button class="keypad-btn btn bg-purple-600 text-white p-3 rounded-md font-bold" data-action="max">MAX</button>` : ''
+          }
         </div>
         <div class="grid grid-cols-2 gap-2 mt-2">
           <button id="keypad-cancel" class="btn bg-red-600 p-3 rounded-md">취소</button>
@@ -2643,6 +2678,30 @@
         </div>
       </div>`;
       openModal(el.keypadModal, html);
+
+      // 실시간 칩 체크 기능 추가
+      if(options.purpose === 'bet' && playerChips > 0) {
+        const display = el.keypadModal.querySelector('#keypad-display');
+        const warning = el.keypadModal.querySelector('#keypad-warning');
+
+        // 디스플레이 값 변경 감지
+        const observer = new MutationObserver(() => {
+          const value = parseInt(unformatNumber(display.textContent) || 0, 10);
+          if(value > playerChips) {
+            warning.classList.remove('hidden');
+            warning.textContent = `⚠️ 칩 부족! 최대 베팅 가능: ${formatNumber(playerChips)}`;
+            warning.className = 'text-xs text-red-400 text-center mb-2';
+          } else if(value === playerChips && value > 0) {
+            warning.classList.remove('hidden');
+            warning.textContent = `💰 최대 베팅 - 보유 칩 전체`;
+            warning.className = 'text-xs text-blue-400 text-center mb-2';
+          } else {
+            warning.classList.add('hidden');
+          }
+        });
+
+        observer.observe(display, { childList: true, characterData: true, subtree: true });
+      }
     }
 
     // ====== SELECTORS & INPUTS ======
@@ -2814,24 +2873,32 @@
         if (p){
           const cur = parseInt(unformatNumber(p.chips) || 0, 10);
           const amountToDeduct = parseInt(unformatNumber(amount), 10);
-          
-          // 칩스택 검증 설정 확인
-          if(window.state.settings && window.state.settings.validateChips) {
-            // 검증 ON: 칩 체크
-            if(amountToDeduct > cur && action !== 'All In') {
-              // 칩 부족 시 올인 처리
-              action = 'All In';
-              amount = p.chips;
-            }
+
+          // 칩 초과 경고 (차단하지 않음)
+          // 음수 칩도 허용하여 유연하게 처리
+          if(amountToDeduct > cur && action !== 'All In') {
+            console.log(`[v3.3.3] 칩 초과 경고: ${playerName} - 요청: ${amountToDeduct}, 보유: ${cur}`);
+
+            // 경고만 표시하고 진행은 허용
+            showFeedback(`⚠️ 주의: 칩이 부족합니다 (보유: ${formatNumber(cur)}, 베팅: ${formatNumber(amountToDeduct)})`, true);
+            showFeedback(`💰 칩이 마이너스가 됩니다: ${formatNumber(cur - amountToDeduct)}`, false);
           }
-          // 검증 OFF: 그대로 진행 (음수 칩도 허용)
-          
+
+          // 칩 차감 처리 (마이너스 허용)
           if(action === 'All In') {
             p.chips = '0';
           } else {
-            // 검증 OFF 시 음수도 허용
+            // 칩 차감 - 마이너스도 허용
             const newChips = cur - amountToDeduct;
             p.chips = newChips.toString();
+
+            // 마이너스 칩인 경우 시각적 표시를 위한 플래그
+            if(newChips < 0) {
+              p.hasNegativeChips = true;
+              console.log(`[v3.3.3] 마이너스 칩 발생: ${playerName} = ${newChips}`);
+            } else {
+              p.hasNegativeChips = false;
+            }
           }
           p.chipsUpdatedAt = new Date().toISOString();
         }
@@ -3721,7 +3788,7 @@
         const seat = String(r[6]||'').trim(); // G열: Seat
         const status = String(r[7]||'IN').trim().toUpperCase(); // H열: Status (기본값: IN)
 
-        console.log(`[v3.3.0] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
+        console.log(`[v3.3.1] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
 
         // IN 상태인 플레이어만 처리 (빈 값이면 IN으로 간주)
         if(player && table && status === 'IN'){
@@ -3735,20 +3802,20 @@
               seat,
               status // 상태도 저장
             });
-            console.log(`[v3.3.0] ✅ ${player} 추가됨 (${table})`);
+            console.log(`[v3.3.1] ✅ ${player} 추가됨 (${table})`);
           } else {
-            console.log(`[v3.3.0] ⚠️ ${player} 중복 건너뜀 (${table})`);
+            console.log(`[v3.3.1] ⚠️ ${player} 중복 건너뜀 (${table})`);
           }
         } else {
-          console.log(`[v3.3.0] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
+          console.log(`[v3.3.1] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
         }
       }
 
       // 처리 결과 요약 로그
-      console.log(`[v3.3.0] === buildTypeFromCsv 완료 ===`);
-      console.log(`[v3.3.0] 총 테이블 수: ${Object.keys(byTable).length}`);
+      console.log(`[v3.3.1] === buildTypeFromCsv 완료 ===`);
+      console.log(`[v3.3.1] 총 테이블 수: ${Object.keys(byTable).length}`);
       Object.keys(byTable).forEach(table => {
-        console.log(`[v3.3.0] ${table}: ${byTable[table].length}명 (IN 상태만)`);
+        console.log(`[v3.3.1] ${table}: ${byTable[table].length}명 (IN 상태만)`);
       });
 
       window.state.playerDataByTable=byTable;
@@ -5214,6 +5281,27 @@ async function sendDataToGoogleSheet(){
         const btn = e.target.closest('button'); if(!btn) return;
         const display = el.keypadModal.querySelector('#keypad-display');
         const key = btn.textContent;
+
+        // MAX 버튼 처리
+        if(btn.dataset.action === 'max') {
+          const { purpose } = window.state.modalState.keypadOptions;
+          if(purpose === 'bet') {
+            const playerName = window.state.modalState.keypadOptions.playerName ||
+                              window.state.modalState.actionPadPlayer;
+            const player = window.state.playersInHand.find(p => p.name === playerName);
+            if(player) {
+              display.textContent = player.chips; // 모든 칩을 베팅
+              const warning = el.keypadModal.querySelector('#keypad-warning');
+              if(warning) {
+                warning.classList.remove('hidden');
+                warning.textContent = `💰 최대 베팅 - 보유 칩 전체(${formatNumber(player.chips)})`;
+                warning.className = 'text-xs text-blue-400 text-center mb-2';
+              }
+            }
+          }
+          return;
+        }
+
         if(btn.id==='keypad-confirm'){
           const finalAmt = unformatNumber(display.textContent);
           const { purpose, currentPot } = window.state.modalState.keypadOptions;
@@ -5239,7 +5327,23 @@ async function sendDataToGoogleSheet(){
           }else if(purpose==='bet'){
             const { playerName } = window.state.modalState.keypadOptions;
             if(finalAmt) {
-              addActionToLog(window.state.modalState.actionPadCurrentAction, finalAmt, playerName);
+              // 칩 초과 검증 추가
+              const actualPlayerName = playerName || window.state.modalState.actionPadPlayer;
+              const player = window.state.playersInHand.find(p => p.name === actualPlayerName);
+              if(player) {
+                const playerChips = parseInt(unformatNumber(player.chips), 10);
+                const betAmount = parseInt(finalAmt, 10);
+
+                // 베팅 금액이 보유 칩을 초과하는 경우 경고만 표시 (진행은 허용)
+                if(betAmount > playerChips) {
+                  showFeedback(`⚠️ 주의: 칩 초과 베팅 (보유: ${formatNumber(playerChips)}, 베팅: ${formatNumber(betAmount)})`, true);
+                  const resultingChips = playerChips - betAmount;
+                  showFeedback(`💰 칩이 ${formatNumber(resultingChips)}가 됩니다`, false);
+                  // 경고만 하고 진행은 계속함
+                }
+              }
+
+              addActionToLog(window.state.modalState.actionPadCurrentAction, finalAmt, actualPlayerName);
 
               // 자동 모드에서 다음 플레이어로 이동
               if(window.actionManager && window.actionManager.actionMode === 'auto') {
@@ -5446,20 +5550,20 @@ async function sendDataToGoogleSheet(){
     // Apps Script URL 저장 버튼 - 지연 실행으로 DOM 로드 보장
     setTimeout(() => {
       const saveUrlBtn = document.getElementById('save-apps-url-btn');
-      console.log('[v3.3.0] Apps Script URL 저장 버튼:', saveUrlBtn);
+      console.log('[v3.3.1] Apps Script URL 저장 버튼:', saveUrlBtn);
 
       if (saveUrlBtn) {
         saveUrlBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          console.log('[v3.3.0] URL 저장 버튼 클릭됨');
+          console.log('[v3.3.1] URL 저장 버튼 클릭됨');
 
           const urlInput = document.getElementById('management-apps-url-input');
           const urlStatus = document.getElementById('url-save-status');
           const currentUrlSpan = document.getElementById('management-current-url');
           const newUrl = urlInput?.value.trim();
 
-          console.log('[v3.3.0] 입력된 URL:', newUrl);
-          console.log('[v3.3.0] 현재 URL:', APPS_SCRIPT_URL);
+          console.log('[v3.3.1] 입력된 URL:', newUrl);
+          console.log('[v3.3.1] 현재 URL:', APPS_SCRIPT_URL);
 
           // 상태 메시지 표시 함수
           function showUrlStatus(message, isSuccess) {
@@ -5513,9 +5617,9 @@ async function sendDataToGoogleSheet(){
             showFeedback('동일한 URL입니다', true);
           }
         });
-        console.log('[v3.3.0] URL 저장 버튼 이벤트 리스너 등록 완료');
+        console.log('[v3.3.1] URL 저장 버튼 이벤트 리스너 등록 완료');
       } else {
-        console.error('[v3.3.0] save-apps-url-btn 요소를 찾을 수 없습니다');
+        console.error('[v3.3.1] save-apps-url-btn 요소를 찾을 수 없습니다');
       }
     }, 100);
 
@@ -5817,11 +5921,11 @@ async function sendDataToGoogleSheet(){
     window.deleteLocalPlayer = function(index) {
       const player = window.managementState.currentPlayers[index];
       if (!player) {
-        console.log('[v3.3.0] 삭제할 플레이어 없음:', index);
+        console.log('[v3.3.1] 삭제할 플레이어 없음:', index);
         return;
       }
 
-      console.log('[v3.3.0] 플레이어 삭제:', player.name, 'index:', index);
+      console.log('[v3.3.1] 플레이어 삭제:', player.name, 'index:', index);
 
       // ActionHistory를 사용한 즉시 삭제
       const originalIndex = index;
@@ -5844,7 +5948,7 @@ async function sendDataToGoogleSheet(){
         window.managementState.changes.modified = window.managementState.changes.modified.filter(n => n !== originalName);
       }
 
-      console.log('[v3.3.0] 삭제 후 changes:', window.managementState.changes);
+      console.log('[v3.3.1] 삭제 후 changes:', window.managementState.changes);
 
       renderManagementPlayersList();
       updateChangesSummary();
@@ -5947,18 +6051,18 @@ async function sendDataToGoogleSheet(){
       await executeWithLock(async () => {
 
       try {
-        console.log('[v3.3.0] === 일괄 등록 시작 ===');
-        console.log('[v3.3.0] 선택된 테이블:', window.managementState.selectedTable);
-        console.log('[v3.3.0] 현재 플레이어 수:', window.managementState.currentPlayers.length);
-        console.log('[v3.3.0] 추가될 플레이어:', added);
-        console.log('[v3.3.0] 수정될 플레이어:', modified);
-        console.log('[v3.3.0] 삭제될 플레이어:', deleted);
-        console.log('[v3.3.0] Apps Script URL:', APPS_SCRIPT_URL);
+        console.log('[v3.3.1] === 일괄 등록 시작 ===');
+        console.log('[v3.3.1] 선택된 테이블:', window.managementState.selectedTable);
+        console.log('[v3.3.1] 현재 플레이어 수:', window.managementState.currentPlayers.length);
+        console.log('[v3.3.1] 추가될 플레이어:', added);
+        console.log('[v3.3.1] 수정될 플레이어:', modified);
+        console.log('[v3.3.1] 삭제될 플레이어:', deleted);
+        console.log('[v3.3.1] Apps Script URL:', APPS_SCRIPT_URL);
 
         // 삭제 대상 플레이어 상세 정보 확인
-        console.log('[v3.3.0] === 삭제 대상 상세 정보 ===');
+        console.log('[v3.3.1] === 삭제 대상 상세 정보 ===');
         deleted.forEach((playerName, index) => {
-          console.log(`[v3.3.0] 삭제[${index}]: "${playerName}" (길이: ${playerName.length})`);
+          console.log(`[v3.3.1] 삭제[${index}]: "${playerName}" (길이: ${playerName.length})`);
         });
 
         // 일괄 처리 요청
@@ -5968,14 +6072,14 @@ async function sendDataToGoogleSheet(){
         formData.append('players', JSON.stringify(window.managementState.currentPlayers));
         formData.append('deleted', JSON.stringify(deleted));
 
-        console.log('[v3.3.0] FormData 생성 완료');
-        console.log('[v3.3.0] 전송할 플레이어 데이터:', JSON.stringify(window.managementState.currentPlayers, null, 2));
-        console.log('[v3.3.0] 삭제할 플레이어 이름들:', JSON.stringify(deleted, null, 2));
+        console.log('[v3.3.1] FormData 생성 완료');
+        console.log('[v3.3.1] 전송할 플레이어 데이터:', JSON.stringify(window.managementState.currentPlayers, null, 2));
+        console.log('[v3.3.1] 삭제할 플레이어 이름들:', JSON.stringify(deleted, null, 2));
 
         // FormData 내용 확인
-        console.log('[v3.3.0] === FormData 내용 확인 ===');
+        console.log('[v3.3.1] === FormData 내용 확인 ===');
         for (let [key, value] of formData.entries()) {
-          console.log(`[v3.3.0] FormData[${key}]:`, typeof value === 'string' ? value.substring(0, 200) + '...' : value);
+          console.log(`[v3.3.1] FormData[${key}]:`, typeof value === 'string' ? value.substring(0, 200) + '...' : value);
         }
 
         const response = await fetch(APPS_SCRIPT_URL, {
@@ -5983,7 +6087,7 @@ async function sendDataToGoogleSheet(){
           body: formData
         });
 
-        console.log('[v3.3.0] 응답 수신:', response.status, response.statusText);
+        console.log('[v3.3.1] 응답 수신:', response.status, response.statusText);
 
         if (!response.ok) {
           console.log(`HTTP ${response.status}: ${response.statusText}`);
@@ -5992,10 +6096,10 @@ async function sendDataToGoogleSheet(){
         }
 
         const result = await response.json();
-        console.log('[v3.3.0] 응답 데이터:', result);
+        console.log('[v3.3.1] 응답 데이터:', result);
 
         if (result.success) {
-          console.log('[v3.3.0] 일괄 등록 성공:', result);
+          console.log('[v3.3.1] 일괄 등록 성공:', result);
           syncStatus.textContent = '✅ 동기화 완료';
           syncStatus.className = 'text-xs text-green-400';
 
@@ -6008,47 +6112,47 @@ async function sendDataToGoogleSheet(){
 
           // 데이터 새로고침 - CSV 방식 사용
           try {
-            console.log('[v3.3.0] 데이터 새로고침 시작...');
-            console.log('[v3.3.0] CSV_TYPE_URL:', CSV_TYPE_URL);
+            console.log('[v3.3.1] 데이터 새로고침 시작...');
+            console.log('[v3.3.1] CSV_TYPE_URL:', CSV_TYPE_URL);
 
             const csv = await fetch(CSV_TYPE_URL).then(r => {
-              console.log('[v3.3.0] CSV 응답 상태:', r.status, r.statusText);
+              console.log('[v3.3.1] CSV 응답 상태:', r.status, r.statusText);
               return r.text();
             });
 
-            console.log('[v3.3.0] CSV 데이터 길이:', csv.length);
-            console.log('[v3.3.0] CSV 첫 100자:', csv.substring(0, 100));
+            console.log('[v3.3.1] CSV 데이터 길이:', csv.length);
+            console.log('[v3.3.1] CSV 첫 100자:', csv.substring(0, 100));
 
             const rows = parseCSV(csv);
-            console.log('[v3.3.0] 파싱된 행 수:', rows.length);
+            console.log('[v3.3.1] 파싱된 행 수:', rows.length);
 
             buildTypeFromCsv(rows);
-            console.log('[v3.3.0] Type 데이터 빌드 완료');
-            console.log('[v3.3.0] 업데이트된 테이블:', Object.keys(window.state.playerDataByTable));
+            console.log('[v3.3.1] Type 데이터 빌드 완료');
+            console.log('[v3.3.1] 업데이트된 테이블:', Object.keys(window.state.playerDataByTable));
           } catch (refreshError) {
-            console.error('[v3.3.0] 데이터 새로고침 실패:', refreshError);
+            console.error('[v3.3.1] 데이터 새로고침 실패:', refreshError);
             showFeedback('⚠️ 데이터 새로고침 실패, 페이지를 새로고침해주세요', true);
           }
 
           // 상태 리셋
           try {
-            console.log('[v3.3.0] 상태 리셋 시작...');
-            console.log('[v3.3.0] 선택된 테이블:', window.managementState.selectedTable);
+            console.log('[v3.3.1] 상태 리셋 시작...');
+            console.log('[v3.3.1] 선택된 테이블:', window.managementState.selectedTable);
 
             const refreshedPlayers = window.state.playerDataByTable[window.managementState.selectedTable] || [];
-            console.log('[v3.3.0] 새로고침된 플레이어 수:', refreshedPlayers.length);
+            console.log('[v3.3.1] 새로고침된 플레이어 수:', refreshedPlayers.length);
 
             window.managementState.originalPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
             window.managementState.currentPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
             window.managementState.changes = { added: [], modified: [], deleted: [] };
 
-            console.log('[v3.3.0] 상태 리셋 완료');
+            console.log('[v3.3.1] 상태 리셋 완료');
           } catch (resetError) {
-            console.error('[v3.3.0] 상태 리셋 실패:', resetError);
+            console.error('[v3.3.1] 상태 리셋 실패:', resetError);
           }
 
           try {
-            console.log('[v3.3.0] UI 업데이트 시작...');
+            console.log('[v3.3.1] UI 업데이트 시작...');
             renderManagementPlayersList();
             updateChangesSummary();
             renderPlayerSelection(); // 메인 화면 업데이트
@@ -6056,18 +6160,18 @@ async function sendDataToGoogleSheet(){
             // 전체 UI 새로고침 (즉시 반영을 위해)
             if (typeof renderAll === 'function') {
               renderAll();
-              console.log('[v3.3.0] 전체 UI 새로고침 완료');
+              console.log('[v3.3.1] 전체 UI 새로고침 완료');
             }
 
             // 플레이어 데이터 다시 렌더링
             if (typeof updatePlayersDisplay === 'function') {
               updatePlayersDisplay();
-              console.log('[v3.3.0] 플레이어 디스플레이 새로고침 완료');
+              console.log('[v3.3.1] 플레이어 디스플레이 새로고침 완료');
             }
 
-            console.log('[v3.3.0] UI 업데이트 완료 - 모든 변경사항이 즉시 적용됨');
+            console.log('[v3.3.1] UI 업데이트 완료 - 모든 변경사항이 즉시 적용됨');
           } catch (uiError) {
-            console.error('[v3.3.0] UI 업데이트 실패:', uiError);
+            console.error('[v3.3.1] UI 업데이트 실패:', uiError);
           }
         } else {
           // 오류 처리
@@ -6086,11 +6190,11 @@ async function sendDataToGoogleSheet(){
           }
         }
       } catch(err) {
-        console.error('[v3.3.0] === 일괄 등록 오류 ===');
-        console.error('[v3.3.0] 오류 타입:', err.constructor.name);
-        console.error('[v3.3.0] 오류 메시지:', err.message);
-        console.error('[v3.3.0] 오류 스택:', err.stack);
-        console.error('[v3.3.0] 전체 오류 객체:', err);
+        console.error('[v3.3.1] === 일괄 등록 오류 ===');
+        console.error('[v3.3.1] 오류 타입:', err.constructor.name);
+        console.error('[v3.3.1] 오류 메시지:', err.message);
+        console.error('[v3.3.1] 오류 스택:', err.stack);
+        console.error('[v3.3.1] 전체 오류 객체:', err);
 
         syncStatus.textContent = '❌ 동기화 실패';
         syncStatus.className = 'text-xs text-red-400';
@@ -6112,12 +6216,12 @@ async function sendDataToGoogleSheet(){
           debugInfo = 'Apps Script가 올바른 JSON을 반환하지 않습니다';
         }
 
-        console.error('[v3.3.0] 분석된 오류:', errorMessage);
-        console.error('[v3.3.0] 디버그 정보:', debugInfo);
+        console.error('[v3.3.1] 분석된 오류:', errorMessage);
+        console.error('[v3.3.1] 디버그 정보:', debugInfo);
 
         showFeedback(`❌ ${errorMessage}${debugInfo ? ` (${debugInfo})` : ''}`, true);
       } finally {
-        console.log('[v3.3.0] === 일괄 등록 종료 ===');
+        console.log('[v3.3.1] === 일괄 등록 종료 ===');
       }
     }, '플레이어 등록', '플레이어 정보를 서버에 저장하고 있습니다...');
     });
@@ -6244,24 +6348,24 @@ async function sendDataToGoogleSheet(){
 
         const result = await response.json();
         if (result.success) {
-          console.log('[v3.3.0] 플레이어 추가 성공:', result);
+          console.log('[v3.3.1] 플레이어 추가 성공:', result);
           showFeedback(`✅ ${name} 추가됨`);
 
           // 데이터 새로고침 - CSV 방식 사용
           try {
-            console.log('[v3.3.0] 플레이어 추가 후 데이터 새로고침...');
+            console.log('[v3.3.1] 플레이어 추가 후 데이터 새로고침...');
             const csv = await fetch(CSV_TYPE_URL).then(r => r.text());
             const rows = parseCSV(csv);
             buildTypeFromCsv(rows);
-            console.log('[v3.3.0] 플레이어 추가 후 새로고침 완료');
+            console.log('[v3.3.1] 플레이어 추가 후 새로고침 완료');
           } catch (refreshError) {
-            console.error('[v3.3.0] 플레이어 추가 후 새로고침 실패:', refreshError);
+            console.error('[v3.3.1] 플레이어 추가 후 새로고침 실패:', refreshError);
           }
 
           loadPlayersList();
           renderPlayerSelection();
         } else {
-          console.error('[v3.3.0] 플레이어 추가 실패:', result);
+          console.error('[v3.3.1] 플레이어 추가 실패:', result);
           showFeedback(`❌ 추가 실패: ${result.error}`, true);
         }
       } catch(err) {
