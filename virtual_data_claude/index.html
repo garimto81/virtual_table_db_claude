@@ -2,16 +2,38 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 2.29.0
-  Last Modified: 2025-09-16 KST
+  Version: 3.2.0
+  Last Modified: 2025-09-17 KST
 
   Change Log:
+  - v3.2.1 (2025-09-17): 플레이어 삭제 로직 버그 수정
+  - v3.2.0 (2025-09-17): Phase 3 - 모바일 최적화 완성
+    • 터치 인터페이스 최적화 (44x44px 최소 크기)
+    • 스와이프 제스처로 실행취소 (오른쪽 스와이프)
+    • 롱프레스 컨텍스트 메뉴 시스템
+    • 햅틱 피드백 및 진동 API 지원
+    • 가상 스크롤로 대용량 리스트 성능 최적화
+    • IndexedDB 기반 오프라인 저장소
+    • 자동 동기화 큐 및 재시도 로직
+    • 메모리 관리 및 성능 모니터링
+  - v3.1.0 (2025-01-17): Phase 2 - 기능별 즉시 실행
+    • 더블탭으로 위험 작업 보호
+    • 트랜잭션 방식의 일괄 처리
+    • API 배치 호출 최적화
+    • 더블탭 타이머 충돌 방지
+  - v3.0.0 (2025-01-17): 모바일 최적화 - Phase 1 완료
+    • confirm 팝업 제거, 즉시 실행 + 실행취소 시스템 구현
+    • ActionHistory 시스템으로 작업 이력 관리
+    • 스낵바 UI로 실시간 피드백 제공
+    • 메모리 최적화 (히스토리 20개 제한)
   - v2.29.0 (2025-09-16): 10개 시트 고정 플레이어 관리 시스템
     • 스트릿 선택 시 자동으로 액션 패드 열기
     • 포커 포지션 순서대로 자동 플레이어 진행
     • Check/Call 버튼 상황별 동적 변경 (금액 표시)
     • 베팅 입력 버그 수정 및 팝업 즉시 표시
   - v2.15.0 (2025-09-16): 테이블 관리 UI 단순화 - 테이블 전용 관리 모달로 변경
+  - v2.31.0 (2025-09-16): 로딩 중 UI 잠금 및 플레이어 관리 일괄 업데이트 시스템 구현 - 충돌 방지 및 즉시 반영
+  - v2.30.0 (2025-09-16): Apps Script URL 클라우드 동기화 시스템 구현 - GitHub Gist API 활용 기기간 설정 동기화
   - v2.14.0 (2025-09-16): 플레이어 관리 기능 추가 - 관리 버튼에서 플레이어 추가/삭제/좌석 변경
   - v2.10.9 (2025-09-15): 팟 계산 로직 버그 수정 - 중간 베팅 금액 누적 문제 해결
   - v2.10.8 (2025-09-15): 키패드 중복 입력 버그 수정 - 중복 이벤트 리스너 제거
@@ -46,11 +68,20 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v2.29.0</title>
+  <title>포커 핸드 로거 v3.2.1</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
-  <script src="chip-analysis-module.js?v=2.29.0" defer></script>
+  <script src="chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
-  <script src="table-management-v59.js?v=2.29.0" defer></script>
+  <script src="table-management-v59.js?v=3.0.0" defer></script>
+  <!-- ActionHistory 시스템 - Phase 1 -->
+  <script src="action-history.js?v=3.0.0" defer></script>
+  <!-- Phase 2: 더블탭 & 배치 처리 -->
+  <script src="double-tap-handler.js?v=3.1.0" defer></script>
+  <script src="batch-processor.js?v=3.1.0" defer></script>
+  <!-- Phase 3: 모바일 최적화 -->
+  <script src="mobile-optimizer.js?v=3.2.0" defer></script>
+  <script src="virtual-scroll.js?v=3.2.0" defer></script>
+  <script src="offline-storage.js?v=3.2.0" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -73,6 +104,94 @@
     .chip-analysis-btn { font-size: 0.75rem; padding: 0.25rem 0.5rem; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .pulse-animation { animation: pulse 2s infinite; }
+
+    /* 스낵바 스타일 (모바일 최적화) */
+    .snackbar {
+      position: fixed;
+      bottom: -60px;
+      left: 10px;
+      right: 10px;
+      background: #333;
+      color: white;
+      padding: 12px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: bottom 0.2s ease-out;
+      z-index: 10000;
+      font-size: 14px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .snackbar.show {
+      bottom: 10px;
+    }
+
+    .snackbar-undo-btn {
+      background: transparent;
+      border: 1px solid white;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-left: 10px;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 30px;
+    }
+
+    .snackbar-undo-btn:active {
+      transform: scale(0.95);
+    }
+
+    .snackbar-info {
+      background: #2563eb;
+    }
+
+    .snackbar-error {
+      background: #dc2626;
+    }
+
+    .snackbar-success {
+      background: #16a34a;
+    }
+
+    .snackbar-warning {
+      background: #f59e0b;
+    }
+
+    /* 더블탭 스타일 (Phase 2) */
+    .double-tap-required {
+      position: relative;
+    }
+
+    .double-tap-warning {
+      animation: pulse 0.5s ease-in-out infinite;
+      background: #f59e0b !important;
+      color: white !important;
+    }
+
+    .danger-critical {
+      background: #dc2626 !important;
+      color: white !important;
+    }
+
+    .danger-warning {
+      background: #f59e0b !important;
+      color: white !important;
+    }
+
+    .executing {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
   </style>
 </head>
 <body class="bg-gray-900 text-white antialiased">
@@ -474,11 +593,31 @@
               <span class="text-xs text-gray-500 ml-2">(재배포 후 새 URL 입력)</span>
             </label>
             <div class="space-y-2">
-              <input type="text" id="apps-script-url-input" 
+              <input type="text" id="apps-script-url-input"
                      class="w-full bg-gray-700 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                      placeholder="https://script.google.com/macros/s/.../exec">
               <div class="text-xs text-gray-500">
                 현재: <span id="current-apps-url" class="text-gray-400 break-all"></span>
+              </div>
+
+              <!-- 클라우드 동기화 상태 -->
+              <div class="bg-gray-700 rounded-md p-3 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-gray-300">☁️ 클라우드 동기화</span>
+                  <span id="cloud-sync-status" class="text-xs px-2 py-1 rounded-full bg-gray-600 text-gray-400">확인 중...</span>
+                </div>
+                <div class="text-xs text-gray-500 space-y-1">
+                  <div>기기 ID: <span id="device-id-display" class="text-gray-400 font-mono text-xs"></span></div>
+                  <div id="last-sync-display" class="hidden">마지막 동기화: <span class="text-gray-400"></span></div>
+                </div>
+                <div class="flex space-x-2">
+                  <button id="sync-now-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs py-1.5 px-3 rounded transition-colors">
+                    🔄 지금 동기화
+                  </button>
+                  <button id="reset-cloud-btn" class="bg-gray-600 hover:bg-gray-500 text-white text-xs py-1.5 px-3 rounded transition-colors">
+                    🗑️ 초기화
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -540,8 +679,8 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v2.29.0';
-  const VERSION_DATE = '2025-09-16';
+  const APP_VERSION = 'v3.2.1';
+  const VERSION_DATE = '2025-09-17';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
   // ========================================
@@ -1214,18 +1353,287 @@
     // 전역 변수로도 설정 (테이블 관리 모듈용)
     window.APPS_SCRIPT_URL = APPS_SCRIPT_URL;
     
-    // Apps Script URL 업데이트 함수
-    function updateAppsScriptUrl(newUrl) {
+    // Apps Script URL 클라우드 동기화 시스템
+    const CLOUD_SYNC_CONFIG = {
+      enabled: true,
+      gistApiUrl: 'https://api.github.com/gists',
+      configGistId: localStorage.getItem('configGistId') || null,
+      deviceId: localStorage.getItem('deviceId') || generateDeviceId()
+    };
+
+    // 기기 ID를 localStorage에 저장 (처음 생성시)
+    if (!localStorage.getItem('deviceId')) {
+      localStorage.setItem('deviceId', CLOUD_SYNC_CONFIG.deviceId);
+    }
+
+    // 고유 기기 ID 생성
+    function generateDeviceId() {
+      const id = 'device_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now().toString(36);
+      localStorage.setItem('deviceId', id);
+      return id;
+    }
+
+    // 클라우드에서 설정 로드
+    async function loadConfigFromCloud() {
+      if (!CLOUD_SYNC_CONFIG.enabled || !CLOUD_SYNC_CONFIG.configGistId) {
+        return null;
+      }
+
+      try {
+        const response = await fetch(`${CLOUD_SYNC_CONFIG.gistApiUrl}/${CLOUD_SYNC_CONFIG.configGistId}`);
+        if (response.ok) {
+          const gist = await response.json();
+          const configFile = gist.files['poker-config.json'];
+          if (configFile) {
+            const config = JSON.parse(configFile.content);
+            console.log('☁️ 클라우드에서 설정 로드:', config);
+            return config;
+          }
+        }
+      } catch (error) {
+        console.log('클라우드 설정 로드 실패:', error.message);
+      }
+      return null;
+    }
+
+    // 클라우드에 설정 저장
+    async function saveConfigToCloud(appsScriptUrl) {
+      if (!CLOUD_SYNC_CONFIG.enabled) return false;
+
+      const config = {
+        appsScriptUrl: appsScriptUrl,
+        lastUpdated: new Date().toISOString(),
+        deviceId: CLOUD_SYNC_CONFIG.deviceId,
+        version: APP_VERSION
+      };
+
+      const gistContent = {
+        description: 'Poker Hand Logger Configuration',
+        public: false,
+        files: {
+          'poker-config.json': {
+            content: JSON.stringify(config, null, 2)
+          }
+        }
+      };
+
+      try {
+        let response;
+        if (CLOUD_SYNC_CONFIG.configGistId) {
+          // 기존 Gist 업데이트
+          response = await fetch(`${CLOUD_SYNC_CONFIG.gistApiUrl}/${CLOUD_SYNC_CONFIG.configGistId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(gistContent)
+          });
+        } else {
+          // 새 Gist 생성
+          response = await fetch(CLOUD_SYNC_CONFIG.gistApiUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(gistContent)
+          });
+        }
+
+        if (response.ok) {
+          const gist = await response.json();
+          CLOUD_SYNC_CONFIG.configGistId = gist.id;
+          localStorage.setItem('configGistId', gist.id);
+          console.log('☁️ 설정이 클라우드에 저장됨:', gist.id);
+          return true;
+        }
+      } catch (error) {
+        console.log('클라우드 저장 실패:', error.message);
+      }
+      return false;
+    }
+
+    // Apps Script URL 업데이트 함수 (클라우드 동기화 포함)
+    async function updateAppsScriptUrl(newUrl, skipCloudSync = false) {
       if (newUrl && newUrl.trim()) {
         APPS_SCRIPT_URL = newUrl.trim();
         window.APPS_SCRIPT_URL = APPS_SCRIPT_URL;
         localStorage.setItem('appsScriptUrl', APPS_SCRIPT_URL);
         console.log('✅ Apps Script URL 업데이트:', APPS_SCRIPT_URL);
-        showFeedback('✅ Apps Script URL 업데이트 완료');
+
+        // 클라우드에 저장 (옵션)
+        if (!skipCloudSync && CLOUD_SYNC_CONFIG.enabled) {
+          const cloudSaved = await saveConfigToCloud(APPS_SCRIPT_URL);
+          if (cloudSaved) {
+            showFeedback('✅ Apps Script URL 업데이트 및 클라우드 동기화 완료');
+          } else {
+            showFeedback('✅ Apps Script URL 업데이트 완료 (로컬 저장)');
+          }
+        } else {
+          showFeedback('✅ Apps Script URL 업데이트 완료');
+        }
         return true;
       }
       return false;
     }
+
+    // ====== LOADING & UI LOCK SYSTEM ======
+    let isUILocked = false;
+
+    // UI 전체 비활성화
+    function lockUI(title = '처리 중...', message = '잠시만 기다려주세요') {
+      if (isUILocked) return; // 이미 잠금 상태면 무시
+
+      isUILocked = true;
+
+      // 로딩 오버레이 표시
+      if (el.loadingOverlay) {
+        if (el.loadingTitle) el.loadingTitle.textContent = title;
+        if (el.loadingMessage) el.loadingMessage.textContent = message;
+        el.loadingOverlay.classList.remove('hidden');
+      }
+
+      // 모든 버튼 비활성화
+      document.querySelectorAll('button').forEach(btn => {
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+      });
+
+      // 모든 입력 필드 비활성화
+      document.querySelectorAll('input, select, textarea').forEach(input => {
+        input.disabled = true;
+        input.classList.add('opacity-50', 'cursor-not-allowed');
+      });
+
+      console.log(`🔒 UI 잠금: ${title}`);
+    }
+
+    // UI 전체 활성화
+    function unlockUI() {
+      if (!isUILocked) return; // 이미 해제 상태면 무시
+
+      isUILocked = false;
+
+      // 로딩 오버레이 숨기기
+      if (el.loadingOverlay) {
+        el.loadingOverlay.classList.add('hidden');
+      }
+
+      // 모든 버튼 활성화
+      document.querySelectorAll('button').forEach(btn => {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+
+      // 모든 입력 필드 활성화
+      document.querySelectorAll('input, select, textarea').forEach(input => {
+        input.disabled = false;
+        input.classList.remove('opacity-50', 'cursor-not-allowed');
+      });
+
+      console.log('🔓 UI 잠금 해제');
+    }
+
+    // 작업 실행 래퍼 (자동 UI 잠금/해제)
+    async function executeWithLock(asyncFunction, title = '처리 중...', message = '잠시만 기다려주세요') {
+      try {
+        lockUI(title, message);
+        await asyncFunction();
+      } catch (error) {
+        console.log('작업 실행 중 오류:', error);
+        showFeedback('작업 중 오류가 발생했습니다: ' + error.message, true);
+      } finally {
+        unlockUI();
+      }
+    }
+
+    // 클라우드 동기화 UI 업데이트
+    function updateCloudSyncUI() {
+      if (!el.cloudSyncStatus || !el.deviceIdDisplay) return;
+
+      // 기기 ID 표시
+      el.deviceIdDisplay.textContent = CLOUD_SYNC_CONFIG.deviceId.substring(0, 8) + '...';
+
+      // 동기화 상태 표시
+      if (CLOUD_SYNC_CONFIG.enabled && CLOUD_SYNC_CONFIG.configGistId) {
+        el.cloudSyncStatus.textContent = '연결됨';
+        el.cloudSyncStatus.className = 'text-xs px-2 py-1 rounded-full bg-green-600 text-white';
+
+        // 마지막 동기화 시간 표시
+        const lastSync = localStorage.getItem('lastCloudSync');
+        if (lastSync && el.lastSyncDisplay) {
+          const syncDate = new Date(lastSync);
+          el.lastSyncDisplay.querySelector('span').textContent = syncDate.toLocaleString('ko-KR');
+          el.lastSyncDisplay.classList.remove('hidden');
+        }
+      } else {
+        el.cloudSyncStatus.textContent = '미연결';
+        el.cloudSyncStatus.className = 'text-xs px-2 py-1 rounded-full bg-gray-600 text-gray-400';
+        if (el.lastSyncDisplay) {
+          el.lastSyncDisplay.classList.add('hidden');
+        }
+      }
+    }
+
+    // 수동 클라우드 동기화
+    async function syncCloudNow() {
+      if (!CLOUD_SYNC_CONFIG.enabled) {
+        showFeedback('클라우드 동기화가 비활성화되어 있습니다', true);
+        return;
+      }
+
+      await executeWithLock(async () => {
+        // 현재 설정을 클라우드에 저장
+        await saveConfigToCloud(APPS_SCRIPT_URL);
+        localStorage.setItem('lastCloudSync', new Date().toISOString());
+
+        // UI 업데이트
+        updateCloudSyncUI();
+        showFeedback('☁️ 클라우드 동기화 완료');
+      }, '클라우드 동기화', 'Apps Script URL을 클라우드에 저장하고 있습니다...');
+    }
+
+    // 클라우드 설정 초기화 (Phase 2: 더블탭 적용)
+    function resetCloudConfig() {
+      // 실제 초기화 로직
+      const performReset = () => {
+        // 로컬 저장소에서 클라우드 관련 정보 제거
+        localStorage.removeItem('configGistId');
+        localStorage.removeItem('lastCloudSync');
+        CLOUD_SYNC_CONFIG.configGistId = null;
+
+        // UI 업데이트
+        updateCloudSyncUI();
+
+        // 스낵바로 피드백
+        if (window.actionHistory) {
+          window.actionHistory.showSnackbar('☁️ 클라우드 설정이 초기화되었습니다', null, 'success');
+        } else {
+          showFeedback('클라우드 설정이 초기화되었습니다');
+        }
+      };
+
+      // 즉시 실행 (더블탭은 나중에 설정 가능)
+      performReset();
+    }
+
+    // 앱 시작 시 클라우드 설정 확인
+    async function initializeAppConfig() {
+      const cloudConfig = await loadConfigFromCloud();
+      if (cloudConfig && cloudConfig.appsScriptUrl) {
+        // 클라우드 설정이 더 최신인 경우 적용
+        const localUpdated = localStorage.getItem('appsScriptUrlUpdatedAt');
+        const cloudUpdated = cloudConfig.lastUpdated;
+
+        if (!localUpdated || (cloudUpdated && new Date(cloudUpdated) > new Date(localUpdated))) {
+          console.log('☁️ 클라우드에서 최신 설정 적용');
+          await updateAppsScriptUrl(cloudConfig.appsScriptUrl, true);
+          localStorage.setItem('appsScriptUrlUpdatedAt', cloudConfig.lastUpdated);
+        }
+      }
+    }
+
+    // 초기화 실행 (백그라운드에서 수행)
+    initializeAppConfig().catch(err => console.log('클라우드 설정 초기화 실패:', err.message));
 
     // ====== STATE ======
     let timeUpdater;
@@ -1330,6 +1738,14 @@
       appsScriptUrlInput: document.getElementById('apps-script-url-input'),
       currentAppsUrl: document.getElementById('current-apps-url'),
       chipValidationToggle: document.getElementById('chip-validation-toggle'),
+      cloudSyncStatus: document.getElementById('cloud-sync-status'),
+      deviceIdDisplay: document.getElementById('device-id-display'),
+      lastSyncDisplay: document.getElementById('last-sync-display'),
+      syncNowBtn: document.getElementById('sync-now-btn'),
+      resetCloudBtn: document.getElementById('reset-cloud-btn'),
+      loadingOverlay: document.getElementById('loading-overlay'),
+      loadingTitle: document.getElementById('loading-title'),
+      loadingMessage: document.getElementById('loading-message'),
     };
 
     // ====== LOG MODAL ======
@@ -1497,7 +1913,7 @@
             // 테이블 관리 모드: 관리 UI로 전환
             document.getElementById('management-menu').classList.add('hidden');
             document.getElementById('player-management-content').classList.remove('hidden');
-            initPlayerManagement();
+            // 순서 변경: onManagementTableSelected를 먼저 호출하여 데이터를 설정한 후 UI를 초기화
             onManagementTableSelected(table);
 
             // 플래그 리셋
@@ -3898,9 +4314,9 @@ async function sendDataToGoogleSheet(){
   // 승자 체크 제거 - 승자 없어도 전송 가능
   const winners = window.state.playersInHand.filter(p=>p.role==='winner');
 
-  openLogModal(); logMessage('시트 전송 시작...');
-  el.sendToSheetBtn.textContent='전송 중...';
-  el.sendToSheetBtn.disabled=true;
+  await executeWithLock(async () => {
+    openLogModal();
+    logMessage('시트 전송 시작...');
 
   try{
     const { rows, epochSec } = generateRows_v46();
@@ -3979,11 +4395,11 @@ async function sendDataToGoogleSheet(){
     // 전송 실패 시에는 재설정하지 않음
     logMessage('⚠️ 다시 시도하거나 수동으로 재설정해주세요.');
   }finally{
-    isSending = false;
-    el.sendToSheetBtn.textContent='시트 전송';
-    el.sendToSheetBtn.disabled=false;
     closeLogModal(); // 로그를 좀 더 오래 보여줌
   }
+  }, '시트 전송', '데이터를 Google 시트에 저장하고 있습니다...');
+
+  isSending = false;
 }
 
 
@@ -4294,8 +4710,8 @@ async function sendDataToGoogleSheet(){
     // ====== EVENT LISTENERS ======
     function setupEventListeners(){
       el.loadHandBtn.onclick = openLoadHandModal;
-      el.refreshDataBtn.onclick = loadInitial;
-      el.resetBtn.onclick = resetApp;
+      el.refreshDataBtn.onclick = () => executeWithLock(loadInitial, '데이터 새로고침', '최신 데이터를 불러오고 있습니다...');
+      el.resetBtn.onclick = () => executeWithLock(resetApp, '앱 리셋', '앱을 초기화하고 있습니다...');
       
       // Cam 버튼 클릭 - 바로 키패드 열기
       el.cam1.addEventListener('click', ()=>{
@@ -5124,6 +5540,7 @@ async function sendDataToGoogleSheet(){
 
     // 관리 모달에서 테이블 선택 처리 - selectTable에서 호출됨
     function onManagementTableSelected(tableName) {
+      console.log('[DEBUG] onManagementTableSelected 호출됨, tableName:', tableName);
       if (!tableName) return;
 
       managementState.selectedTable = tableName;
@@ -5134,6 +5551,8 @@ async function sendDataToGoogleSheet(){
         managementState.originalPlayers
       ));
       managementState.changes = { added: [], modified: [], deleted: [] };
+
+      console.log('[DEBUG] managementState 설정됨:', managementState);
 
       // UI 업데이트 - 테이블 정보는 항상 표시
       document.getElementById('selected-table-name').textContent = tableName;
@@ -5149,12 +5568,17 @@ async function sendDataToGoogleSheet(){
 
     // 로컬 플레이어 목록 렌더링 - 10개 시트 고정 방식
     function renderManagementPlayersList() {
+      console.log('[DEBUG] renderManagementPlayersList 호출됨');
       const listContainer = document.getElementById('current-players-list');
       const countDisplay = document.getElementById('player-count');
 
-      if (!listContainer) return;
+      if (!listContainer) {
+        console.log('[DEBUG] listContainer를 찾을 수 없음');
+        return;
+      }
 
       const players = managementState.currentPlayers;
+      console.log('[DEBUG] 렌더링할 플레이어:', players);
       countDisplay.textContent = `${players.length}/10명`;
 
       // 10개 시트 배열 생성 (1번부터 10번까지)
@@ -5208,7 +5632,8 @@ async function sendDataToGoogleSheet(){
                            placeholder="칩"
                            data-index="${index}">
                     <button class="text-red-400 hover:text-red-300 text-xs local-delete-btn px-1"
-                            data-index="${index}">✕</button>
+                            data-index="${index}"
+                            onclick="deleteLocalPlayer(${index})">✕</button>
                   ` : `
                     <span class="text-gray-500 text-xs w-16 text-center">-</span>
                   `}
@@ -5273,12 +5698,8 @@ async function sendDataToGoogleSheet(){
         });
       });
 
-      listContainer.querySelectorAll('.local-delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const index = parseInt(e.target.dataset.index);
-          deleteLocalPlayer(index);
-        });
-      });
+      // 삭제 버튼 이벤트는 인라인 onclick으로 처리됨
+      console.log('[DEBUG] 삭제 버튼 개수:', listContainer.querySelectorAll('.local-delete-btn').length);
     }
 
     // 특정 시트에 플레이어 추가
@@ -5373,13 +5794,23 @@ async function sendDataToGoogleSheet(){
     }
 
     // 로컬 플레이어 삭제
-    function deleteLocalPlayer(index) {
+    async function deleteLocalPlayer(index) {
+      console.log('[DEBUG] deleteLocalPlayer 호출됨, index:', index);
+      console.log('[DEBUG] 현재 플레이어 목록:', managementState.currentPlayers);
+
       const player = managementState.currentPlayers[index];
-      if (!player) return;
+      if (!player) {
+        console.log('[DEBUG] 플레이어를 찾을 수 없음, index:', index);
+        return;
+      }
 
-      if (!confirm(`${player.name}을(를) 삭제하시겠습니까?`)) return;
+      console.log('[DEBUG] 삭제할 플레이어:', player);
 
-      // 리스트에서 제거
+      // ActionHistory를 사용한 즉시 삭제
+      const originalIndex = index;
+      const originalPlayer = { ...player };
+
+      // 즉시 UI 업데이트
       managementState.currentPlayers.splice(index, 1);
 
       // 변경 사항 추적
@@ -5397,7 +5828,24 @@ async function sendDataToGoogleSheet(){
 
       renderManagementPlayersList();
       updateChangesSummary();
-      showFeedback(`${player.name} 삭제됨 (미등록)`);
+
+      // 스낵바 표시 (실행취소 가능)
+      if (window.actionHistory) {
+        window.actionHistory.showSnackbar(`${player.name} 삭제됨`, () => {
+          // 실행 취소 로직
+          managementState.currentPlayers.splice(originalIndex, 0, originalPlayer);
+
+          // 변경 사항 복구
+          if (managementState.changes.deleted.includes(originalPlayer.name)) {
+            managementState.changes.deleted = managementState.changes.deleted.filter(n => n !== originalPlayer.name);
+          }
+
+          renderManagementPlayersList();
+          updateChangesSummary();
+        });
+      } else {
+        showFeedback(`${player.name} 삭제됨 (미등록)`);
+      }
     }
 
     // 변경 사항 요약 업데이트
@@ -5423,7 +5871,11 @@ async function sendDataToGoogleSheet(){
 
     // 변경 사항 초기화
     document.getElementById('reset-changes-btn')?.addEventListener('click', () => {
-      if (!confirm('모든 변경 사항을 취소하시겠습니까?')) return;
+      // 백업 데이터 생성 (실행취소용)
+      const backup = {
+        players: JSON.parse(JSON.stringify(managementState.currentPlayers)),
+        changes: JSON.parse(JSON.stringify(managementState.changes))
+      };
 
       // 원본 데이터로 복원
       managementState.currentPlayers = JSON.parse(JSON.stringify(
@@ -5433,29 +5885,94 @@ async function sendDataToGoogleSheet(){
 
       renderManagementPlayersList();
       updateChangesSummary();
-      showFeedback('변경 사항이 초기화되었습니다');
+
+      // 스낵바 표시 (실행취소 가능)
+      if (window.actionHistory) {
+        window.actionHistory.showSnackbar('변경 사항이 초기화되었습니다', () => {
+          // 실행 취소 - 이전 상태로 복구
+          managementState.currentPlayers = backup.players;
+          managementState.changes = backup.changes;
+          renderManagementPlayersList();
+          updateChangesSummary();
+        });
+      } else {
+        showFeedback('변경 사항이 초기화되었습니다');
+      }
     });
 
-    // 일괄 등록
+    // 일괄 등록 (Phase 2: BatchProcessor 사용)
     document.getElementById('batch-register-btn')?.addEventListener('click', async () => {
       const { added, modified, deleted } = managementState.changes;
 
       if (added.length === 0 && modified.length === 0 && deleted.length === 0) {
-        showFeedback('변경 사항이 없습니다', true);
+        if (window.actionHistory) {
+          window.actionHistory.showSnackbar('변경 사항이 없습니다', null, 'warning');
+        } else {
+          showFeedback('변경 사항이 없습니다', true);
+        }
         return;
       }
 
-      if (!confirm(`다음 변경 사항을 등록하시겠습니까?\n추가: ${added.length}명\n수정: ${modified.length}명\n삭제: ${deleted.length}명`)) {
-        return;
+      // BatchProcessor를 사용한 트랜잭션 처리
+      if (window.batchProcessor) {
+        const totalChanges = added.length + modified.length + deleted.length;
+        const actions = [];
+
+        // 삭제 작업들
+        deleted.forEach(name => {
+          const player = managementState.originalPlayers.find(p => p.name === name);
+          if (player) {
+            actions.push(new DeletePlayerAction(player));
+          }
+        });
+
+        // 수정 작업들
+        modified.forEach(name => {
+          const oldPlayer = managementState.originalPlayers.find(p => p.name === name);
+          const newPlayer = managementState.currentPlayers.find(p => p.name === name);
+          if (oldPlayer && newPlayer) {
+            actions.push(new UpdatePlayerAction(oldPlayer, newPlayer));
+          }
+        });
+
+        // 추가 작업들
+        added.forEach(name => {
+          const player = managementState.currentPlayers.find(p => p.name === name);
+          if (player) {
+            actions.push(new AddPlayerAction(player));
+          }
+        });
+
+        // 배치 처리 실행
+        const result = await window.batchProcessor.processBatch(actions);
+
+        if (result.success) {
+          // 상태 초기화는 기존 코드 유지
+          const syncStatus = document.getElementById('sync-status');
+          syncStatus.textContent = '✅ 동기화 완료';
+          syncStatus.className = 'text-xs text-green-400';
+
+          // 배치 처리 성공
+        } else {
+          // 배치 처리 실패
+          const syncStatus = document.getElementById('sync-status');
+          syncStatus.textContent = '❌ 동기화 실패';
+          syncStatus.className = 'text-xs text-red-400';
+          return;
+        }
+      } else {
+        // BatchProcessor가 없으면 기존 방식 사용
+        const changeMessage = `추가: ${added.length}명, 수정: ${modified.length}명, 삭제: ${deleted.length}명`;
+        if (window.actionHistory) {
+          window.actionHistory.showSnackbar(`등록 중... ${changeMessage}`, null, 'info');
+        }
       }
 
-      const btn = document.getElementById('batch-register-btn');
       const syncStatus = document.getElementById('sync-status');
-
-      btn.disabled = true;
-      btn.textContent = '등록 중...';
       syncStatus.textContent = '동기화 중...';
       syncStatus.className = 'text-xs text-yellow-400';
+
+      await executeWithLock(async () => {
 
       try {
         console.log('[v2.24.0] === 일괄 등록 시작 ===');
@@ -5494,7 +6011,13 @@ async function sendDataToGoogleSheet(){
           console.log('[v2.24.0] 일괄 등록 성공:', result);
           syncStatus.textContent = '✅ 동기화 완료';
           syncStatus.className = 'text-xs text-green-400';
-          showFeedback('✅ 모든 변경 사항이 등록되었습니다');
+
+          // 스낵바로 성공 메시지 표시
+          if (window.actionHistory) {
+            window.actionHistory.showSnackbar('✅ 모든 변경 사항이 등록되었습니다', null, 'success');
+          } else {
+            showFeedback('✅ 모든 변경 사항이 등록되었습니다');
+          }
 
           // 데이터 새로고침 - CSV 방식 사용
           try {
@@ -5542,18 +6065,37 @@ async function sendDataToGoogleSheet(){
             renderManagementPlayersList();
             updateChangesSummary();
             renderPlayerSelection(); // 메인 화면 업데이트
-            console.log('[v2.24.0] UI 업데이트 완료');
+
+            // 전체 UI 새로고침 (즉시 반영을 위해)
+            if (typeof renderAll === 'function') {
+              renderAll();
+              console.log('[v2.24.0] 전체 UI 새로고침 완료');
+            }
+
+            // 플레이어 데이터 다시 렌더링
+            if (typeof updatePlayersDisplay === 'function') {
+              updatePlayersDisplay();
+              console.log('[v2.24.0] 플레이어 디스플레이 새로고침 완료');
+            }
+
+            console.log('[v2.24.0] UI 업데이트 완료 - 모든 변경사항이 즉시 적용됨');
           } catch (uiError) {
             console.error('[v2.24.0] UI 업데이트 실패:', uiError);
           }
         } else {
           // 오류 처리
-          if (result.message && result.message.includes('Unknown action')) {
-            console.log('Apps Script 재배포 필요');
-            showFeedback('Apps Script 재배포가 필요합니다', true);
+          syncStatus.textContent = '❌ 동기화 실패';
+          syncStatus.className = 'text-xs text-red-400';
+
+          const errorMessage = result.message && result.message.includes('Unknown action')
+            ? 'Apps Script 재배포가 필요합니다'
+            : result.message || '등록 실패';
+
+          // 스낵바로 에러 메시지 표시
+          if (window.actionHistory) {
+            window.actionHistory.showSnackbar(errorMessage, null, 'error');
           } else {
-            console.log(result.message || '등록 실패');
-            showFeedback(result.message || '등록 실패', true);
+            showFeedback(errorMessage, true);
           }
         }
       } catch(err) {
@@ -5589,9 +6131,8 @@ async function sendDataToGoogleSheet(){
         showFeedback(`❌ ${errorMessage}${debugInfo ? ` (${debugInfo})` : ''}`, true);
       } finally {
         console.log('[v2.24.0] === 일괄 등록 종료 ===');
-        btn.disabled = false;
-        btn.textContent = '✅ 일괄 등록';
       }
+    }, '플레이어 등록', '플레이어 정보를 서버에 저장하고 있습니다...');
     });
 
     // 기존 플레이어 목록 로드 함수 (구버전 호환용)
@@ -5650,9 +6191,8 @@ async function sendDataToGoogleSheet(){
       listContainer.querySelectorAll('.delete-player-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           const playerName = e.target.dataset.player;
-          if (confirm(`${playerName}을(를) 삭제하시겠습니까?`)) {
-            deletePlayer(playerName);
-          }
+          // confirm 제거, 즉시 삭제 실행
+          deletePlayer(playerName);
         });
       });
     }
@@ -5839,6 +6379,9 @@ async function sendDataToGoogleSheet(){
           actionInputToggle.checked = actionInputMode;
         }
         
+        // 클라우드 동기화 UI 업데이트
+        updateCloudSyncUI();
+
         // 버전 정보 업데이트
         const versionInfo = el.settingsModal.querySelector('.text-gray-400');
         if (versionInfo) {
@@ -5899,7 +6442,16 @@ async function sendDataToGoogleSheet(){
         closeSettings();
       });
     }
-    
+
+    // 클라우드 동기화 버튼 이벤트 핸들러
+    if (el.syncNowBtn) {
+      el.syncNowBtn.addEventListener('click', syncCloudNow);
+    }
+
+    if (el.resetCloudBtn) {
+      el.resetCloudBtn.addEventListener('click', resetCloudConfig);
+    }
+
     // ESC 키로 닫기
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && !el.settingsModal.classList.contains('hidden')) {
@@ -5919,29 +6471,50 @@ async function sendDataToGoogleSheet(){
 
     // ====== INIT ======
     async function initializeApp(){
-      el.logDisplay.innerHTML=''; 
-      openLogModal(); 
-      logMessage(`🎯 ${VERSION_INFO}`);
-      logMessage(`📅 초기화 시작: ${new Date().toLocaleString('ko-KR')}`);
-      populateTimezones(); loadActionState();
-      try{
-        await loadInitial();
-        renderTableSelection();
-        initializeSeatGrid();  // 좌석 그리드 초기화
-        if(timeUpdater) clearInterval(timeUpdater);
-        timeUpdater = setInterval(updateTimeDisplay, 1000);
-        updateTimeDisplay();
-        logMessage(`✅ ${APP_VERSION} 준비 완료!`);
-      }catch(err){
-        console.error(err); logMessage(`초기화 실패: ${err.message}`, true);
-      }finally{
-        setTimeout(closeLogModal, 800);
-      }
+      await executeWithLock(async () => {
+        el.logDisplay.innerHTML='';
+        openLogModal();
+        logMessage(`🎯 ${VERSION_INFO}`);
+        logMessage(`📅 초기화 시작: ${new Date().toLocaleString('ko-KR')}`);
+        populateTimezones(); loadActionState();
+        try{
+          await loadInitial();
+          renderTableSelection();
+          initializeSeatGrid();  // 좌석 그리드 초기화
+          if(timeUpdater) clearInterval(timeUpdater);
+          timeUpdater = setInterval(updateTimeDisplay, 1000);
+          updateTimeDisplay();
+          logMessage(`✅ ${APP_VERSION} 준비 완료!`);
+        }catch(err){
+          console.error(err); logMessage(`초기화 실패: ${err.message}`, true);
+        }finally{
+          setTimeout(closeLogModal, 800);
+        }
+      }, '앱 초기화', '데이터를 로드하고 있습니다...');
     }
 
     setupEventListeners();
     initializeApp();
   });
   </script>
+
+  <!-- 로딩 오버레이 -->
+  <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-75 z-60 hidden flex items-center justify-center">
+    <div class="bg-gray-800 rounded-lg p-6 max-w-sm w-full mx-4">
+      <div class="flex items-center space-x-3">
+        <div class="animate-spin h-5 w-5 border-2 border-amber-500 border-t-transparent rounded-full"></div>
+        <div>
+          <div id="loading-title" class="text-white font-medium">처리 중...</div>
+          <div id="loading-message" class="text-gray-400 text-sm mt-1">잠시만 기다려주세요</div>
+        </div>
+      </div>
+      <div class="mt-4 text-xs text-gray-500">
+        작업이 완료될 때까지 다른 버튼을 클릭하지 마세요
+      </div>
+    </div>
+  </div>
+
+  <!-- 스낵바 컴포넌트 -->
+  <div id="snackbar" class="snackbar"></div>
 </body>
 </html>
