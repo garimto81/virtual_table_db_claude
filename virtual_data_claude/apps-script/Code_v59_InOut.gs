@@ -447,9 +447,12 @@ function batchUpdatePlayers(tableName, playersJson, deletedJson) {
       }
     }
 
+    // 3. 시트 정렬 수행
+    sortTypeSheet();
+
     return {
       success: true,
-      message: '일괄 업데이트 완료',
+      message: '일괄 업데이트 및 정렬 완료',
       processed: {
         updated: players.length,
         deleted: deleted.length
@@ -458,6 +461,40 @@ function batchUpdatePlayers(tableName, playersJson, deletedJson) {
   } catch (error) {
     console.error('batchUpdatePlayers error:', error);
     return {success: false, message: error.toString()};
+  }
+}
+
+// Type 시트 정렬 함수
+function sortTypeSheet() {
+  try {
+    const sheet = _open().getSheetByName('Type');
+    if (!sheet) return false;
+
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+
+    // 헤더 행을 제외한 데이터 범위
+    if (lastRow > 1) {
+      const range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+
+      // 정렬 기준:
+      // 1순위: Status (H열 = 8) - IN이 먼저 오도록
+      // 2순위: Table (C열 = 3) - 오름차순
+      // 3순위: Seat (G열 = 7) - 오름차순
+      // 4순위: Player (B열 = 2) - 오름차순
+
+      range.sort([
+        {column: 8, ascending: false}, // Status: IN이 OUT보다 먼저 (역순)
+        {column: 3, ascending: true},  // Table: 오름차순
+        {column: 7, ascending: true},  // Seat: 오름차순
+        {column: 2, ascending: true}   // Player: 오름차순
+      ]);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('sortTypeSheet error:', error);
+    return false;
   }
 }
 
@@ -641,6 +678,12 @@ function doPost(e) {
 
         case 'batchUpdate':
           return _json(batchUpdatePlayers(body.table, body.players, body.deleted));
+
+        case 'sortSheet':
+          return _json({
+            success: sortTypeSheet(),
+            message: sortTypeSheet() ? '시트 정렬 완료' : '정렬 실패'
+          });
 
         // v56 기능
         case 'updateHandEdit':
