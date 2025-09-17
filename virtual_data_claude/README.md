@@ -1,6 +1,6 @@
 # 🎰 Virtual Data - Poker Hand Logger
 
-> 실시간 포커 핸드 기록 및 분석 시스템 v3.2.2
+> 실시간 포커 핸드 기록 및 분석 시스템 v3.2.3
 
 ## 📋 개요
 
@@ -18,6 +18,12 @@ Google Sheets와 연동되는 웹 기반 포커 핸드 로거입니다. 실시�
 - ⚡ 모바일 최적화 - 터치/제스처/오프라인 지원 (v3.2.0 신기능)
 
 ## 📝 최근 업데이트
+
+### v3.2.3 (2025-09-17) - 디버귵 및 안정성 개선
+- 🔍 **디버귵 로그 개선**: 모든 로그를 v3.2.3으로 통일
+- 🔄 **캐시 버스팅 강화**: 모든 JS 파일 버전 통일
+- 🤝 **BatchProcessor 제거**: 일괄 등록 시 직접 서버 통신
+- 📊 **Google Sheets 동기화 문제 분석**
 
 ### v3.2.2 (2025-09-17) - 성능 최적화
 - 🚀 **삭제 로직 최적화**: 로컬 전용 삭제로 즉시 처리
@@ -93,7 +99,7 @@ python -m http.server 8000
 
 ```
 virtual_data/
-├── index.html                    # 메인 애플리케이션 (v3.2.2)
+├── index.html                    # 메인 애플리케이션 (v3.2.3)
 ├── action-history.js             # ActionHistory 시스템 (Phase 1)
 ├── double-tap-handler.js         # 더블탭 핸들러 (Phase 2)
 ├── batch-processor.js            # 배치 처리 시스템 (Phase 2)

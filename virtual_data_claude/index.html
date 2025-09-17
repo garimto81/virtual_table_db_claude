@@ -6,6 +6,7 @@
   Last Modified: 2025-09-17 KST
 
   Change Log:
+  - v3.2.3 (2025-09-17): 디버귵 로그 개선 및 캐시 버스팅
   - v3.2.2 (2025-09-17): 플레이어 삭제 성능 최적화
   - v3.2.1 (2025-09-17): 플레이어 삭제 로직 버그 수정
   - v3.2.0 (2025-09-17): Phase 3 - 모바일 최적화 완성
@@ -69,20 +70,20 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v3.2.2</title>
+  <title>포커 핸드 로거 v3.2.3</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
   <script src="table-management-v59.js?v=3.0.0" defer></script>
   <!-- ActionHistory 시스템 - Phase 1 -->
-  <script src="action-history.js?v=3.0.0" defer></script>
+  <script src="action-history.js?v=3.2.3" defer></script>
   <!-- Phase 2: 더블탭 & 배치 처리 -->
-  <script src="double-tap-handler.js?v=3.1.0" defer></script>
-  <script src="batch-processor.js?v=3.1.0" defer></script>
+  <script src="double-tap-handler.js?v=3.2.3" defer></script>
+  <script src="batch-processor.js?v=3.2.3" defer></script>
   <!-- Phase 3: 모바일 최적화 -->
-  <script src="mobile-optimizer.js?v=3.2.0" defer></script>
-  <script src="virtual-scroll.js?v=3.2.0" defer></script>
-  <script src="offline-storage.js?v=3.2.0" defer></script>
+  <script src="mobile-optimizer.js?v=3.2.3" defer></script>
+  <script src="virtual-scroll.js?v=3.2.3" defer></script>
+  <script src="offline-storage.js?v=3.2.3" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -680,7 +681,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.2.2';
+  const APP_VERSION = 'v3.2.3';
   const VERSION_DATE = '2025-09-17';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -3702,7 +3703,7 @@
         const seat = String(r[6]||'').trim(); // G열: Seat
         const status = String(r[7]||'IN').trim().toUpperCase(); // H열: Status (기본값: IN)
 
-        console.log(`[v2.24.0] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
+        console.log(`[v3.2.2] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
 
         // IN 상태인 플레이어만 처리 (빈 값이면 IN으로 간주)
         if(player && table && status === 'IN'){
@@ -3716,20 +3717,20 @@
               seat,
               status // 상태도 저장
             });
-            console.log(`[v2.24.0] ✅ ${player} 추가됨 (${table})`);
+            console.log(`[v3.2.2] ✅ ${player} 추가됨 (${table})`);
           } else {
-            console.log(`[v2.24.0] ⚠️ ${player} 중복 건너뜀 (${table})`);
+            console.log(`[v3.2.2] ⚠️ ${player} 중복 건너뜀 (${table})`);
           }
         } else {
-          console.log(`[v2.24.0] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
+          console.log(`[v3.2.2] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
         }
       }
 
       // 처리 결과 요약 로그
-      console.log(`[v2.24.0] === buildTypeFromCsv 완료 ===`);
-      console.log(`[v2.24.0] 총 테이블 수: ${Object.keys(byTable).length}`);
+      console.log(`[v3.2.2] === buildTypeFromCsv 완료 ===`);
+      console.log(`[v3.2.2] 총 테이블 수: ${Object.keys(byTable).length}`);
       Object.keys(byTable).forEach(table => {
-        console.log(`[v2.24.0] ${table}: ${byTable[table].length}명 (IN 상태만)`);
+        console.log(`[v3.2.2] ${table}: ${byTable[table].length}명 (IN 상태만)`);
       });
 
       window.state.playerDataByTable=byTable;
@@ -5427,20 +5428,20 @@ async function sendDataToGoogleSheet(){
     // Apps Script URL 저장 버튼 - 지연 실행으로 DOM 로드 보장
     setTimeout(() => {
       const saveUrlBtn = document.getElementById('save-apps-url-btn');
-      console.log('[v2.24.0] Apps Script URL 저장 버튼:', saveUrlBtn);
+      console.log('[v3.2.2] Apps Script URL 저장 버튼:', saveUrlBtn);
 
       if (saveUrlBtn) {
         saveUrlBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          console.log('[v2.24.0] URL 저장 버튼 클릭됨');
+          console.log('[v3.2.2] URL 저장 버튼 클릭됨');
 
           const urlInput = document.getElementById('management-apps-url-input');
           const urlStatus = document.getElementById('url-save-status');
           const currentUrlSpan = document.getElementById('management-current-url');
           const newUrl = urlInput?.value.trim();
 
-          console.log('[v2.24.0] 입력된 URL:', newUrl);
-          console.log('[v2.24.0] 현재 URL:', APPS_SCRIPT_URL);
+          console.log('[v3.2.2] 입력된 URL:', newUrl);
+          console.log('[v3.2.2] 현재 URL:', APPS_SCRIPT_URL);
 
           // 상태 메시지 표시 함수
           function showUrlStatus(message, isSuccess) {
@@ -5494,9 +5495,9 @@ async function sendDataToGoogleSheet(){
             showFeedback('동일한 URL입니다', true);
           }
         });
-        console.log('[v2.24.0] URL 저장 버튼 이벤트 리스너 등록 완료');
+        console.log('[v3.2.2] URL 저장 버튼 이벤트 리스너 등록 완료');
       } else {
-        console.error('[v2.24.0] save-apps-url-btn 요소를 찾을 수 없습니다');
+        console.error('[v3.2.2] save-apps-url-btn 요소를 찾을 수 없습니다');
       }
     }, 100);
 
@@ -5907,59 +5908,10 @@ async function sendDataToGoogleSheet(){
         return;
       }
 
-      // BatchProcessor를 사용한 트랜잭션 처리
-      if (window.batchProcessor) {
-        const totalChanges = added.length + modified.length + deleted.length;
-        const actions = [];
-
-        // 삭제 작업들
-        deleted.forEach(name => {
-          const player = window.managementState.originalPlayers.find(p => p.name === name);
-          if (player) {
-            actions.push(new DeletePlayerAction(player));
-          }
-        });
-
-        // 수정 작업들
-        modified.forEach(name => {
-          const oldPlayer = window.managementState.originalPlayers.find(p => p.name === name);
-          const newPlayer = window.managementState.currentPlayers.find(p => p.name === name);
-          if (oldPlayer && newPlayer) {
-            actions.push(new UpdatePlayerAction(oldPlayer, newPlayer));
-          }
-        });
-
-        // 추가 작업들
-        added.forEach(name => {
-          const player = window.managementState.currentPlayers.find(p => p.name === name);
-          if (player) {
-            actions.push(new AddPlayerAction(player));
-          }
-        });
-
-        // 배치 처리 실행
-        const result = await window.batchProcessor.processBatch(actions);
-
-        if (result.success) {
-          // 상태 초기화는 기존 코드 유지
-          const syncStatus = document.getElementById('sync-status');
-          syncStatus.textContent = '✅ 동기화 완료';
-          syncStatus.className = 'text-xs text-green-400';
-
-          // 배치 처리 성공
-        } else {
-          // 배치 처리 실패
-          const syncStatus = document.getElementById('sync-status');
-          syncStatus.textContent = '❌ 동기화 실패';
-          syncStatus.className = 'text-xs text-red-400';
-          return;
-        }
-      } else {
-        // BatchProcessor가 없으면 기존 방식 사용
-        const changeMessage = `추가: ${added.length}명, 수정: ${modified.length}명, 삭제: ${deleted.length}명`;
-        if (window.actionHistory) {
-          window.actionHistory.showSnackbar(`등록 중... ${changeMessage}`, null, 'info');
-        }
+      // 변경사항 메시지 표시
+      const changeMessage = `추가: ${added.length}명, 수정: ${modified.length}명, 삭제: ${deleted.length}명`;
+      if (window.actionHistory) {
+        window.actionHistory.showSnackbar(`등록 중... ${changeMessage}`, null, 'info');
       }
 
       const syncStatus = document.getElementById('sync-status');
@@ -5969,11 +5921,13 @@ async function sendDataToGoogleSheet(){
       await executeWithLock(async () => {
 
       try {
-        console.log('[v2.24.0] === 일괄 등록 시작 ===');
-        console.log('[v2.24.0] 선택된 테이블:', window.managementState.selectedTable);
-        console.log('[v2.24.0] 현재 플레이어 수:', window.managementState.currentPlayers.length);
-        console.log('[v2.24.0] 삭제될 플레이어:', deleted);
-        console.log('[v2.24.0] Apps Script URL:', APPS_SCRIPT_URL);
+        console.log('[v3.2.2] === 일괄 등록 시작 ===');
+        console.log('[v3.2.2] 선택된 테이블:', window.managementState.selectedTable);
+        console.log('[v3.2.2] 현재 플레이어 수:', window.managementState.currentPlayers.length);
+        console.log('[v3.2.2] 추가될 플레이어:', added);
+        console.log('[v3.2.2] 수정될 플레이어:', modified);
+        console.log('[v3.2.2] 삭제될 플레이어:', deleted);
+        console.log('[v3.2.2] Apps Script URL:', APPS_SCRIPT_URL);
 
         // 일괄 처리 요청
         const formData = new FormData();
@@ -5982,15 +5936,16 @@ async function sendDataToGoogleSheet(){
         formData.append('players', JSON.stringify(window.managementState.currentPlayers));
         formData.append('deleted', JSON.stringify(deleted));
 
-        console.log('[v2.24.0] FormData 생성 완료');
-        console.log('[v2.24.0] 전송할 플레이어 데이터:', JSON.stringify(window.managementState.currentPlayers, null, 2));
+        console.log('[v3.2.2] FormData 생성 완료');
+        console.log('[v3.2.2] 전송할 플레이어 데이터:', JSON.stringify(window.managementState.currentPlayers, null, 2));
+        console.log('[v3.2.2] 삭제할 플레이어 이름들:', JSON.stringify(deleted, null, 2));
 
         const response = await fetch(APPS_SCRIPT_URL, {
           method: 'POST',
           body: formData
         });
 
-        console.log('[v2.24.0] 응답 수신:', response.status, response.statusText);
+        console.log('[v3.2.2] 응답 수신:', response.status, response.statusText);
 
         if (!response.ok) {
           console.log(`HTTP ${response.status}: ${response.statusText}`);
@@ -5999,10 +5954,10 @@ async function sendDataToGoogleSheet(){
         }
 
         const result = await response.json();
-        console.log('[v2.24.0] 응답 데이터:', result);
+        console.log('[v3.2.2] 응답 데이터:', result);
 
         if (result.success) {
-          console.log('[v2.24.0] 일괄 등록 성공:', result);
+          console.log('[v3.2.2] 일괄 등록 성공:', result);
           syncStatus.textContent = '✅ 동기화 완료';
           syncStatus.className = 'text-xs text-green-400';
 
@@ -6015,47 +5970,47 @@ async function sendDataToGoogleSheet(){
 
           // 데이터 새로고침 - CSV 방식 사용
           try {
-            console.log('[v2.24.0] 데이터 새로고침 시작...');
-            console.log('[v2.24.0] CSV_TYPE_URL:', CSV_TYPE_URL);
+            console.log('[v3.2.2] 데이터 새로고침 시작...');
+            console.log('[v3.2.2] CSV_TYPE_URL:', CSV_TYPE_URL);
 
             const csv = await fetch(CSV_TYPE_URL).then(r => {
-              console.log('[v2.24.0] CSV 응답 상태:', r.status, r.statusText);
+              console.log('[v3.2.2] CSV 응답 상태:', r.status, r.statusText);
               return r.text();
             });
 
-            console.log('[v2.24.0] CSV 데이터 길이:', csv.length);
-            console.log('[v2.24.0] CSV 첫 100자:', csv.substring(0, 100));
+            console.log('[v3.2.2] CSV 데이터 길이:', csv.length);
+            console.log('[v3.2.2] CSV 첫 100자:', csv.substring(0, 100));
 
             const rows = parseCSV(csv);
-            console.log('[v2.24.0] 파싱된 행 수:', rows.length);
+            console.log('[v3.2.2] 파싱된 행 수:', rows.length);
 
             buildTypeFromCsv(rows);
-            console.log('[v2.24.0] Type 데이터 빌드 완료');
-            console.log('[v2.24.0] 업데이트된 테이블:', Object.keys(window.state.playerDataByTable));
+            console.log('[v3.2.2] Type 데이터 빌드 완료');
+            console.log('[v3.2.2] 업데이트된 테이블:', Object.keys(window.state.playerDataByTable));
           } catch (refreshError) {
-            console.error('[v2.24.0] 데이터 새로고침 실패:', refreshError);
+            console.error('[v3.2.2] 데이터 새로고침 실패:', refreshError);
             showFeedback('⚠️ 데이터 새로고침 실패, 페이지를 새로고침해주세요', true);
           }
 
           // 상태 리셋
           try {
-            console.log('[v2.24.0] 상태 리셋 시작...');
-            console.log('[v2.24.0] 선택된 테이블:', window.managementState.selectedTable);
+            console.log('[v3.2.2] 상태 리셋 시작...');
+            console.log('[v3.2.2] 선택된 테이블:', window.managementState.selectedTable);
 
             const refreshedPlayers = window.state.playerDataByTable[window.managementState.selectedTable] || [];
-            console.log('[v2.24.0] 새로고침된 플레이어 수:', refreshedPlayers.length);
+            console.log('[v3.2.2] 새로고침된 플레이어 수:', refreshedPlayers.length);
 
             window.managementState.originalPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
             window.managementState.currentPlayers = JSON.parse(JSON.stringify(refreshedPlayers));
             window.managementState.changes = { added: [], modified: [], deleted: [] };
 
-            console.log('[v2.24.0] 상태 리셋 완료');
+            console.log('[v3.2.2] 상태 리셋 완료');
           } catch (resetError) {
-            console.error('[v2.24.0] 상태 리셋 실패:', resetError);
+            console.error('[v3.2.2] 상태 리셋 실패:', resetError);
           }
 
           try {
-            console.log('[v2.24.0] UI 업데이트 시작...');
+            console.log('[v3.2.2] UI 업데이트 시작...');
             renderManagementPlayersList();
             updateChangesSummary();
             renderPlayerSelection(); // 메인 화면 업데이트
@@ -6063,18 +6018,18 @@ async function sendDataToGoogleSheet(){
             // 전체 UI 새로고침 (즉시 반영을 위해)
             if (typeof renderAll === 'function') {
               renderAll();
-              console.log('[v2.24.0] 전체 UI 새로고침 완료');
+              console.log('[v3.2.2] 전체 UI 새로고침 완료');
             }
 
             // 플레이어 데이터 다시 렌더링
             if (typeof updatePlayersDisplay === 'function') {
               updatePlayersDisplay();
-              console.log('[v2.24.0] 플레이어 디스플레이 새로고침 완료');
+              console.log('[v3.2.2] 플레이어 디스플레이 새로고침 완료');
             }
 
-            console.log('[v2.24.0] UI 업데이트 완료 - 모든 변경사항이 즉시 적용됨');
+            console.log('[v3.2.2] UI 업데이트 완료 - 모든 변경사항이 즉시 적용됨');
           } catch (uiError) {
-            console.error('[v2.24.0] UI 업데이트 실패:', uiError);
+            console.error('[v3.2.2] UI 업데이트 실패:', uiError);
           }
         } else {
           // 오류 처리
@@ -6093,11 +6048,11 @@ async function sendDataToGoogleSheet(){
           }
         }
       } catch(err) {
-        console.error('[v2.24.0] === 일괄 등록 오류 ===');
-        console.error('[v2.24.0] 오류 타입:', err.constructor.name);
-        console.error('[v2.24.0] 오류 메시지:', err.message);
-        console.error('[v2.24.0] 오류 스택:', err.stack);
-        console.error('[v2.24.0] 전체 오류 객체:', err);
+        console.error('[v3.2.2] === 일괄 등록 오류 ===');
+        console.error('[v3.2.2] 오류 타입:', err.constructor.name);
+        console.error('[v3.2.2] 오류 메시지:', err.message);
+        console.error('[v3.2.2] 오류 스택:', err.stack);
+        console.error('[v3.2.2] 전체 오류 객체:', err);
 
         syncStatus.textContent = '❌ 동기화 실패';
         syncStatus.className = 'text-xs text-red-400';
@@ -6119,12 +6074,12 @@ async function sendDataToGoogleSheet(){
           debugInfo = 'Apps Script가 올바른 JSON을 반환하지 않습니다';
         }
 
-        console.error('[v2.24.0] 분석된 오류:', errorMessage);
-        console.error('[v2.24.0] 디버그 정보:', debugInfo);
+        console.error('[v3.2.2] 분석된 오류:', errorMessage);
+        console.error('[v3.2.2] 디버그 정보:', debugInfo);
 
         showFeedback(`❌ ${errorMessage}${debugInfo ? ` (${debugInfo})` : ''}`, true);
       } finally {
-        console.log('[v2.24.0] === 일괄 등록 종료 ===');
+        console.log('[v3.2.2] === 일괄 등록 종료 ===');
       }
     }, '플레이어 등록', '플레이어 정보를 서버에 저장하고 있습니다...');
     });
@@ -6240,24 +6195,24 @@ async function sendDataToGoogleSheet(){
 
         const result = await response.json();
         if (result.success) {
-          console.log('[v2.24.0] 플레이어 추가 성공:', result);
+          console.log('[v3.2.2] 플레이어 추가 성공:', result);
           showFeedback(`✅ ${name} 추가됨`);
 
           // 데이터 새로고침 - CSV 방식 사용
           try {
-            console.log('[v2.24.0] 플레이어 추가 후 데이터 새로고침...');
+            console.log('[v3.2.2] 플레이어 추가 후 데이터 새로고침...');
             const csv = await fetch(CSV_TYPE_URL).then(r => r.text());
             const rows = parseCSV(csv);
             buildTypeFromCsv(rows);
-            console.log('[v2.24.0] 플레이어 추가 후 새로고침 완료');
+            console.log('[v3.2.2] 플레이어 추가 후 새로고침 완료');
           } catch (refreshError) {
-            console.error('[v2.24.0] 플레이어 추가 후 새로고침 실패:', refreshError);
+            console.error('[v3.2.2] 플레이어 추가 후 새로고침 실패:', refreshError);
           }
 
           loadPlayersList();
           renderPlayerSelection();
         } else {
-          console.error('[v2.24.0] 플레이어 추가 실패:', result);
+          console.error('[v3.2.2] 플레이어 추가 실패:', result);
           showFeedback(`❌ 추가 실패: ${result.error}`, true);
         }
       } catch(err) {
