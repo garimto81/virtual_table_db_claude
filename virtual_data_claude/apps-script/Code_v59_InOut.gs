@@ -478,16 +478,12 @@ function sortTypeSheet() {
       const range = sheet.getRange(2, 1, lastRow - 1, lastCol);
 
       // 정렬 기준:
-      // 1순위: Status (H열 = 8) - IN이 먼저 오도록
-      // 2순위: Table (C열 = 3) - 오름차순
-      // 3순위: Seat (G열 = 7) - 오름차순
-      // 4순위: Player (B열 = 2) - 오름차순
+      // 1순위: Table (C열 = 3) - 오름차순
+      // 2순위: Seat (G열 = 7) - 오름차순
 
       range.sort([
-        {column: 8, ascending: false}, // Status: IN이 OUT보다 먼저 (역순)
         {column: 3, ascending: true},  // Table: 오름차순
-        {column: 7, ascending: true},  // Seat: 오름차순
-        {column: 2, ascending: true}   // Player: 오름차순
+        {column: 7, ascending: true}   // Seat: 오름차순
       ]);
     }
 

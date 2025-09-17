@@ -6,6 +6,7 @@
   Last Modified: 2025-09-17 KST
 
   Change Log:
+  - v3.2.5 (2025-09-17): 정렬 기준 변경 (Table > Seat)
   - v3.2.4 (2025-09-17): Google Sheets 자동 정렬 기능 추가
   - v3.2.3 (2025-09-17): 디버귵 로그 개선 및 캐시 버스팅
   - v3.2.2 (2025-09-17): 플레이어 삭제 성능 최적화
@@ -71,20 +72,20 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v3.2.4</title>
+  <title>포커 핸드 로거 v3.2.5</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
   <script src="table-management-v59.js?v=3.0.0" defer></script>
   <!-- ActionHistory 시스템 - Phase 1 -->
-  <script src="action-history.js?v=3.2.4" defer></script>
+  <script src="action-history.js?v=3.2.5" defer></script>
   <!-- Phase 2: 더블탭 & 배치 처리 -->
-  <script src="double-tap-handler.js?v=3.2.4" defer></script>
-  <script src="batch-processor.js?v=3.2.4" defer></script>
+  <script src="double-tap-handler.js?v=3.2.5" defer></script>
+  <script src="batch-processor.js?v=3.2.5" defer></script>
   <!-- Phase 3: 모바일 최적화 -->
-  <script src="mobile-optimizer.js?v=3.2.4" defer></script>
-  <script src="virtual-scroll.js?v=3.2.4" defer></script>
-  <script src="offline-storage.js?v=3.2.4" defer></script>
+  <script src="mobile-optimizer.js?v=3.2.5" defer></script>
+  <script src="virtual-scroll.js?v=3.2.5" defer></script>
+  <script src="offline-storage.js?v=3.2.5" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -687,7 +688,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.2.4';
+  const APP_VERSION = 'v3.2.5';
   const VERSION_DATE = '2025-09-17';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -5922,15 +5923,15 @@ async function sendDataToGoogleSheet(){
           if (window.actionHistory) {
             window.actionHistory.showSnackbar('✅ 시트가 정렬되었습니다', null, 'success');
           }
-          console.log('[v3.2.4] 시트 정렬 완료');
+          console.log('[v3.2.5] 시트 정렬 완료');
         } else {
           if (window.actionHistory) {
             window.actionHistory.showSnackbar('❌ 정렬 실패', null, 'error');
           }
-          console.error('[v3.2.4] 시트 정렬 실패:', result.message);
+          console.error('[v3.2.5] 시트 정렬 실패:', result.message);
         }
       } catch (error) {
-        console.error('[v3.2.4] 시트 정렬 오류:', error);
+        console.error('[v3.2.5] 시트 정렬 오류:', error);
         if (window.actionHistory) {
           window.actionHistory.showSnackbar('❌ 정렬 중 오류 발생', null, 'error');
         }
