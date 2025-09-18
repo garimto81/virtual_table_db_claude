@@ -1,12 +1,12 @@
 /**
- * 중복 플레이어 자동 제거 시스템 v3.4.6
+ * 중복 플레이어 자동 제거 시스템 v3.4.12
  * 페이지 로드 시 자동으로 중복 플레이어를 검출하고 삭제합니다.
  * 중복 조건: 같은 테이블 + 같은 이름 + 같은 좌석
  *
- * v3.4.6 변경사항:
- * - 중복 검사 시작 메시지를 간결하게 변경
- * - 진행 상황을 콘솔에만 표시하여 사용자 방해 최소화
- * - UI 차단 시간 단축 (검사 완료 즉시 해제)
+ * v3.4.12 변경사항:
+ * - 로그 모달에 중복 검사 과정 실시간 표시
+ * - 모든 검사 단계를 사용자가 시각적으로 확인 가능
+ * - 검사 완료 후 3초 뒤 모달 자동 닫기로 UX 개선
  */
 
 /**
@@ -20,6 +20,11 @@ function logDuplicateRemover(message) {
     if (window.actionHistory && window.actionHistory.log) {
         window.actionHistory.log('DUPLICATE_REMOVER', message);
     }
+
+    // 로그 모달에도 표시
+    if (typeof logMessage === 'function') {
+        logMessage(`[중복검사] ${message.replace(/\[DuplicateRemover[^\]]*\]/, '').trim()}`);
+    }
 }
 
 /**
@@ -28,25 +33,36 @@ function logDuplicateRemover(message) {
  */
 async function removeDuplicatePlayers() {
     try {
-        // 콘솔에만 로그 출력 (사용자 방해하지 않음)
-        console.log('[DuplicateRemover v3.4.6] 백그라운드 중복 검사 시작');
+        // 로그 모달 열기 및 진행 상황 표시
+        if (typeof openLogModal === 'function') {
+            openLogModal();
+            if (typeof logMessage === 'function') {
+                const logDisplay = document.getElementById('log-display');
+                if (logDisplay) {
+                    logDisplay.innerHTML = ''; // 기존 로그 클리어
+                }
+            }
+        }
+
+        logDuplicateRemover('[DuplicateRemover v3.4.12] 중복 검사 시작');
 
         // UI 차단하지 않음 - 백그라운드로 처리
 
         // 데이터 소스 확인
         if (!window.state || !window.state.playerDataByTable) {
-            console.warn('[DuplicateRemover] window.state.playerDataByTable이 없음');
+            logDuplicateRemover('[DuplicateRemover] window.state.playerDataByTable이 없음');
             return { success: false, message: '플레이어 데이터 없음' };
         }
 
         // APPS_SCRIPT_URL 확인
         if (typeof APPS_SCRIPT_URL === 'undefined' || !APPS_SCRIPT_URL) {
-            console.warn('[DuplicateRemover] APPS_SCRIPT_URL이 없어서 원본 데이터 가져올 수 없음');
+            logDuplicateRemover('[DuplicateRemover] APPS_SCRIPT_URL이 없어서 원본 데이터 가져올 수 없음');
+            logDuplicateRemover('[DuplicateRemover] 로컬 데이터로 폴백하여 중복 검사 중...');
             return await analyzeLocalDataForDuplicates();
         }
 
         // Google Sheets에서 원본 CSV 데이터 가져오기 (조용히)
-        console.log('[DuplicateRemover] 데이터 확인 중...');
+        logDuplicateRemover('[DuplicateRemover] 서버 데이터 확인 중...');
 
         const formData = new FormData();
         formData.append('action', 'loadType'); // Type 시트 원본 데이터 요청
@@ -59,25 +75,33 @@ async function removeDuplicatePlayers() {
         const result = await response.json();
 
         if (!result.success || !result.csvData) {
-            console.error('[DuplicateRemover] 원본 데이터 가져오기 실패:', result.message);
+            logDuplicateRemover('[DuplicateRemover] 원본 데이터 가져오기 실패: ' + result.message);
+            logDuplicateRemover('[DuplicateRemover] 로컬 데이터로 폴백하여 중복 검사 중...');
             return await analyzeLocalDataForDuplicates();
         }
 
-        // 원본 CSV 데이터에서 중복 분석 (조용히)
-        console.log('[DuplicateRemover] 분석 중...');
+        // 원본 CSV 데이터에서 중복 분석
+        logDuplicateRemover('[DuplicateRemover] 📊 원본 데이터 분석 시작...');
 
         return await analyzeRawCsvData(result.csvData);
 
     } catch (error) {
-        console.error('[DuplicateRemover] 중복 제거 중 오류:', error);
+        logDuplicateRemover('[DuplicateRemover] 중복 제거 중 오류: ' + error.message);
         return {
             success: false,
             message: `오류 발생: ${error.message}`,
             removedCount: 0
         };
     } finally {
-        // 검사 완료 알림 (간단히)
-        console.log('[DuplicateRemover v3.4.6] 검사 완료');
+        // 검사 완료 알림
+        logDuplicateRemover('[DuplicateRemover v3.4.12] ✅ 검사 완료');
+
+        // 3초 후 모달 자동 닫기
+        setTimeout(() => {
+            if (typeof closeLogModal === 'function') {
+                closeLogModal();
+            }
+        }, 3000);
     }
 }
 
@@ -229,10 +253,16 @@ async function analyzeLocalDataForDuplicates() {
 
         // 로컬에서 발견된 중복도 실제 구글 시트에서 삭제 처리
         const removalResults = await removeDuplicatesFromSheets(duplicatePlayers);
+
+        // 완료 메시지
+        if (removalResults.success) {
+            logDuplicateRemover(`[DuplicateRemover] ✅ 로컬 데이터 분석 완료 - ${removalResults.removedCount}명 제거`);
+        }
+
         return removalResults;
 
     } catch (error) {
-        console.error('[DuplicateRemover] 로컬 분석 오류:', error);
+        logDuplicateRemover('[DuplicateRemover] 로컬 분석 오류: ' + error.message);
         return {
             success: false,
             message: `로컬 분석 오류: ${error.message}`,
