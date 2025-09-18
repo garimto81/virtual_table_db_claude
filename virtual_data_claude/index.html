@@ -3790,7 +3790,7 @@
         const seat = String(r[6]||'').trim(); // G열: Seat
         const status = String(r[7]||'IN').trim().toUpperCase(); // H열: Status (기본값: IN)
 
-        console.log(`[v3.3.1] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
+        console.log(`[v3.4.3] 플레이어 처리: ${player} (${table}) - 상태: ${status}`);
 
         // IN 상태인 플레이어만 처리 (빈 값이면 IN으로 간주)
         if(player && table && status === 'IN'){
@@ -3806,20 +3806,20 @@
               seat,
               status // 상태도 저장
             });
-            console.log(`[v3.4.2] ✅ ${player} 추가됨 (${table}, 좌석: ${seat})`);
+            console.log(`[v3.4.3] ✅ ${player} 추가됨 (${table}, 좌석: ${seat})`);
           } else {
-            console.log(`[v3.4.2] ⚠️ ${player} 진짜 중복 건너뜀 (${table}, 좌석: ${seat})`);
+            console.log(`[v3.4.3] ⚠️ ${player} 진짜 중복 건너뜀 (${table}, 좌석: ${seat})`);
           }
         } else {
-          console.log(`[v3.3.1] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
+          console.log(`[v3.4.3] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
         }
       }
 
       // 처리 결과 요약 로그
-      console.log(`[v3.3.1] === buildTypeFromCsv 완료 ===`);
-      console.log(`[v3.3.1] 총 테이블 수: ${Object.keys(byTable).length}`);
+      console.log(`[v3.4.3] === buildTypeFromCsv 완료 ===`);
+      console.log(`[v3.4.3] 총 테이블 수: ${Object.keys(byTable).length}`);
       Object.keys(byTable).forEach(table => {
-        console.log(`[v3.3.1] ${table}: ${byTable[table].length}명 (IN 상태만)`);
+        console.log(`[v3.4.3] ${table}: ${byTable[table].length}명 (IN 상태만)`);
       });
 
       window.state.playerDataByTable=byTable;
@@ -6656,6 +6656,6 @@ async function sendDataToGoogleSheet(){
   <div id="snackbar" class="snackbar"></div>
 
   <!-- 중복 플레이어 제거 모듈 (매 새로고침마다 자동 실행) -->
-  <script src="src/js/duplicate-remover.js?v=3.4.2"></script>
+  <script src="src/js/duplicate-remover.js?v=3.4.3"></script>
 </body>
 </html>

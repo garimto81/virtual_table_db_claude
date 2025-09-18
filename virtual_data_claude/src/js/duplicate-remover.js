@@ -1,105 +1,50 @@
 /**
- * 중복 플레이어 제거 모듈
- * 앱 시작 시 로컬 데이터를 검사하여 중복된 플레이어를 실제 제거
- *
- * @version 3.4.2
- * @date 2025-09-18
+ * 중복 플레이어 자동 제거 시스템 v3.4.3
+ * 페이지 로드 시 자동으로 중복 플레이어를 검출하고 삭제합니다.
+ * 중복 조건: 같은 테이블 + 같은 이름 + 같은 좌석
  */
 
 /**
- * UI 잠금 및 진행 상황 표시 함수
+ * 로그 출력 헬퍼 함수
+ * @param {string} message - 로그 메시지
  */
-function showDuplicateRemovalProgress(message) {
+function logDuplicateRemover(message) {
     console.log(message);
 
-    // UI 잠금
-    const lockUI = () => {
-        // 모든 버튼과 입력 필드 비활성화
-        const buttons = document.querySelectorAll('button, input, select, textarea');
-        buttons.forEach(element => {
-            element.disabled = true;
-            element.style.opacity = '0.5';
-        });
-    };
-
-    // 로깅 모달 표시 (기존 스낵바 시스템 활용)
-    if (window.actionHistory && window.actionHistory.showSnackbar) {
-        window.actionHistory.showSnackbar(
-            '🔍 중복 플레이어 검사 중... 잠시만 기다려주세요',
-            null,
-            'info',
-            10000 // 10초간 표시
-        );
+    // UI 로그에도 표시 (있는 경우)
+    if (window.actionHistory && window.actionHistory.log) {
+        window.actionHistory.log('DUPLICATE_REMOVER', message);
     }
-
-    lockUI();
-}
-
-function hideDuplicateRemovalProgress() {
-    // UI 잠금 해제
-    const unlockUI = () => {
-        const buttons = document.querySelectorAll('button, input, select, textarea');
-        buttons.forEach(element => {
-            element.disabled = false;
-            element.style.opacity = '';
-        });
-    };
-
-    unlockUI();
 }
 
 /**
- * 중복 플레이어의 정의:
- * - 같은 테이블(table) + 같은 이름(name) + 같은 좌석(seat) = 중복
- * - 칩(chips)은 무관
- * - 첫 번째 발견된 플레이어만 유지하고 나머지는 삭제
- *
- * 예시:
- * Table1/Player1/Seat1 (유지)
- * Table1/Player1/Seat1 (삭제 - 완전 중복)
- * Table1/Player1/Seat2 (유지 - 다른 좌석이므로 중복 아님)
- * Table2/Player1/Seat1 (유지 - 다른 테이블)
+ * 메인 중복 제거 함수
+ * @returns {Promise<Object>} 제거 결과
  */
 async function removeDuplicatePlayers() {
-    console.log('[DuplicateRemover] 중복 플레이어 검사 시작...');
-
-    // 🔒 UI 잠금 및 로깅 모달 표시
-    showDuplicateRemovalProgress('[DuplicateRemover] 중복 플레이어 검사 시작...');
-
     try {
-        // 🔍 모든 가능한 데이터 소스 확인
-        console.log('[DuplicateRemover] 📊 데이터 소스 분석:');
-        console.log('  window.state:', !!window.state);
-        console.log('  window.state.playerDataByTable:', !!(window.state && window.state.playerDataByTable));
-        console.log('  window.state.allPlayers:', !!(window.state && window.state.allPlayers));
-        console.log('  window.playerData:', !!window.playerData);
-        console.log('  window.state.players:', !!(window.state && window.state.players));
-        console.log('  window.state.originalPlayerData:', !!(window.state && window.state.originalPlayerData));
-        console.log('  window.state.rawPlayerData:', !!(window.state && window.state.rawPlayerData));
+        logDuplicateRemover('[DuplicateRemover] 중복 플레이어 검사 시작...');
 
-        if (window.state && window.state.playerDataByTable) {
-            console.log('  playerDataByTable 테이블 수:', Object.keys(window.state.playerDataByTable).length);
-            Object.entries(window.state.playerDataByTable).forEach(([table, players]) => {
-                console.log(`    ${table}: ${Array.isArray(players) ? players.length : 0}명`);
-            });
+        // UI 차단
+        showDuplicateRemovalProgress('🔍 중복 플레이어 검사 중...');
+
+        // 데이터 소스 확인
+        if (!window.state || !window.state.playerDataByTable) {
+            console.warn('[DuplicateRemover] window.state.playerDataByTable이 없음');
+            return { success: false, message: '플레이어 데이터 없음' };
         }
 
-        if (!window.state) {
-            console.warn('[DuplicateRemover] window.state가 없음');
-            return { success: false, message: 'window.state 없음' };
-        }
-
-        // 🔍 Apps Script URL 확인
+        // APPS_SCRIPT_URL 확인
         if (typeof APPS_SCRIPT_URL === 'undefined' || !APPS_SCRIPT_URL) {
             console.warn('[DuplicateRemover] APPS_SCRIPT_URL이 없어서 원본 데이터 가져올 수 없음');
-            return { success: false, message: 'APPS_SCRIPT_URL 없음' };
+            return await analyzeLocalDataForDuplicates();
         }
 
-        // 🔍 Google Sheets에서 원본 데이터 직접 가져오기
-        console.log('[DuplicateRemover] Google Sheets에서 원본 데이터 가져오는 중...');
+        // Google Sheets에서 원본 CSV 데이터 가져오기
+        logDuplicateRemover('[DuplicateRemover] Google Sheets에서 원본 데이터 가져오는 중...');
 
         const formData = new FormData();
-        formData.append('action', 'getAllPlayers'); // 모든 플레이어 데이터 요청
+        formData.append('action', 'loadType'); // Type 시트 원본 데이터 요청
 
         const response = await fetch(APPS_SCRIPT_URL, {
             method: 'POST',
@@ -108,225 +53,166 @@ async function removeDuplicatePlayers() {
 
         const result = await response.json();
 
-        if (!result.success) {
+        if (!result.success || !result.csvData) {
             console.error('[DuplicateRemover] 원본 데이터 가져오기 실패:', result.message);
-
-            // 폴백: 로컬 데이터 사용하되 중복 검사 로직 강화
-            console.log('[DuplicateRemover] 🔄 로컬 데이터로 폴백...');
-            showDuplicateRemovalProgress('로컬 데이터로 폴백하여 중복 검사 중...');
-
             return await analyzeLocalDataForDuplicates();
         }
 
-        const allPlayers = result.players || [];
-        console.log('[DuplicateRemover] ✅ Google Sheets에서 원본 데이터 가져옴');
-        showDuplicateRemovalProgress(`Google Sheets에서 ${allPlayers.length}명 데이터 가져옴`);
+        // 원본 CSV 데이터에서 중복 분석
+        logDuplicateRemover('[DuplicateRemover] 원본 CSV 데이터 분석 시작...');
+        showDuplicateRemovalProgress('원본 CSV 데이터에서 중복 검사 중...');
 
-        console.log(`[DuplicateRemover] 로컬 데이터 로드 완료: ${allPlayers.length}명`);
-
-        // 🔍 데이터 구조 분석을 위한 샘플 출력
-        console.log('[DuplicateRemover] 📊 데이터 샘플 (처음 10명):');
-        allPlayers.slice(0, 10).forEach((player, idx) => {
-            console.log(`  ${idx+1}. table:"${player.table}" name:"${player.name}" seat:"${player.seat}" originalSeat:"${player.originalSeat}" chips:"${player.chips}"`);
-        });
-
-        // 🔍 전체 플레이어 이름만 출력 (중복 확인용)
-        console.log('[DuplicateRemover] 📋 전체 플레이어 이름 목록:');
-        const nameList = allPlayers.map(p => `${p.table}/${p.name}`);
-        console.log(nameList.join(', '));
-
-        // 중복 검사
-        const seen = new Map(); // key: "table|name|seat", value: 첫 번째 플레이어
-        const duplicatePlayers = [];
-
-        allPlayers.forEach((player) => {
-            // 유효한 데이터인지 확인
-            if (!player.Table || !player.player) {
-                return; // 빈 데이터는 건너뛰기
-            }
-
-            // 중복 검사: 테이블 + 이름 + 좌석
-            const key = `${player.Table}|${player.player}|${player.Seat || ''}`;
-
-            console.log(`[DuplicateRemover] 🔍 검사 중: key="${key}"`);
-
-            if (seen.has(key)) {
-                // 중복 발견
-                duplicatePlayers.push(player);
-                console.log(`[DuplicateRemover] ❌ 중복 발견: ${player.Table} - ${player.player} - Seat${player.Seat}`);
-            } else {
-                // 첫 번째 발견
-                seen.set(key, player);
-                console.log(`[DuplicateRemover] ✅ 첫 번째: key="${key}" 등록`);
-            }
-        });
-
-        if (duplicatePlayers.length === 0) {
-            console.log('[DuplicateRemover] 중복 플레이어 없음');
-            return { success: true, message: '중복 없음', removedCount: 0 };
-        }
-
-        console.log(`[DuplicateRemover] 중복 플레이어 ${duplicatePlayers.length}명 발견`);
-
-        if (duplicatePlayers.length > 0) {
-            console.log('[DuplicateRemover] 🔍 발견된 중복 플레이어:');
-            duplicatePlayers.forEach(player => {
-                console.log(`  ❌ ${player.table} / ${player.name} / Seat${player.seat}`);
-            });
-
-            // APPS_SCRIPT_URL 확인
-            if (typeof APPS_SCRIPT_URL === 'undefined' || !APPS_SCRIPT_URL) {
-                console.warn('[DuplicateRemover] APPS_SCRIPT_URL이 없어서 삭제 불가능');
-                return {
-                    success: true,
-                    message: `${duplicatePlayers.length}개 중복 발견 (삭제 불가)`,
-                    removedCount: 0,
-                    duplicatesFound: duplicatePlayers
-                };
-            }
-
-            // 테이블별로 중복 제거 실행
-            let totalRemoved = 0;
-            const removedPlayers = [];
-
-            // 테이블별로 그룹화
-            const tableGroups = new Map();
-            duplicatePlayers.forEach(player => {
-                if (!tableGroups.has(player.table)) {
-                    tableGroups.set(player.table, []);
-                }
-                tableGroups.get(player.table).push(player);
-            });
-
-            // 각 테이블별로 batchUpdate 실행
-            for (const [table, tableDuplicates] of tableGroups) {
-                console.log(`[DuplicateRemover] ${table} 테이블의 중복 ${tableDuplicates.length}개 제거 중...`);
-
-                try {
-                    // 해당 테이블의 전체 플레이어에서 중복 제거
-                    const tableAllPlayers = allPlayers.filter(p => p.table === table);
-                    const uniquePlayers = tableAllPlayers.filter(player => {
-                        const key = `${player.table}|${player.name}|${player.seat || 0}`;
-                        if (seen.has(key)) {
-                            return seen.get(key) === player; // 첫 번째만 유지
-                        }
-                        return false;
-                    });
-
-                    // 삭제할 플레이어 이름 목록
-                    const deletedNames = tableDuplicates.map(p => p.name);
-
-                    // batchUpdate API 사용
-                    const formData = new FormData();
-                    formData.append('action', 'batchUpdate');
-                    formData.append('table', table);
-                    formData.append('players', JSON.stringify(uniquePlayers));
-                    formData.append('deleted', JSON.stringify(deletedNames));
-
-                    const response = await fetch(APPS_SCRIPT_URL, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    const result = await response.json();
-
-                    if (result.success) {
-                        totalRemoved += tableDuplicates.length;
-                        removedPlayers.push(...tableDuplicates);
-                        console.log(`[DuplicateRemover] ${table}: ${tableDuplicates.length}개 중복 제거 성공`);
-                    } else {
-                        console.error(`[DuplicateRemover] ${table} 업데이트 실패:`, result.message);
-                    }
-                } catch (error) {
-                    console.error(`[DuplicateRemover] ${table} 오류:`, error);
-                }
-            }
-
-            if (totalRemoved > 0) {
-                console.log(`[DuplicateRemover] ✅ 총 ${totalRemoved}개 중복 플레이어 제거 완료`);
-
-                // 제거된 플레이어 정보 출력
-                console.log('[DuplicateRemover] 제거된 플레이어:');
-                removedPlayers.forEach(player => {
-                    console.log(`  - ${player.table} / ${player.name} / Seat${player.seat}`);
-                });
-
-                return {
-                    success: true,
-                    message: `${totalRemoved}개 중복 제거`,
-                    removedCount: totalRemoved,
-                    removedPlayers: removedPlayers
-                };
-            } else {
-                return {
-                    success: false,
-                    message: '중복 제거 실패'
-                };
-            }
-        }
+        return await analyzeRawCsvData(result.csvData);
 
     } catch (error) {
-        console.error('[DuplicateRemover] 오류 발생:', error);
+        console.error('[DuplicateRemover] 중복 제거 중 오류:', error);
         return {
             success: false,
-            message: error.message
+            message: `오류 발생: ${error.message}`,
+            removedCount: 0
         };
     } finally {
-        // 작업 완료 후 UI 잠금 해제
-        hideDuplicateRemovalProgress();
+        // UI 차단 해제
+        hideProgressAndUnlockUI();
     }
 }
 
 /**
- * 로컬 데이터로 폴백하여 중복 분석
+ * 원본 CSV 데이터에서 중복 분석
+ * @param {string} csvData - Type 시트의 원본 CSV 데이터
+ * @returns {Object} 중복 제거 결과
  */
-async function analyzeLocalDataForDuplicates() {
-    console.log('[DuplicateRemover] 📊 로컬 데이터 분석 시작...');
-
+async function analyzeRawCsvData(csvData) {
     try {
-        const allPlayers = [];
+        logDuplicateRemover('[DuplicateRemover] 원본 CSV 데이터 파싱 시작...');
 
-        // playerDataByTable에서 데이터 수집
-        if (window.state && window.state.playerDataByTable) {
-            Object.entries(window.state.playerDataByTable).forEach(([table, players]) => {
-                if (Array.isArray(players)) {
-                    players.forEach(player => {
-                        allPlayers.push({
-                            ...player,
-                            table: table
-                        });
-                    });
+        // CSV 데이터를 라인별로 분할
+        const lines = csvData.split('\n').filter(line => line.trim());
+        logDuplicateRemover(`[DuplicateRemover] CSV 라인 수: ${lines.length}`);
+
+        const duplicateGroups = new Map(); // key: table|name|seat, value: 배열 인덱스들
+        const allRows = [];
+
+        // 헤더 스킵하고 데이터 행만 처리
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            const columns = line.split(',').map(col => col.trim().replace(/"/g, ''));
+
+            if (columns.length < 8) continue; // 최소 8개 컬럼 필요
+
+            const player = columns[0] || '';
+            const table = columns[1] || '';
+            const seat = columns[6] || '';
+            const status = (columns[7] || 'IN').toUpperCase();
+
+            // IN 상태인 플레이어만 처리
+            if (player && table && status === 'IN') {
+                const key = `${table}|${player}|${seat}`;
+
+                if (!duplicateGroups.has(key)) {
+                    duplicateGroups.set(key, []);
                 }
-            });
+                duplicateGroups.get(key).push(i);
+                allRows.push({ rowIndex: i, player, table, seat, line });
+
+                logDuplicateRemover(`[DuplicateRemover] 원본 데이터: ${player} (${table}, 좌석: ${seat}) - 라인 ${i}`);
+            }
         }
 
-        console.log(`[DuplicateRemover] 로컬 데이터 ${allPlayers.length}명 분석 중...`);
-        showDuplicateRemovalProgress(`로컬 데이터 ${allPlayers.length}명 분석 중...`);
+        // 중복 발견
+        const duplicatesToRemove = [];
+        duplicateGroups.forEach((rowIndices, key) => {
+            if (rowIndices.length > 1) {
+                logDuplicateRemover(`[DuplicateRemover] 🔍 원본에서 중복 발견: ${key} - ${rowIndices.length}개 행`);
 
-        // 중복 검사
-        const seen = new Map();
-        const duplicatePlayers = [];
-
-        allPlayers.forEach((player) => {
-            if (!player.table || !player.name) {
-                return;
-            }
-
-            // 테이블 + 이름으로만 중복 검사 (좌석은 자동 할당되었을 수 있음)
-            const key = `${player.table}|${player.name}`;
-
-            console.log(`[DuplicateRemover] 🔍 로컬 검사: key="${key}"`);
-
-            if (seen.has(key)) {
-                duplicatePlayers.push(player);
-                console.log(`[DuplicateRemover] ❌ 로컬 중복 발견: ${player.table} - ${player.name}`);
-            } else {
-                seen.set(key, player);
+                // 첫 번째만 남기고 나머지는 삭제 대상
+                for (let i = 1; i < rowIndices.length; i++) {
+                    const rowIndex = rowIndices[i];
+                    const row = allRows.find(r => r.rowIndex === rowIndex);
+                    if (row) {
+                        duplicatesToRemove.push({
+                            table: row.table,
+                            name: row.player,
+                            seat: row.seat,
+                            rowIndex: row.rowIndex
+                        });
+                    }
+                }
             }
         });
 
+        if (duplicatesToRemove.length === 0) {
+            logDuplicateRemover('[DuplicateRemover] 원본 CSV에서 중복 없음');
+            showDuplicateRemovalProgress('원본 데이터 깨끗함 - 중복 없음');
+            return {
+                success: true,
+                message: '원본 CSV에서 중복 없음',
+                removedCount: 0
+            };
+        }
+
+        logDuplicateRemover(`[DuplicateRemover] 원본에서 ${duplicatesToRemove.length}개 중복 발견`);
+        showDuplicateRemovalProgress(`원본에서 ${duplicatesToRemove.length}개 중복 발견 - 구글 시트에서 삭제 중...`);
+
+        // 실제 구글 시트에서 삭제
+        const removalResults = await removeDuplicatesFromSheets(duplicatesToRemove);
+        return removalResults;
+
+    } catch (error) {
+        console.error('[DuplicateRemover] 원본 CSV 분석 오류:', error);
+        return await analyzeLocalDataForDuplicates();
+    }
+}
+
+/**
+ * 로컬 데이터에서 중복 분석 (폴백)
+ * @returns {Object} 중복 분석 결과
+ */
+async function analyzeLocalDataForDuplicates() {
+    try {
+        logDuplicateRemover('[DuplicateRemover] 로컬 데이터로 폴백하여 중복 검사 중...');
+        logDuplicateRemover('[DuplicateRemover] 📊 로컬 데이터 분석 시작...');
+
+        const playerDataByTable = window.state.playerDataByTable;
+        const tableNames = Object.keys(playerDataByTable);
+
+        // 전체 플레이어 수 계산
+        let totalPlayers = 0;
+        tableNames.forEach(table => {
+            const playerCount = playerDataByTable[table].length;
+            totalPlayers += playerCount;
+            logDuplicateRemover(`[DuplicateRemover]   ${table}: ${playerCount}명`);
+        });
+
+        logDuplicateRemover(`[DuplicateRemover] 로컬 데이터 ${totalPlayers}명 분석 중...`);
+
+        const seen = new Map(); // key: "table|name|seat", value: 첫 번째 플레이어
+        const duplicatePlayers = [];
+
+        // 모든 테이블의 플레이어를 검사
+        tableNames.forEach(table => {
+            playerDataByTable[table].forEach(player => {
+                const key = `${table}|${player.name}|${player.seat || ''}`;
+                logDuplicateRemover(`[DuplicateRemover] 🔍 로컬 검사: key="${key}"`);
+
+                if (seen.has(key)) {
+                    // 중복 발견
+                    duplicatePlayers.push({
+                        table: table,
+                        name: player.name,
+                        seat: player.seat,
+                        player: player
+                    });
+                    logDuplicateRemover(`[DuplicateRemover] ❌ 로컬 중복 발견: ${table} - ${player.name}`);
+                } else {
+                    // 첫 번째 발견
+                    seen.set(key, player);
+                }
+            });
+        });
+
         if (duplicatePlayers.length === 0) {
-            console.log('[DuplicateRemover] 로컬 데이터에서 중복 없음');
+            logDuplicateRemover('[DuplicateRemover] 로컬에서 중복 없음');
             return {
                 success: true,
                 message: '로컬 데이터에서 중복 없음',
@@ -334,132 +220,216 @@ async function analyzeLocalDataForDuplicates() {
             };
         }
 
-        console.log(`[DuplicateRemover] 로컬에서 ${duplicatePlayers.length}개 중복 발견`);
-        showDuplicateRemovalProgress(`${duplicatePlayers.length}개 중복 발견됨 - 스킵 (로컬 데이터 한계)`);
+        logDuplicateRemover(`[DuplicateRemover] 로컬에서 ${duplicatePlayers.length}개 중복 발견`);
+        showDuplicateRemovalProgress(`${duplicatePlayers.length}개 중복 발견됨 - 구글 시트에서 삭제 중...`);
 
-        return {
-            success: true,
-            message: `로컬에서 ${duplicatePlayers.length}개 중복 발견 (제거 불가)`,
-            removedCount: 0,
-            duplicatesFound: duplicatePlayers
-        };
+        // 로컬에서 발견된 중복도 실제 구글 시트에서 삭제 처리
+        const removalResults = await removeDuplicatesFromSheets(duplicatePlayers);
+        return removalResults;
 
     } catch (error) {
         console.error('[DuplicateRemover] 로컬 분석 오류:', error);
         return {
             success: false,
-            message: '로컬 분석 실패'
+            message: `로컬 분석 오류: ${error.message}`,
+            removedCount: 0
         };
     }
 }
 
 /**
- * 로컬 데이터에서 중복 제거 (메모리상에서만)
+ * 구글 시트에서 실제 중복 제거
+ * @param {Array} duplicatesToRemove - 삭제할 중복 플레이어 배열
+ * @returns {Object} 삭제 결과
  */
-function removeDuplicatesFromLocalData(playerData) {
-    if (!playerData || !Array.isArray(playerData)) {
-        return playerData;
-    }
-
-    const seen = new Set();
-    const filtered = [];
-
-    playerData.forEach(player => {
-        // 테이블/이름/좌석 모두 포함하여 중복 체크
-        const key = `${player.table}|${player.name}|${player.seat || 0}`;
-        if (!seen.has(key)) {
-            seen.add(key);
-            filtered.push(player);
+async function removeDuplicatesFromSheets(duplicatesToRemove) {
+    try {
+        if (duplicatesToRemove.length === 0) {
+            return { success: true, message: '삭제할 중복 없음', removedCount: 0 };
         }
-    });
 
-    const removedCount = playerData.length - filtered.length;
-    if (removedCount > 0) {
-        console.log(`[DuplicateRemover] 로컬 데이터에서 ${removedCount}개 중복 제거`);
+        // 테이블별로 그룹화
+        const byTable = new Map();
+        duplicatesToRemove.forEach(duplicate => {
+            const tableName = duplicate.table;
+            if (!byTable.has(tableName)) {
+                byTable.set(tableName, []);
+            }
+            byTable.get(tableName).push(duplicate);
+        });
+
+        let totalRemoved = 0;
+        const removedPlayers = [];
+
+        // 각 테이블에서 중복 제거
+        for (const [tableName, playersToRemove] of byTable) {
+            try {
+                logDuplicateRemover(`[DuplicateRemover] 🗑️ ${tableName} 테이블에서 ${playersToRemove.length}명 중복 제거 중...`);
+
+                // 삭제할 플레이어 이름 목록 추출
+                const playerNamesToDelete = playersToRemove.map(p => p.name);
+
+                // batchUpdate 호출
+                const formData = new FormData();
+                formData.append('action', 'batchUpdate');
+                formData.append('table', tableName);
+                formData.append('players', JSON.stringify([])); // 빈 배열 (추가할 플레이어 없음)
+                formData.append('deleted', JSON.stringify(playerNamesToDelete)); // 삭제할 플레이어
+
+                const response = await fetch(APPS_SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    totalRemoved += playersToRemove.length;
+                    removedPlayers.push(...playersToRemove);
+                    logDuplicateRemover(`[DuplicateRemover] ✅ ${tableName}에서 ${playersToRemove.length}명 삭제 완료`);
+                } else {
+                    console.error(`[DuplicateRemover] ❌ ${tableName} 삭제 실패:`, result.message);
+                }
+
+            } catch (error) {
+                console.error(`[DuplicateRemover] ${tableName} 삭제 중 오류:`, error);
+            }
+        }
+
+        const message = `${totalRemoved}명의 중복 플레이어가 제거되었습니다`;
+        logDuplicateRemover(`[DuplicateRemover] ${message}`);
+        showDuplicateRemovalProgress(message);
+
+        return {
+            success: true,
+            message: message,
+            removedCount: totalRemoved,
+            removedPlayers: removedPlayers
+        };
+
+    } catch (error) {
+        console.error('[DuplicateRemover] 시트 삭제 오류:', error);
+        return {
+            success: false,
+            message: `시트 삭제 오류: ${error.message}`,
+            removedCount: 0
+        };
     }
-
-    return filtered;
 }
 
 /**
- * 앱 초기화 시 자동 실행 (매 페이지 로드마다)
+ * 중복 제거 진행 상황 표시
+ * @param {string} message - 표시할 메시지
  */
-function initDuplicateRemover() {
-    console.log('[DuplicateRemover] 🔧 초기화... (매 새로고침마다 실행)');
-    console.log('[DuplicateRemover] 스크립트 로드 시간:', new Date().toLocaleTimeString());
+function showDuplicateRemovalProgress(message) {
+    logDuplicateRemover(message);
 
-    // 매번 페이지 로드/새로고침 시 실행
-    const runDuplicateCheck = async () => {
-        console.log('[DuplicateRemover] 🚀 페이지 로드 감지 - 중복 검사 실행 시작');
-        console.log('[DuplicateRemover] 현재 시간:', new Date().toLocaleTimeString());
+    // UI 잠금
+    const lockUI = () => {
+        const buttons = document.querySelectorAll('button, input, select, textarea');
+        buttons.forEach(element => {
+            element.disabled = true;
+            element.style.opacity = '0.5';
+        });
+    };
 
-        // window.state가 정의될 때까지 대기
-        let attempts = 0;
-        while ((!window.state || !window.state.playerDataByTable) && attempts < 20) {
-            console.log('[DuplicateRemover] ⏳ window.state 대기 중... (시도: ' + (attempts + 1) + '/20)');
-            console.log('[DuplicateRemover] window.state 상태:', !!window.state);
-            console.log('[DuplicateRemover] playerDataByTable 상태:', !!(window.state && window.state.playerDataByTable));
-            await new Promise(resolve => setTimeout(resolve, 1000)); // 1초로 증가
-            attempts++;
-        }
+    // 로깅 모달 표시
+    if (window.actionHistory && window.actionHistory.showSnackbar) {
+        window.actionHistory.showSnackbar('🔍 중복 플레이어 검사 중... 잠시만 기다려주세요', null, 'info', 10000);
+    }
 
-        if (!window.state || !window.state.playerDataByTable) {
-            console.error('[DuplicateRemover] ❌ window.state를 찾을 수 없음 - 중복 검사 건너뜀');
-            console.log('[DuplicateRemover] 최종 window.state:', window.state);
+    lockUI();
+}
+
+/**
+ * 진행 상황 숨기고 UI 잠금 해제
+ */
+function hideProgressAndUnlockUI() {
+    // UI 잠금 해제
+    const unlockUI = () => {
+        const buttons = document.querySelectorAll('button, input, select, textarea');
+        buttons.forEach(element => {
+            element.disabled = false;
+            element.style.opacity = '1';
+        });
+    };
+
+    unlockUI();
+    logDuplicateRemover('[DuplicateRemover] UI 잠금 해제');
+}
+
+/**
+ * 로컬 데이터로 중복 검사 (간단한 버전)
+ * @returns {Object} 검사 결과
+ */
+function removeDuplicatesFromLocalData() {
+    return analyzeLocalDataForDuplicates();
+}
+
+/**
+ * 페이지 로드 시 자동 실행되는 중복 검사
+ */
+function runDuplicateCheck() {
+    try {
+        logDuplicateRemover('[DuplicateRemover] 🚀 페이지 로드 감지 - 중복 검사 실행 시작');
+        logDuplicateRemover(`[DuplicateRemover] 현재 시간: ${new Date().toLocaleTimeString()}`);
+
+        // window.state 확인
+        if (!window.state) {
+            console.warn('[DuplicateRemover] ⏳ window.state 없음 - 3초 후 재시도');
+            setTimeout(runDuplicateCheck, 3000);
             return;
         }
 
-        console.log('[DuplicateRemover] ✅ window.state 준비 완료');
+        if (!window.state.playerDataByTable) {
+            console.warn('[DuplicateRemover] ⏳ window.state.playerDataByTable 없음 - 3초 후 재시도');
+            setTimeout(runDuplicateCheck, 3000);
+            return;
+        }
 
-        const result = await removeDuplicatePlayers();
+        logDuplicateRemover('[DuplicateRemover] ✅ window.state 준비 완료');
 
-        if (result.success) {
-            if (result.removedCount > 0) {
-                console.log(`[DuplicateRemover] 🧹 ${result.removedCount}명 중복 제거 완료`);
-
-                // 스낵바로 알림
-                if (window.actionHistory && window.actionHistory.showSnackbar) {
-                    window.actionHistory.showSnackbar(
-                        `🧹 중복 플레이어 ${result.removedCount}명 자동 제거됨`,
-                        null,
-                        'info'
-                    );
-                }
-
-                // 데이터 새로고침
-                if (typeof loadPlayerData === 'function') {
-                    setTimeout(() => {
-                        loadPlayerData();
-                    }, 500);
+        // 중복 검사 실행
+        removeDuplicatePlayers().then(result => {
+            if (result.success) {
+                if (result.removedCount > 0) {
+                    logDuplicateRemover(`[DuplicateRemover] ✅ 중복 제거 완료: ${result.removedCount}명 제거`);
+                } else {
+                    logDuplicateRemover('[DuplicateRemover] ✅ 중복 없음 - 시트가 깨끗합니다');
                 }
             } else {
-                console.log('[DuplicateRemover] 중복 없음 - 시트가 깨끗합니다');
+                console.error('[DuplicateRemover] ❌ 중복 제거 실패:', result.message);
             }
-        } else {
-            console.warn('[DuplicateRemover] 중복 검사 실패:', result.message);
-        }
-    };
+        }).catch(error => {
+            console.error('[DuplicateRemover] ❌ 중복 제거 중 오류:', error);
+        });
 
-    // DOMContentLoaded 이벤트에 연결
-    console.log('[DuplicateRemover] document.readyState:', document.readyState);
+    } catch (error) {
+        console.error('[DuplicateRemover] runDuplicateCheck 오류:', error);
+    }
+}
+
+/**
+ * 모듈 초기화
+ */
+function initDuplicateRemover() {
+    logDuplicateRemover('[DuplicateRemover] 모듈 초기화 시작...');
 
     if (document.readyState === 'loading') {
-        console.log('[DuplicateRemover] DOM 로딩 중 - DOMContentLoaded 이벤트 대기');
+        logDuplicateRemover('[DuplicateRemover] DOM 로딩 중 - DOMContentLoaded 이벤트 대기');
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('[DuplicateRemover] ✅ DOMContentLoaded 이벤트 발생 - 5초 후 실행 예약');
-            // 다른 초기화가 완료되도록 충분히 대기
+            logDuplicateRemover('[DuplicateRemover] ✅ DOMContentLoaded 이벤트 발생 - 5초 후 실행 예약');
             setTimeout(() => {
-                console.log('[DuplicateRemover] ⏰ 타이머 실행됨 - 중복 검사 시작');
+                logDuplicateRemover('[DuplicateRemover] ⏰ 타이머 실행됨 - 중복 검사 시작');
                 runDuplicateCheck();
-            }, 5000); // 5초로 증가
+            }, 5000);
         });
     } else {
-        console.log('[DuplicateRemover] DOM 이미 로드됨 - 3초 후 실행 예약');
-        // 이미 로드된 경우
+        logDuplicateRemover('[DuplicateRemover] DOM 이미 로드됨 - 3초 후 실행 예약');
         setTimeout(() => {
-            console.log('[DuplicateRemover] ⏰ 타이머 실행됨 - 중복 검사 시작');
+            logDuplicateRemover('[DuplicateRemover] ⏰ 타이머 실행됨 - 중복 검사 시작');
             runDuplicateCheck();
-        }, 3000); // 3초로 증가
+        }, 3000);
     }
 }
 
@@ -468,15 +438,4 @@ window.removeDuplicatePlayers = removeDuplicatePlayers;
 window.removeDuplicatesFromLocalData = removeDuplicatesFromLocalData;
 
 // 모듈 자동 초기화
-console.log('[DuplicateRemover] 📄 스크립트 파일 실행 중...');
 initDuplicateRemover();
-console.log('[DuplicateRemover] 📄 스크립트 파일 실행 완료');
-
-// Export for module systems
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        removeDuplicatePlayers,
-        removeDuplicatesFromLocalData,
-        initDuplicateRemover
-    };
-}
