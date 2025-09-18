@@ -109,6 +109,8 @@
   <script src="mobile-optimizer.js?v=3.2.5" defer></script>
   <script src="virtual-scroll.js?v=3.2.5" defer></script>
   <script src="offline-storage.js?v=3.2.5" defer></script>
+  <!-- 모달 자동 닫기 모듈 -->
+  <script src="src/js/modal-auto-close.js?v=1.0.0" defer></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@700&family=Noto+Sans+KR:wght@400;500;700&display=swap');
     html, body { height: 100vh; overflow: hidden; font-family: 'Noto Sans KR', sans-serif; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
@@ -706,8 +708,8 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.3.3';
-  const VERSION_DATE = '2025-09-17';
+  const APP_VERSION = 'v3.4.1';
+  const VERSION_DATE = '2025-09-18';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
   // ========================================
@@ -3793,7 +3795,9 @@
         // IN 상태인 플레이어만 처리 (빈 값이면 IN으로 간주)
         if(player && table && status === 'IN'){
           if(!byTable[table]) byTable[table]=[];
-          if(!byTable[table].some(p=>p.name===player)){
+          // v3.4.2: 중복 필터링 로직 수정 - table+name+seat 기준으로만 진짜 중복 체크
+          const isDuplicate = byTable[table].some(p => p.name === player && p.seat === seat);
+          if(!isDuplicate){
             byTable[table].push({
               name: player,
               chips,
@@ -3802,9 +3806,9 @@
               seat,
               status // 상태도 저장
             });
-            console.log(`[v3.3.1] ✅ ${player} 추가됨 (${table})`);
+            console.log(`[v3.4.2] ✅ ${player} 추가됨 (${table}, 좌석: ${seat})`);
           } else {
-            console.log(`[v3.3.1] ⚠️ ${player} 중복 건너뜀 (${table})`);
+            console.log(`[v3.4.2] ⚠️ ${player} 진짜 중복 건너뜀 (${table}, 좌석: ${seat})`);
           }
         } else {
           console.log(`[v3.3.1] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
@@ -6173,6 +6177,21 @@ async function sendDataToGoogleSheet(){
           } catch (uiError) {
             console.error('[v3.3.1] UI 업데이트 실패:', uiError);
           }
+
+          // 모달 자동 닫기 및 대시보드 리다이렉트
+          if (typeof autoCloseManagementModal === 'function') {
+            console.log('[v3.3.1] 모달 자동 닫기 실행...');
+            autoCloseManagementModal();
+          } else {
+            // 폴백: 수동으로 모달 닫기
+            setTimeout(() => {
+              const modal = document.getElementById('management-modal');
+              if (modal) {
+                modal.classList.add('hidden', 'opacity-0');
+                console.log('[v3.3.1] 모달 수동 닫기 완료');
+              }
+            }, 2000);
+          }
         } else {
           // 오류 처리
           syncStatus.textContent = '❌ 동기화 실패';
@@ -6187,6 +6206,11 @@ async function sendDataToGoogleSheet(){
             window.actionHistory.showSnackbar(errorMessage, null, 'error');
           } else {
             showFeedback(errorMessage, true);
+          }
+
+          // UI 활성화
+          if (typeof enableModalUI === 'function') {
+            enableModalUI();
           }
         }
       } catch(err) {
@@ -6220,6 +6244,11 @@ async function sendDataToGoogleSheet(){
         console.error('[v3.3.1] 디버그 정보:', debugInfo);
 
         showFeedback(`❌ ${errorMessage}${debugInfo ? ` (${debugInfo})` : ''}`, true);
+
+        // UI 활성화
+        if (typeof enableModalUI === 'function') {
+          enableModalUI();
+        }
       } finally {
         console.log('[v3.3.1] === 일괄 등록 종료 ===');
       }
@@ -6625,5 +6654,8 @@ async function sendDataToGoogleSheet(){
 
   <!-- 스낵바 컴포넌트 -->
   <div id="snackbar" class="snackbar"></div>
+
+  <!-- 중복 플레이어 제거 모듈 (매 새로고침마다 자동 실행) -->
+  <script src="src/js/duplicate-remover.js?v=3.4.2"></script>
 </body>
 </html>

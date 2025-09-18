@@ -1,0 +1,78 @@
+# Virtual Data Claude - Git Ignore File
+
+# 환경 설정
+.env
+.env.local
+.env.*.local
+config/secrets.js
+config/api_keys.json
+
+# 로그 파일
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 의존성
+node_modules/
+bower_components/
+
+# 빌드 결과물
+dist/
+build/
+out/
+*.min.js
+*.min.css
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# 테스트 커버리지
+coverage/
+*.lcov
+.nyc_output
+
+# 임시 파일
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# 개인 설정
+personal/
+private/
+*.personal.*
+
+# 캐시
+.cache/
+.parcel-cache/
+.next/
+
+# OS 파일
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# 백업 파일
+*.backup
+*.old
+backup/
+
+# 보안 관련
+*.key
+*.pem
+*.p12
+*.pfx
+credentials/
+
+# 경계 모니터링 보고서
+logs/boundary_report_*.json
