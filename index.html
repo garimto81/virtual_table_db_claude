@@ -731,7 +731,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.4.17';
+  const APP_VERSION = 'v3.4.18';
   const VERSION_DATE = '2025-09-18';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -5272,6 +5272,11 @@ async function sendDataToGoogleSheet(){
         const btn = e.target.closest('button');
         if(!btn) return;
 
+        // 🔧 모바일 확인/취소 버튼 수정: 터치 이벤트 처리하지 않음 (click만 사용)
+        if(btn.id === 'keypad-confirm' || btn.id === 'keypad-cancel') {
+          return; // 확인/취소 버튼은 터치 이벤트 처리 안함
+        }
+
         // 이미 눌린 상태면 무시 (물리적 누름 상태만 체크)
         if (buttonPressState.get(btn)) return;
 
@@ -5282,13 +5287,12 @@ async function sendDataToGoogleSheet(){
         btn.style.transform = 'scale(0.95)';
         btn.style.filter = 'brightness(1.2)';
 
-        // 키패드 버튼만 즉시 처리 (확인/취소 버튼은 기존 로직 유지)
+        // 키패드 버튼만 즉시 처리
         if(btn.classList.contains('keypad-btn')) {
           processKeypadInputImmediate(btn);
+          // 키패드 버튼만 preventDefault 적용
+          e.preventDefault();
         }
-
-        // 터치 이벤트 시 click 중복 방지
-        e.preventDefault();
       }
 
       function handleKeypadUp(e) {
