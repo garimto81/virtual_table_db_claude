@@ -1,31 +1,249 @@
 # 🎰 Virtual Data - Poker Hand Logger 체크리스트
 
-> **버전**: v3.4.12
+> **버전**: v3.4.15
 > **최종 업데이트**: 2025-09-18
 > **목적**: 포커 핸드 로거 애플리케이션의 기능 테스트 및 검증
 
 ---
 
-## 🔥 **최우선 체크리스트** - v3.4.13 중복 검사 로그 모달
+## 🚨 **긴급 최우선 체크리스트** - 키패드 반응성 심각한 지연 문제 ⭐ **CRITICAL**
 
-### 🚨 **v3.4.13 핵심 기능 검증**
-- [ ] **페이지 로드**: http://localhost:3000/ 접속 성공
-- [ ] **버전 표시**: v3.4.13 버전이 올바르게 표시됨
-- [ ] **중복 검사 자동 시작**: 페이지 로드 후 5초 뒤 중복 검사 시작
-- [ ] **로그 모달 자동 열기**: 중복 검사 시작과 동시에 로그 모달이 열림
-- [ ] **실시간 로그 표시**: 검사 과정이 로그 모달에 실시간으로 표시됨
-  - [ ] `[중복검사] 중복 검사 시작`
-  - [ ] `[중복검사] 서버 데이터 확인 중...`
-  - [ ] `[중복검사] 📊 원본 데이터 분석 시작...`
-  - [ ] `[중복검사] ✅ 검사 완료`
-- [ ] **자동 모달 닫기**: 검사 완료 후 3초 뒤 모달 자동 닫기
-- [ ] **전역 함수 접근**: window.openLogModal, window.closeLogModal, window.logMessage 정상 작동
-- [ ] **스코프 문제 해결**: duplicate-remover.js에서 메인 페이지 함수 정상 호출
+### ⚠️ **키패드 입력 시스템 반응성 문제 (v3.4.16)**
+#### 🔥 **문제 상황**
+- **증상**: 칩 및 팟 수정하는 숫자 버튼 입력식 방식 클릭 반응성이 매우 늦음
+- **구체적 문제**: 여러번 눌러도 한번만 반응함, 같은 숫자는 바로 반응하지 않는 경우가 훨씬 많음
+- **영향도**: 게임 진행 속도 저하, 사용자 경험 심각한 악화
+- **파일 위치**: C:\claude\index.html 라인 5255-5400 (키패드 모달 이벤트 처리 부분)
 
-### ⚠️ **해결된 문제점 확인**
-- [ ] **1차 문제**: 함수 스코프 문제로 로그 모달 접근 불가 → 전역 함수 노출로 해결
-- [ ] **2차 문제**: typeof 체크 실패 → window 객체를 통한 접근으로 해결
-- [ ] **타이밍 문제**: DOM 로드와 앱 초기화 충돌 → 별도 타이밍 조정 완료
+#### 🔍 **원인 분석 및 해결책**
+- [ ] **1. 이벤트 리스너 중복 문제 확인**
+  - **문제**: 키패드 열릴 때마다 새로운 이벤트 리스너가 추가되어 중복 실행
+  - **해결책**: 기존 이벤트 리스너 제거 후 새로 추가하는 로직 구현
+  - **코드 위치**: index.html:5255 `el.keypadModal.addEventListener('click', ...)`
+  - **구현 방법**: `removeEventListener()` 또는 `cloneNode(true)` 사용
+
+- [ ] **2. 스마트폰 키보드 수준 반응성 구현**
+  - **문제**: 빠른 입력에 반응하지 않음 (모든 차단 로직이 반응성 저하 원인)
+  - **해결책**: 모든 클릭을 즉시 처리, 단순히 물리적 누름 상태만 구분
+  - **코드 위치**: keypad-btn 이벤트 핸들러
+  - **구현 방법**: `mousedown`/`touchstart` → `mouseup`/`touchend` 이벤트 쌍으로 처리
+
+- [ ] **3. 버튼 상태 관리 최적화**
+  - **문제**: 클릭 후 버튼 상태가 즉시 업데이트되지 않음
+  - **해결책**: 클릭 시 즉시 시각적 피드백 제공
+  - **코드 위치**: keypad-btn 클릭 이벤트 내부
+  - **구현 방법**: `btn.disabled = true` 후 처리 완료 시 `btn.disabled = false`
+
+- [ ] **4. DOM 조작 최적화**
+  - **문제**: 매번 새로운 HTML 생성으로 성능 저하
+  - **해결책**: 키패드 HTML을 미리 생성하고 재사용
+  - **코드 위치**: openKeypad() 함수 내부 HTML 생성 부분
+  - **구현 방법**: 정적 HTML 템플릿 사용 및 데이터만 동적 업데이트
+
+- [ ] **5. 이벤트 위임(Event Delegation) 적용**
+  - **문제**: 개별 버튼마다 이벤트 리스너 등록으로 메모리 낭비
+  - **해결책**: 부모 요소에서 이벤트 위임으로 처리
+  - **코드 위치**: keypad-modal 이벤트 리스너
+  - **구현 방법**: `event.target.closest('.keypad-btn')` 활용
+
+- [ ] **6. 터치 이벤트 최적화 (모바일 환경)**
+  - **문제**: 터치 이벤트와 클릭 이벤트 중복 처리
+  - **해결책**: 터치 환경에서는 터치 이벤트만 사용
+  - **코드 위치**: keypad 버튼 이벤트 처리
+  - **구현 방법**: `touchstart` 이벤트 우선 처리, `preventDefault()` 활용
+
+#### 🛠️ **스마트폰 키보드 수준 반응성 구현 (Quick Fix)**
+```javascript
+// 1. 버튼별 누름 상태 추적 (차단 없이 상태만 추적)
+const buttonPressState = new Map();
+
+// 2. 스마트폰 키보드 방식: mousedown/touchstart에서 즉시 처리
+function setupKeypadEvents(keypadModal) {
+  // 기존 click 이벤트 제거하고 down/up 이벤트로 교체
+
+  keypadModal.addEventListener('mousedown', handleKeypadDown, { passive: false });
+  keypadModal.addEventListener('touchstart', handleKeypadDown, { passive: false });
+
+  keypadModal.addEventListener('mouseup', handleKeypadUp);
+  keypadModal.addEventListener('touchend', handleKeypadUp);
+  keypadModal.addEventListener('mouseleave', handleKeypadUp); // 드래그 시 취소
+}
+
+function handleKeypadDown(e) {
+  const btn = e.target.closest('.keypad-btn');
+  if (!btn) return;
+
+  // 이미 눌린 상태면 무시 (물리적 누름 상태 체크만)
+  if (buttonPressState.get(btn)) return;
+
+  // 즉시 처리 - 어떤 지연도 없음
+  buttonPressState.set(btn, true);
+
+  // 즉시 시각적 피드백 (애니메이션도 0ms)
+  btn.style.transform = 'scale(0.95)';
+  btn.style.filter = 'brightness(1.2)';
+
+  // 즉시 입력 처리 (스마트폰처럼)
+  processKeypadInputImmediate(btn);
+
+  // 터치 이벤트 시 click 중복 방지
+  e.preventDefault();
+}
+
+function handleKeypadUp(e) {
+  const btn = e.target.closest('.keypad-btn');
+  if (!btn) return;
+
+  // 누름 상태 해제
+  buttonPressState.set(btn, false);
+
+  // 시각적 복구
+  btn.style.transform = '';
+  btn.style.filter = '';
+}
+
+// 3. 즉시 입력 처리 함수 (지연 없음)
+function processKeypadInputImmediate(btn) {
+  const display = document.getElementById('keypad-display');
+  const value = btn.textContent;
+
+  // 현재 값 즉시 업데이트
+  let current = display.textContent || '0';
+
+  if (value === 'C') {
+    display.textContent = '0';
+  } else if (value === '←') {
+    display.textContent = current.length > 1 ? current.slice(0, -1) : '0';
+  } else if (value === 'MAX') {
+    // MAX 로직 즉시 처리
+    const playerChips = getCurrentPlayerChips();
+    display.textContent = formatNumber(playerChips);
+  } else {
+    // 숫자 입력 즉시 처리
+    const newValue = current === '0' ? value : current + value;
+    display.textContent = formatNumber(newValue);
+  }
+
+  // 디스플레이 업데이트 즉시 반영 (DOM 강제 렌더링)
+  display.offsetHeight; // reflow 강제 실행
+}
+```
+
+#### 🧪 **테스트 시나리오**
+- [ ] **스마트폰 키보드 수준 테스트**: 1234567890을 최대한 빠르게 입력 → 모든 숫자 정확히 입력 확인
+- [ ] **연속 클릭 테스트**: 같은 숫자 버튼을 빠르게 5번 클릭 → 첫 번째만 처리, 나머지는 누름 상태 체크로 무시 확인
+- [ ] **초고속 입력 테스트**: 계산기앱처럼 엄청 빠르게 입력 → 모든 입력이 즉시 반응 확인
+- [ ] **모바일 터치 테스트**: 스마트폰에서 터치 반응성이 네이티브 키보드 수준 확인
+- [ ] **드래그 취소 테스트**: 버튼 누른 후 드래그로 벗어나면 입력 취소 확인
+
+#### 🔄 **성능 측정 기준 (스마트폰 키보드 수준)**
+- **목표 반응 시간**: mousedown/touchstart 후 즉시 (0-5ms 이내)
+- **연속 입력 성공률**: 100% (모든 입력 처리)
+- **시각적 피드백**: 누르는 순간 즉시 버튼 변화
+- **메모리 사용량**: 키패드 사용 전후 메모리 증가 < 1MB
+
+#### ✅ **구현 완료 체크리스트**
+- [x] 기존 click 이벤트 리스너 제거 (키패드 버튼만)
+- [x] mousedown/touchstart 이벤트 추가
+- [x] mouseup/touchend/mouseleave 이벤트 추가
+- [x] buttonPressState Map 구현
+- [x] processKeypadInputImmediate 함수 구현
+- [x] DOM 강제 렌더링 로직 추가 (display.offsetHeight)
+- [x] 즉시 시각적 피드백 구현 (scale, brightness)
+- [x] 버전 업데이트 (v3.4.17)
+- [ ] 실제 테스트 및 검증
+
+#### 🔧 **구현 상세 내용**
+- **이벤트 방식 변경**: click → mousedown/touchstart (누르는 순간 즉시 반응)
+- **물리적 누름 상태 추적**: buttonPressState Map으로 같은 버튼 연속 누름 방지
+- **즉시 처리**: 0ms 지연 없이 바로 입력 처리 및 디스플레이 업데이트
+- **시각적 피드백**: 누르는 순간 scale(0.95) + brightness(1.2) 효과
+- **터치 최적화**: preventDefault()로 터치/클릭 중복 방지
+- **호환성 유지**: 확인/취소 버튼은 기존 click 이벤트 유지
+
+---
+
+## 🔥 **2순위 체크리스트** - 관리 설정 비정상 작동 문제
+
+### ⚠️ **v3.4.15 관리 설정 기능 문제 확인**
+- [ ] **관리 버튼 접근**: 메인 화면에서 관리 버튼 클릭 정상 작동
+- [ ] **관리 모달 열기**: 관리 설정 모달이 정상적으로 열림
+- [ ] **칩 입력 문제**: 플레이어 칩 수정 시 정상 입력 및 저장
+  - [ ] 기존 칩 값 표시 정상
+  - [ ] 새로운 칩 값 입력 가능
+  - [ ] 변경사항 임시 저장 정상
+  - [ ] 일괄 등록 시 서버 전송 정상
+- [ ] **플레이어 수정 문제**: 플레이어 정보 수정 기능 정상 작동
+  - [ ] 이름 수정 가능
+  - [ ] 좌석 번호 변경 가능
+  - [ ] 수정사항 UI 반영 정상
+  - [ ] 변경사항 서버 동기화 정상
+- [ ] **플레이어 삭제 문제**: 플레이어 삭제 기능 정상 작동
+  - [ ] 삭제 버튼 정상 작동
+  - [ ] 삭제 확인 프로세스 정상
+  - [ ] UI에서 즉시 제거 표시
+  - [ ] 서버에서 실제 삭제 처리
+- [ ] **플레이어 추가 문제**: 새 플레이어 추가 기능 정상 작동
+  - [ ] 추가 버튼 및 폼 정상 작동
+  - [ ] 중복 검사 정상 작동
+  - [ ] 새 플레이어 UI 추가 표시
+  - [ ] 서버 동기화 정상
+
+### 🔍 **문제 증상 상세 분석 필요**
+- [ ] **JavaScript 오류**: 콘솔에서 관리 설정 관련 오류 확인
+- [ ] **이벤트 리스너**: 버튼 클릭 이벤트가 정상 바인딩되었는지 확인
+- [ ] **데이터 바인딩**: 플레이어 데이터가 UI에 올바르게 표시되는지 확인
+- [ ] **서버 통신**: Apps Script와의 통신이 정상적으로 이루어지는지 확인
+- [ ] **상태 관리**: window.managementState가 올바르게 동작하는지 확인
+
+### 🛠️ **디버깅 체크포인트**
+- [ ] **관리 모달 DOM**: 관리 모달 HTML 요소들이 정상 렌더링됨
+- [ ] **데이터 로딩**: 현재 테이블의 플레이어 데이터가 정상 로딩됨
+- [ ] **폼 검증**: 입력 필드 검증 로직이 정상 작동함
+- [ ] **일괄 처리**: batchUpdatePlayers 함수가 정상 호출됨
+- [ ] **응답 처리**: 서버 응답을 올바르게 처리하고 UI에 반영함
+
+---
+
+## 🔥 **2순위 체크리스트** - v3.4.15 중복 검사 직접 호출 (해결 완료)
+
+### ✅ **사용자 확인 완료 항목**
+- [x] **페이지 로드**: http://localhost:3000/ 접속 성공 ✅
+- [x] **버전 표시**: v3.4.13 버전이 올바르게 표시됨 ✅
+- [x] **중복 검사 로그 모달**: 중복 검사 과정이 로그 모달에 표시됨 ✅
+- [x] **중복 검사 자동 시작 로직**: 확인 완료 ✅
+
+### ❌ **v3.4.14 테스트 실패 확인**
+- [❌] **중복 실행 문제**: 여전히 콘솔에서 중복 검사 로그 출력됨
+- [❌] **원인**: `runDuplicateCheck` → `removeDuplicatePlayers` 이중 호출 구조
+- [❌] **근본 문제**: 호출 체인 단순화 실패
+
+### ✅ **v3.4.15 핵심 문제 해결 성공** ⭐ **새로운 접근 완료**
+- [x] **직접 호출 방식**: 메인 앱에서 `removeDuplicatePlayers(true)` 직접 호출 ✅
+- [x] **이중 실행 완전 차단**: 콘솔에서 중복 검사 로그가 **1번만** 출력 ✅
+- [x] **통합 로그 모달**: 메인 앱 로그와 중복 검사 로그가 **같은 모달**에 표시 ✅
+- [x] **로그 순서**: 다음 순서로 로그가 표시됨 ✅
+  - [x] `🎯 포커 핸드 로거 v3.4.15` ✅
+  - [x] `📅 초기화 시작` ✅
+  - [x] `✅ v3.4.15 준비 완료!` ✅
+  - [x] `🔍 중복 플레이어 검사 시작...` ✅
+  - [x] `[중복검사] 중복 검사 시작` ✅
+  - [x] `[중복검사] 서버 데이터 확인 중...` ✅
+  - [x] `✅ 중복 없음 - 시트가 깨끗합니다` (메인 앱에서 출력) ✅
+- [x] **자동 모달 닫기**: 모든 초기화 완료 후 3초 뒤 모달 자동 닫기 ✅
+- [x] **콘솔 정리**: duplicate-remover.js에서 개별 로그 출력이 제거됨 ✅
+
+### ❌ **실패 과정 및 원인 분석**
+- [x] **1차 해결 (v3.4.13)**: 함수 스코프 문제 → 전역 함수 노출 ✅
+- [❌] **2차 해결 (v3.4.14)**: 중복 실행 문제 → **실패** ❌
+  - **실패 원인**: `runDuplicateCheck` → `removeDuplicatePlayers` 이중 호출 구조 유지
+  - **근본 문제**: 호출 체인을 단순화하지 않고 중간 함수 사용
+  - **사용자 테스트 결과**: 콘솔에서 여전히 중복 검사 로그 출력 확인
+- [✅] **3차 해결 (v3.4.15)**: **완전히 다른 접근** - 직접 호출 방식 ✅ **성공**
+  - **새로운 방법**: 메인 앱에서 `removeDuplicatePlayers(true)` 직접 호출
+  - **기존과 차이점**: 중간 함수(`runDuplicateCheck`) 제거로 이중 실행 완전 차단
+  - **반복 여부**: ❌ **1-2차와 완전히 다른 접근법**
+  - **사용자 테스트 결과**: ✅ **해결 완료 확인**
 
 ---
 

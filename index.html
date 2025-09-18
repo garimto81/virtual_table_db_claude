@@ -731,7 +731,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.4.13';
+  const APP_VERSION = 'v3.4.17';
   const VERSION_DATE = '2025-09-18';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -1343,7 +1343,7 @@
     
     // ====== CONFIG (필수: 실제 URL로 교체) ======
     // Apps Script URL 설정 (localStorage에서 로드 또는 기본값 사용)
-    const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbya-VriY5oEDOEO4W80VJz4GaY6QhBb38-3JvSrwl5Qo-7K8D0jqbjTO06bO6VAYj/exec";
+    const DEFAULT_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwEcsF1F_RLLW_qkQIFkrwmut-zN0fHOqsAKs5B8PgHZAz2_O5sA8o2W5zZ3nD-5tjY/exec";
     let APPS_SCRIPT_URL = localStorage.getItem('appsScriptUrl') || DEFAULT_APPS_SCRIPT_URL;
     
     // CSV URLs (고정)
@@ -5251,17 +5251,110 @@ async function sendDataToGoogleSheet(){
         if(kb && !kb.closest('.player-card')) openKeypad(kb.previousElementSibling, { purpose:'input' });
       });
 
-      // 키패드 입력
-      el.keypadModal.addEventListener('click', (e)=>{
+      // 🚀 스마트폰 키보드 수준 키패드 입력 (v3.4.17 성능 최적화)
+      // 버튼별 누름 상태 추적
+      const buttonPressState = new Map();
+
+      // 기존 click 이벤트 대신 down/up 이벤트로 즉시 반응
+      el.keypadModal.addEventListener('mousedown', handleKeypadDown, { passive: false });
+      el.keypadModal.addEventListener('touchstart', handleKeypadDown, { passive: false });
+      el.keypadModal.addEventListener('mouseup', handleKeypadUp);
+      el.keypadModal.addEventListener('touchend', handleKeypadUp);
+      el.keypadModal.addEventListener('mouseleave', handleKeypadUp);
+
+      function handleKeypadDown(e) {
         // 모달 배경 클릭 시 닫기
         if(e.target === el.keypadModal) {
           closeModal(el.keypadModal);
           return;
         }
-        
-        const btn = e.target.closest('button'); if(!btn) return;
+
+        const btn = e.target.closest('button');
+        if(!btn) return;
+
+        // 이미 눌린 상태면 무시 (물리적 누름 상태만 체크)
+        if (buttonPressState.get(btn)) return;
+
+        // 즉시 처리 시작
+        buttonPressState.set(btn, true);
+
+        // 즉시 시각적 피드백
+        btn.style.transform = 'scale(0.95)';
+        btn.style.filter = 'brightness(1.2)';
+
+        // 키패드 버튼만 즉시 처리 (확인/취소 버튼은 기존 로직 유지)
+        if(btn.classList.contains('keypad-btn')) {
+          processKeypadInputImmediate(btn);
+        }
+
+        // 터치 이벤트 시 click 중복 방지
+        e.preventDefault();
+      }
+
+      function handleKeypadUp(e) {
+        const btn = e.target.closest('button');
+        if(!btn) return;
+
+        // 누름 상태 해제
+        buttonPressState.set(btn, false);
+
+        // 시각적 복구
+        btn.style.transform = '';
+        btn.style.filter = '';
+      }
+
+      // 즉시 입력 처리 함수
+      function processKeypadInputImmediate(btn) {
         const display = el.keypadModal.querySelector('#keypad-display');
         const key = btn.textContent;
+
+        if(key==='C'){
+          display.textContent='0';
+        }else if(key==='←'){
+          const current = unformatNumber(display.textContent);
+          const newValue = current.slice(0,-1) || '0';
+          display.textContent = formatNumber(newValue);
+        }else if(btn.dataset.action === 'max') {
+          const { purpose } = window.state.modalState.keypadOptions;
+          if(purpose === 'bet') {
+            const playerName = window.state.modalState.keypadOptions.playerName ||
+                              window.state.modalState.actionPadPlayer;
+            const player = window.state.playersInHand.find(p => p.name === playerName);
+            if(player) {
+              display.textContent = player.chips;
+              const warning = el.keypadModal.querySelector('#keypad-warning');
+              if(warning) {
+                warning.classList.remove('hidden');
+                warning.textContent = `💰 최대 베팅 - 보유 칩 전체(${formatNumber(player.chips)})`;
+                warning.className = 'text-xs text-blue-400 text-center mb-2';
+              }
+            }
+          }
+        }else{
+          // 숫자 입력 처리
+          const current = unformatNumber(display.textContent);
+          let newValue;
+          if(current === '0') {
+            newValue = key;
+          } else {
+            newValue = current + key;
+          }
+          display.textContent = formatNumber(newValue);
+        }
+
+        // DOM 강제 렌더링으로 즉시 반영
+        display.offsetHeight;
+      }
+
+      // 확인/취소 버튼은 기존 click 이벤트 유지
+      el.keypadModal.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button');
+        if(!btn) return;
+
+        // 키패드 버튼은 이미 down 이벤트에서 처리됨
+        if(btn.classList.contains('keypad-btn')) return;
+
+        const display = el.keypadModal.querySelector('#keypad-display');
 
         // MAX 버튼 처리
         if(btn.dataset.action === 'max') {
@@ -5415,24 +5508,10 @@ async function sendDataToGoogleSheet(){
             }
           }
           closeModal(el.keypadModal);
-        }else if(btn.id==='keypad-cancel'){ closeModal(el.keypadModal);
-        }else if(key==='C'){ 
-          display.textContent='0';
-        }else if(key==='←'){ 
-          const current = unformatNumber(display.textContent);
-          const newValue = current.slice(0,-1) || '0';
-          display.textContent = formatNumber(newValue);
-        }else{
-          // 숫자 입력 처리
-          const current = unformatNumber(display.textContent);
-          let newValue;
-          if(current === '0') {
-            newValue = key;
-          } else {
-            newValue = current + key;
-          }
-          display.textContent = formatNumber(newValue);
+        }else if(btn.id==='keypad-cancel'){
+          closeModal(el.keypadModal);
         }
+        // 나머지 버튼들은 기존 로직 유지 (키패드 버튼은 down 이벤트에서 처리됨)
       });
 
       // SB/BB/Ante 체크
@@ -6600,10 +6679,29 @@ async function sendDataToGoogleSheet(){
           timeUpdater = setInterval(updateTimeDisplay, 1000);
           updateTimeDisplay();
           logMessage(`✅ ${APP_VERSION} 준비 완료!`);
+
+          // 중복 검사 실행 (직접 호출로 이중 실행 방지)
+          logMessage(`🔍 중복 플레이어 검사 시작...`);
+          if (window.removeDuplicatePlayers && typeof window.removeDuplicatePlayers === 'function') {
+            try {
+              // skipModalOpen=true로 모달 중복 열기 방지
+              const result = await window.removeDuplicatePlayers(true);
+              if (result.success) {
+                if (result.removedCount > 0) {
+                  logMessage(`✅ 중복 제거 완료: ${result.removedCount}명 제거`);
+                } else {
+                  logMessage(`✅ 중복 없음 - 시트가 깨끗합니다`);
+                }
+              }
+            } catch (duplicateError) {
+              console.error('중복 검사 오류:', duplicateError);
+              logMessage(`⚠️ 중복 검사 실패: ${duplicateError.message}`, true);
+            }
+          }
         }catch(err){
           console.error(err); logMessage(`초기화 실패: ${err.message}`, true);
         }finally{
-          setTimeout(closeLogModal, 800);
+          setTimeout(closeLogModal, 3000); // 중복 검사 완료 후 닫기 위해 시간 연장
         }
       }, '앱 초기화', '데이터를 로드하고 있습니다...');
     }
@@ -6633,6 +6731,6 @@ async function sendDataToGoogleSheet(){
   <div id="snackbar" class="snackbar"></div>
 
   <!-- 중복 플레이어 제거 모듈 (매 새로고침마다 자동 실행) -->
-  <script src="src/js/duplicate-remover.js?v=3.4.13"></script>
+  <script src="src/js/duplicate-remover.js?v=3.4.16"></script>
 </body>
 </html>

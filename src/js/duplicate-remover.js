@@ -1,12 +1,12 @@
 /**
- * 중복 플레이어 자동 제거 시스템 v3.4.13
+ * 중복 플레이어 자동 제거 시스템 v3.4.15
  * 페이지 로드 시 자동으로 중복 플레이어를 검출하고 삭제합니다.
  * 중복 조건: 같은 테이블 + 같은 이름 + 같은 좌석
  *
- * v3.4.12 변경사항:
- * - 로그 모달에 중복 검사 과정 실시간 표시
- * - 모든 검사 단계를 사용자가 시각적으로 확인 가능
- * - 검사 완료 후 3초 뒤 모달 자동 닫기로 UX 개선
+ * v3.4.15 변경사항:
+ * - 직접 호출 방식으로 이중 실행 완전 차단
+ * - runDuplicateCheck 함수 우회하여 removeDuplicatePlayers 직접 호출
+ * - 메인 앱에서 중복 검사 결과를 직접 처리하도록 변경
  */
 
 /**
@@ -29,12 +29,13 @@ function logDuplicateRemover(message) {
 
 /**
  * 메인 중복 제거 함수
+ * @param {boolean} skipModalOpen - 모달 열기를 건너뛸지 여부 (메인 앱에서 이미 열었을 때)
  * @returns {Promise<Object>} 제거 결과
  */
-async function removeDuplicatePlayers() {
+async function removeDuplicatePlayers(skipModalOpen = false) {
     try {
-        // 로그 모달 열기 및 진행 상황 표시 (전역 함수 접근)
-        if (window.openLogModal && typeof window.openLogModal === 'function') {
+        // 로그 모달 열기 및 진행 상황 표시 (메인 앱에서 이미 열었으면 건너뛰기)
+        if (!skipModalOpen && window.openLogModal && typeof window.openLogModal === 'function') {
             window.openLogModal();
             if (window.logMessage && typeof window.logMessage === 'function') {
                 const logDisplay = document.getElementById('log-display');
@@ -44,7 +45,7 @@ async function removeDuplicatePlayers() {
             }
         }
 
-        logDuplicateRemover('[DuplicateRemover v3.4.13] 중복 검사 시작');
+        logDuplicateRemover('[DuplicateRemover v3.4.15] 중복 검사 시작');
 
         // UI 차단하지 않음 - 백그라운드로 처리
 
@@ -94,14 +95,16 @@ async function removeDuplicatePlayers() {
         };
     } finally {
         // 검사 완료 알림
-        logDuplicateRemover('[DuplicateRemover v3.4.13] ✅ 검사 완료');
+        logDuplicateRemover('[DuplicateRemover v3.4.15] ✅ 검사 완료');
 
-        // 3초 후 모달 자동 닫기 (전역 함수 접근)
-        setTimeout(() => {
-            if (window.closeLogModal && typeof window.closeLogModal === 'function') {
-                window.closeLogModal();
-            }
-        }, 3000);
+        // 모달 자동 닫기는 메인 앱에서 처리하도록 변경 (중복 방지)
+        if (!skipModalOpen) {
+            setTimeout(() => {
+                if (window.closeLogModal && typeof window.closeLogModal === 'function') {
+                    window.closeLogModal();
+                }
+            }, 3000);
+        }
     }
 }
 
@@ -410,8 +413,8 @@ function runDuplicateCheck() {
 
         logDuplicateRemover('[DuplicateRemover] ✅ window.state 준비 완료');
 
-        // 중복 검사 실행
-        removeDuplicatePlayers().then(result => {
+        // 중복 검사 실행 (메인 앱에서 호출된 경우 모달 열기 스킵)
+        removeDuplicatePlayers(true).then(result => {
             if (result.success) {
                 if (result.removedCount > 0) {
                     logDuplicateRemover(`[DuplicateRemover] ✅ 중복 제거 완료: ${result.removedCount}명 제거`);
@@ -431,32 +434,17 @@ function runDuplicateCheck() {
 }
 
 /**
- * 모듈 초기화
+ * 모듈 초기화 (자동 실행 비활성화)
  */
 function initDuplicateRemover() {
-    logDuplicateRemover('[DuplicateRemover] 모듈 초기화 시작...');
-
-    if (document.readyState === 'loading') {
-        logDuplicateRemover('[DuplicateRemover] DOM 로딩 중 - DOMContentLoaded 이벤트 대기');
-        document.addEventListener('DOMContentLoaded', () => {
-            logDuplicateRemover('[DuplicateRemover] ✅ DOMContentLoaded 이벤트 발생 - 5초 후 실행 예약');
-            setTimeout(() => {
-                logDuplicateRemover('[DuplicateRemover] ⏰ 타이머 실행됨 - 중복 검사 시작');
-                runDuplicateCheck();
-            }, 5000);
-        });
-    } else {
-        logDuplicateRemover('[DuplicateRemover] DOM 이미 로드됨 - 3초 후 실행 예약');
-        setTimeout(() => {
-            logDuplicateRemover('[DuplicateRemover] ⏰ 타이머 실행됨 - 중복 검사 시작');
-            runDuplicateCheck();
-        }, 3000);
-    }
+    logDuplicateRemover('[DuplicateRemover] 모듈 로드 완료 - 메인 앱에서 호출 대기');
+    // 자동 실행 제거: 메인 앱의 initializeApp에서 호출하도록 변경
 }
 
 // 전역 함수로 노출
 window.removeDuplicatePlayers = removeDuplicatePlayers;
 window.removeDuplicatesFromLocalData = removeDuplicatesFromLocalData;
+window.runDuplicateCheck = runDuplicateCheck; // 메인 앱에서 호출할 수 있도록 노출
 
-// 모듈 자동 초기화
+// 모듈 초기화 (자동 실행 제거)
 initDuplicateRemover();
