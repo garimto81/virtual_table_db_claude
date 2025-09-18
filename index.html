@@ -2,10 +2,33 @@
 <!--
   ============================================
   포커 핸드 로거 (Poker Hand Logger)
-  Version: 3.3.3
-  Last Modified: 2025-09-17 KST
+  Version: 3.4.10
+  Last Modified: 2025-09-18 KST
 
   Change Log:
+  - v3.4.10 (2025-09-18): GitHub 저장소 구조 통합 및 간소화
+    • 파일들을 루트 레벨로 이동 (virtual_data 서브폴더 제거)
+    • GitHub Pages 경로 단순화: garimto81.github.io/virtual_data
+    • 관리 포인트 통합으로 유지보수성 향상
+  - v3.4.9 (2025-09-18): openCardSelector 함수 전역 접근 문제 해결
+    • openCardSelector 함수를 window 객체에 등록
+    • ActionOrderManager에서 카드 선택 UI 정상 호출 가능
+  - v3.4.8 (2025-09-18): JavaScript 파일 경로 버그 수정
+    • archive 폴더로 스크립트 경로 수정 (404 에러 해결)
+    • 모든 JavaScript 파일이 정상 로드됨
+  - v3.4.7 (2025-09-18): 텍스트 카드 입력 UI 완전 제거
+    • 텍스트 입력 필드 제거, 비주얼 카드 선택기로 통합
+    • showFeedback 함수 전역 접근 문제 해결
+    • promptForBoardCards가 openCardSelector 사용하도록 변경
+    • 모든 카드 입력이 일관된 UI로 통합
+  - v3.4.6 (2025-09-18): 중복 플레이어 검사 사용자 경험 개선
+    • 백그라운드 검사로 변경 (UI 차단 없음)
+    • 진행 메시지 간소화 (콘솔 위주)
+    • 중요한 결과만 짧게 표시 (2초 스낵바)
+    • 페이지 로드 시 조용한 실행
+  - v3.4.5 (2025-09-18): 카드 입력 시스템 통합
+    • 비주얼 카드 선택 UI로 완전 통일
+    • 이미 입력된 카드가 있으면 자동 스킵
   - v3.3.3 (2025-09-17): 유연한 칩 처리 시스템
     • 칩 초과 베팅 허용 - 경고만 표시하고 진햗
     • 마이너스 칩 허용 및 시각적 표시 (빨간색)
@@ -95,20 +118,20 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v3.4.4</title>
+  <title>포커 핸드 로거 v3.4.10</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
-  <script src="chip-analysis-module.js?v=3.0.0" defer></script>
+  <script src="archive/chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
-  <script src="table-management-v59.js?v=3.0.0" defer></script>
+  <script src="archive/table-management-v59.js?v=3.0.0" defer></script>
   <!-- ActionHistory 시스템 - Phase 1 -->
-  <script src="action-history.js?v=3.2.5" defer></script>
+  <script src="archive/action-history.js?v=3.2.5" defer></script>
   <!-- Phase 2: 더블탭 & 배치 처리 -->
-  <script src="double-tap-handler.js?v=3.2.5" defer></script>
-  <script src="batch-processor.js?v=3.2.5" defer></script>
+  <script src="archive/double-tap-handler.js?v=3.2.5" defer></script>
+  <script src="archive/batch-processor.js?v=3.2.5" defer></script>
   <!-- Phase 3: 모바일 최적화 -->
-  <script src="mobile-optimizer.js?v=3.2.5" defer></script>
-  <script src="virtual-scroll.js?v=3.2.5" defer></script>
-  <script src="offline-storage.js?v=3.2.5" defer></script>
+  <script src="archive/mobile-optimizer.js?v=3.2.5" defer></script>
+  <script src="archive/virtual-scroll.js?v=3.2.5" defer></script>
+  <script src="archive/offline-storage.js?v=3.2.5" defer></script>
   <!-- 모달 자동 닫기 모듈 -->
   <script src="src/js/modal-auto-close.js?v=1.0.0" defer></script>
   <style>
@@ -1184,97 +1207,42 @@
       }
     }
 
-    // 보드 카드 입력 프롬프트
+    // 보드 카드 입력 프롬프트 (v3.4.7 - 카드 선택 UI 사용)
     promptForBoardCards(street) {
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999]';
-      modal.innerHTML = `
-        <div class="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
-          <h3 class="text-xl font-bold mb-4 text-white">
-            ${street.toUpperCase()} 카드 입력
-          </h3>
-          <p class="text-gray-300 mb-4">
-            ${street === 'flop' ? '플랍 3장' : street === 'turn' ? '턴 1장' : '리버 1장'}의 카드를 입력하세요
-          </p>
-          <div class="flex gap-2 mb-4">
-            ${street === 'flop' ?
-              `<input type="text" id="board-card-1" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: As">
-               <input type="text" id="board-card-2" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: Kh">
-               <input type="text" id="board-card-3" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: Qd">` :
-              `<input type="text" id="board-card-1" class="flex-1 bg-gray-700 text-white rounded px-3 py-2" placeholder="예: Jc">`
-            }
-          </div>
-          <div class="flex gap-2">
-            <button onclick="this.parentElement.parentElement.parentElement.remove(); window.actionManager.skipBoardCards('${street}')"
-                    class="flex-1 bg-gray-600 hover:bg-gray-700 text-white rounded py-2">
-              건너뛰기
-            </button>
-            <button onclick="window.actionManager.saveBoardCards('${street}')"
-                    class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded py-2">
-              확인
-            </button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
+      // 카드 선택 UI 열기 (openCardSelector 사용)
+      window.state.modalState.cardTarget = {
+        target: 'board',
+        count: street === 'flop' ? 3 : 1,
+        street: street,
+        player: null,
+        index: street === 'turn' ? 3 : street === 'river' ? 4 : 0
+      };
 
-      // 첫 번째 입력 필드에 포커스
-      setTimeout(() => {
-        document.getElementById('board-card-1')?.focus();
-      }, 100);
+      // 기존 카드 선택 모달 사용
+      openCardSelector();
     }
 
-    // 보드 카드 저장
+    // 보드 카드 저장 (v3.4.7 - 카드 선택 UI와 연동)
     saveBoardCards(street) {
-      const modal = document.querySelector('.fixed.inset-0');
-      if (!modal) return;
-
-      const cards = [];
-      if (street === 'flop') {
-        cards.push(document.getElementById('board-card-1')?.value);
-        cards.push(document.getElementById('board-card-2')?.value);
-        cards.push(document.getElementById('board-card-3')?.value);
-      } else {
-        cards.push(document.getElementById('board-card-1')?.value);
-      }
-
-      // 카드 유효성 검사
-      const validCard = /^[AKQJT2-9][shdc]$/i;
-      const invalidCards = cards.filter(c => c && !validCard.test(c));
-
-      if (invalidCards.length > 0) {
-        console.log('카드 형식 경고:', invalidCards);
-        // 그래도 저장
-      }
-
-      // 보드 카드 저장
-      if (!window.state.boardCards) window.state.boardCards = {};
-
-      if (street === 'flop') {
-        window.state.boardCards.flop1 = cards[0] || '';
-        window.state.boardCards.flop2 = cards[1] || '';
-        window.state.boardCards.flop3 = cards[2] || '';
-      } else if (street === 'turn') {
-        window.state.boardCards.turn = cards[0] || '';
-      } else if (street === 'river') {
-        window.state.boardCards.river = cards[0] || '';
-      }
-
-      modal.remove();
-      showFeedback(`✅ ${street.toUpperCase()} 카드가 저장되었습니다`, false);
-
-      // 스트릿 진행 재시도
-      this.advanceToNextStreet();
+      // 이 함수는 더 이상 직접 호출되지 않음
+      // openCardSelector의 assignCard 함수가 처리
+      console.log('[v3.4.7] saveBoardCards는 deprecated - assignCard 사용');
     }
 
-    // 보드 카드 건너뛰기
+    // 보드 카드 건너뛰기 (v3.4.7 - 수정됨)
     skipBoardCards(street) {
       console.log(`보드 카드 입력 건너뛰기: ${street}`);
       // 보드 카드 없이 진행
       this.currentStreet = street;
       this.currentPlayerIndex = 0;
       window.state.currentStreet = this.currentStreet;
-      this.showStreetAdvanceNotification();
+
+      // showFeedback 함수 확인
+      if (typeof showFeedback === 'function') {
+        showFeedback(`🎯 ${this.currentStreet.toUpperCase()} 스트릿으로 진행`, false);
+      } else {
+        console.log(`🎯 ${this.currentStreet.toUpperCase()} 스트릿으로 진행`);
+      }
     }
 
     // 트랜잭션 시작 (Layer 5)
@@ -1300,9 +1268,13 @@
       };
     }
 
-    // 스트릿 진행 알림
+    // 스트릿 진행 알림 (v3.4.7 - showFeedback 함수 체크 추가)
     showStreetAdvanceNotification() {
-      showFeedback(`🎯 ${this.currentStreet.toUpperCase()} 스트릿으로 자동 진행`, false);
+      if (typeof showFeedback === 'function') {
+        showFeedback(`🎯 ${this.currentStreet.toUpperCase()} 스트릿으로 자동 진행`, false);
+      } else {
+        console.log(`🎯 ${this.currentStreet.toUpperCase()} 스트릿으로 자동 진행`);
+      }
     }
 
     // 모드 전환
@@ -4794,6 +4766,10 @@ async function sendDataToGoogleSheet(){
       el.feedbackMessage.className = `text-center h-4 text-xs font-semibold ${isErr?'text-red-400':'text-green-400'}`;
     }
 
+    // 전역에서 접근 가능하도록 설정 (v3.4.9)
+    window.showFeedback = showFeedback;
+    window.openCardSelector = openCardSelector;
+
     // ====== EVENT LISTENERS ======
     function setupEventListeners(){
       el.loadHandBtn.onclick = openLoadHandModal;
@@ -6652,6 +6628,6 @@ async function sendDataToGoogleSheet(){
   <div id="snackbar" class="snackbar"></div>
 
   <!-- 중복 플레이어 제거 모듈 (매 새로고침마다 자동 실행) -->
-  <script src="src/js/duplicate-remover.js?v=3.4.4"></script>
+  <script src="src/js/duplicate-remover.js?v=3.4.10"></script>
 </body>
 </html>

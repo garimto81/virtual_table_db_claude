@@ -1,7 +1,12 @@
 /**
- * 중복 플레이어 자동 제거 시스템 v3.4.4
+ * 중복 플레이어 자동 제거 시스템 v3.4.6
  * 페이지 로드 시 자동으로 중복 플레이어를 검출하고 삭제합니다.
  * 중복 조건: 같은 테이블 + 같은 이름 + 같은 좌석
+ *
+ * v3.4.6 변경사항:
+ * - 중복 검사 시작 메시지를 간결하게 변경
+ * - 진행 상황을 콘솔에만 표시하여 사용자 방해 최소화
+ * - UI 차단 시간 단축 (검사 완료 즉시 해제)
  */
 
 /**
@@ -23,10 +28,10 @@ function logDuplicateRemover(message) {
  */
 async function removeDuplicatePlayers() {
     try {
-        logDuplicateRemover('[DuplicateRemover] 중복 플레이어 검사 시작...');
+        // 콘솔에만 로그 출력 (사용자 방해하지 않음)
+        console.log('[DuplicateRemover v3.4.6] 백그라운드 중복 검사 시작');
 
-        // UI 차단
-        showDuplicateRemovalProgress('🔍 중복 플레이어 검사 중...');
+        // UI 차단하지 않음 - 백그라운드로 처리
 
         // 데이터 소스 확인
         if (!window.state || !window.state.playerDataByTable) {
@@ -40,8 +45,8 @@ async function removeDuplicatePlayers() {
             return await analyzeLocalDataForDuplicates();
         }
 
-        // Google Sheets에서 원본 CSV 데이터 가져오기
-        logDuplicateRemover('[DuplicateRemover] Google Sheets에서 원본 데이터 가져오는 중...');
+        // Google Sheets에서 원본 CSV 데이터 가져오기 (조용히)
+        console.log('[DuplicateRemover] 데이터 확인 중...');
 
         const formData = new FormData();
         formData.append('action', 'loadType'); // Type 시트 원본 데이터 요청
@@ -58,9 +63,8 @@ async function removeDuplicatePlayers() {
             return await analyzeLocalDataForDuplicates();
         }
 
-        // 원본 CSV 데이터에서 중복 분석
-        logDuplicateRemover('[DuplicateRemover] 원본 CSV 데이터 분석 시작...');
-        showDuplicateRemovalProgress('원본 CSV 데이터에서 중복 검사 중...');
+        // 원본 CSV 데이터에서 중복 분석 (조용히)
+        console.log('[DuplicateRemover] 분석 중...');
 
         return await analyzeRawCsvData(result.csvData);
 
@@ -72,8 +76,8 @@ async function removeDuplicatePlayers() {
             removedCount: 0
         };
     } finally {
-        // UI 차단 해제
-        hideProgressAndUnlockUI();
+        // 검사 완료 알림 (간단히)
+        console.log('[DuplicateRemover v3.4.6] 검사 완료');
     }
 }
 
@@ -318,44 +322,27 @@ async function removeDuplicatesFromSheets(duplicatesToRemove) {
 }
 
 /**
- * 중복 제거 진행 상황 표시
+ * 중복 제거 진행 상황 표시 (v3.4.6 - 간소화됨)
  * @param {string} message - 표시할 메시지
  */
 function showDuplicateRemovalProgress(message) {
-    logDuplicateRemover(message);
+    // 콘솔에만 출력하고 UI는 방해하지 않음
+    console.log(`[DuplicateRemover] ${message}`);
 
-    // UI 잠금
-    const lockUI = () => {
-        const buttons = document.querySelectorAll('button, input, select, textarea');
-        buttons.forEach(element => {
-            element.disabled = true;
-            element.style.opacity = '0.5';
-        });
-    };
-
-    // 로깅 모달 표시
-    if (window.actionHistory && window.actionHistory.showSnackbar) {
-        window.actionHistory.showSnackbar('🔍 중복 플레이어 검사 중... 잠시만 기다려주세요', null, 'info', 10000);
+    // 중요한 경우에만 짧은 스낵바 표시 (2초)
+    if (message.includes('제거되었습니다') || message.includes('오류')) {
+        if (window.showFeedback) {
+            window.showFeedback(message, false);
+        }
     }
-
-    lockUI();
 }
 
 /**
- * 진행 상황 숨기고 UI 잠금 해제
+ * 진행 상황 숨기고 UI 잠금 해제 (v3.4.6 - 더 이상 사용하지 않음)
  */
 function hideProgressAndUnlockUI() {
-    // UI 잠금 해제
-    const unlockUI = () => {
-        const buttons = document.querySelectorAll('button, input, select, textarea');
-        buttons.forEach(element => {
-            element.disabled = false;
-            element.style.opacity = '1';
-        });
-    };
-
-    unlockUI();
-    logDuplicateRemover('[DuplicateRemover] UI 잠금 해제');
+    // v3.4.6: UI를 차단하지 않으므로 이 함수는 사용되지 않음
+    console.log('[DuplicateRemover v3.4.6] 백그라운드 처리 완료');
 }
 
 /**
@@ -367,12 +354,16 @@ function removeDuplicatesFromLocalData() {
 }
 
 /**
- * 페이지 로드 시 자동 실행되는 중복 검사
+ * 페이지 로드 시 자동 실행되는 중복 검사 (v3.4.6 - 조용한 백그라운드 실행)
  */
 function runDuplicateCheck() {
     try {
-        logDuplicateRemover('[DuplicateRemover] 🚀 페이지 로드 감지 - 중복 검사 실행 시작');
-        logDuplicateRemover(`[DuplicateRemover] 현재 시간: ${new Date().toLocaleTimeString()}`);
+        // 디버그 모드가 아니면 조용히 시작
+        if (!window.DEBUG_MODE) {
+            console.log('[DuplicateRemover v3.4.6] 초기화');
+        } else {
+            console.log('[DuplicateRemover] 🚀 중복 검사 시작:', new Date().toLocaleTimeString());
+        }
 
         // window.state 확인
         if (!window.state) {
