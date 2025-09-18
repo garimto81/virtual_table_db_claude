@@ -95,7 +95,7 @@
   <meta http-equiv="cache-control" content="no-cache, must-revalidate, max-age=0" />
   <meta http-equiv="pragma" content="no-cache" />
   <meta http-equiv="expires" content="0" />
-  <title>포커 핸드 로거 v3.4.3</title>
+  <title>포커 핸드 로거 v3.4.4</title>
   <script src="https://cdn-tailwindcss.vercel.app/"></script>
   <script src="chip-analysis-module.js?v=3.0.0" defer></script>
   <!-- 테이블 관리 모듈 v59 - IN/OUT 두 가지 상태만 사용 -->
@@ -708,7 +708,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.4.3';
+  const APP_VERSION = 'v3.4.4';
   const VERSION_DATE = '2025-09-18';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -3795,21 +3795,17 @@
         // IN 상태인 플레이어만 처리 (빈 값이면 IN으로 간주)
         if(player && table && status === 'IN'){
           if(!byTable[table]) byTable[table]=[];
-          // v3.4.2: 중복 필터링 로직 수정 - table+name+seat 기준으로만 진짜 중복 체크
-          const isDuplicate = byTable[table].some(p => p.name === player && p.seat === seat);
-          if(!isDuplicate){
-            byTable[table].push({
-              name: player,
-              chips,
-              notable,
-              updatedAt,
-              seat,
-              status // 상태도 저장
-            });
-            console.log(`[v3.4.3] ✅ ${player} 추가됨 (${table}, 좌석: ${seat})`);
-          } else {
-            console.log(`[v3.4.3] ⚠️ ${player} 진짜 중복 건너뜀 (${table}, 좌석: ${seat})`);
-          }
+          // v3.4.3: 중복 필터링 완전 제거 - 모든 플레이어를 로컬 데이터에 유지
+          // 중복 제거는 별도 시스템에서 처리
+          byTable[table].push({
+            name: player,
+            chips,
+            notable,
+            updatedAt,
+            seat,
+            status // 상태도 저장
+          });
+          console.log(`[v3.4.3] ✅ ${player} 추가됨 (${table}, 좌석: ${seat}) - 중복 필터링 비활성화`);
         } else {
           console.log(`[v3.4.3] ❌ ${player} 제외됨 - 상태: ${status} (${table})`);
         }
@@ -6656,6 +6652,6 @@ async function sendDataToGoogleSheet(){
   <div id="snackbar" class="snackbar"></div>
 
   <!-- 중복 플레이어 제거 모듈 (매 새로고침마다 자동 실행) -->
-  <script src="src/js/duplicate-remover.js?v=3.4.3"></script>
+  <script src="src/js/duplicate-remover.js?v=3.4.4"></script>
 </body>
 </html>
