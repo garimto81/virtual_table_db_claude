@@ -731,7 +731,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.4.12';
+  const APP_VERSION = 'v3.4.13';
   const VERSION_DATE = '2025-09-18';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -1750,8 +1750,8 @@
     };
 
     // ====== LOG MODAL ======
-    function openLogModal(){ 
-      el.logModal.classList.remove('hidden'); 
+    function openLogModal(){
+      el.logModal.classList.remove('hidden');
       el.logModal.classList.remove('opacity-0');
     }
     function closeLogModal(){ el.logModal.classList.add('opacity-0', 'hidden'); }
@@ -1761,6 +1761,11 @@
       d.className=isError?'text-red-400':'text-green-400';
       el.logDisplay.appendChild(d); el.logDisplay.scrollTop=el.logDisplay.scrollHeight;
     }
+
+    // 전역 함수로 노출 (DuplicateRemover에서 접근 가능하도록)
+    window.openLogModal = openLogModal;
+    window.closeLogModal = closeLogModal;
+    window.logMessage = logMessage;
 
     // ====== TIME/TZ ======
     function getFormattedTimeInTimezone(date, tz){
@@ -6628,6 +6633,6 @@ async function sendDataToGoogleSheet(){
   <div id="snackbar" class="snackbar"></div>
 
   <!-- 중복 플레이어 제거 모듈 (매 새로고침마다 자동 실행) -->
-  <script src="src/js/duplicate-remover.js?v=3.4.12"></script>
+  <script src="src/js/duplicate-remover.js?v=3.4.13"></script>
 </body>
 </html>

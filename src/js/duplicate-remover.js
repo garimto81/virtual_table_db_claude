@@ -1,5 +1,5 @@
 /**
- * 중복 플레이어 자동 제거 시스템 v3.4.12
+ * 중복 플레이어 자동 제거 시스템 v3.4.13
  * 페이지 로드 시 자동으로 중복 플레이어를 검출하고 삭제합니다.
  * 중복 조건: 같은 테이블 + 같은 이름 + 같은 좌석
  *
@@ -21,9 +21,9 @@ function logDuplicateRemover(message) {
         window.actionHistory.log('DUPLICATE_REMOVER', message);
     }
 
-    // 로그 모달에도 표시
-    if (typeof logMessage === 'function') {
-        logMessage(`[중복검사] ${message.replace(/\[DuplicateRemover[^\]]*\]/, '').trim()}`);
+    // 로그 모달에도 표시 (전역 함수 접근)
+    if (window.logMessage && typeof window.logMessage === 'function') {
+        window.logMessage(`[중복검사] ${message.replace(/\[DuplicateRemover[^\]]*\]/, '').trim()}`);
     }
 }
 
@@ -33,10 +33,10 @@ function logDuplicateRemover(message) {
  */
 async function removeDuplicatePlayers() {
     try {
-        // 로그 모달 열기 및 진행 상황 표시
-        if (typeof openLogModal === 'function') {
-            openLogModal();
-            if (typeof logMessage === 'function') {
+        // 로그 모달 열기 및 진행 상황 표시 (전역 함수 접근)
+        if (window.openLogModal && typeof window.openLogModal === 'function') {
+            window.openLogModal();
+            if (window.logMessage && typeof window.logMessage === 'function') {
                 const logDisplay = document.getElementById('log-display');
                 if (logDisplay) {
                     logDisplay.innerHTML = ''; // 기존 로그 클리어
@@ -44,7 +44,7 @@ async function removeDuplicatePlayers() {
             }
         }
 
-        logDuplicateRemover('[DuplicateRemover v3.4.12] 중복 검사 시작');
+        logDuplicateRemover('[DuplicateRemover v3.4.13] 중복 검사 시작');
 
         // UI 차단하지 않음 - 백그라운드로 처리
 
@@ -94,12 +94,12 @@ async function removeDuplicatePlayers() {
         };
     } finally {
         // 검사 완료 알림
-        logDuplicateRemover('[DuplicateRemover v3.4.12] ✅ 검사 완료');
+        logDuplicateRemover('[DuplicateRemover v3.4.13] ✅ 검사 완료');
 
-        // 3초 후 모달 자동 닫기
+        // 3초 후 모달 자동 닫기 (전역 함수 접근)
         setTimeout(() => {
-            if (typeof closeLogModal === 'function') {
-                closeLogModal();
+            if (window.closeLogModal && typeof window.closeLogModal === 'function') {
+                window.closeLogModal();
             }
         }, 3000);
     }
