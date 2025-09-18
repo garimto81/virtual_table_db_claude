@@ -731,7 +731,7 @@
   // ========================================
   // 중앙 버전 관리 시스템
   // ========================================
-  const APP_VERSION = 'v3.4.18';
+  const APP_VERSION = 'v3.4.19';
   const VERSION_DATE = '2025-09-18';
   const VERSION_INFO = `포커 핸드 로거 ${APP_VERSION} (${VERSION_DATE})`;
 
@@ -5272,9 +5272,21 @@ async function sendDataToGoogleSheet(){
         const btn = e.target.closest('button');
         if(!btn) return;
 
-        // 🔧 모바일 확인/취소 버튼 수정: 터치 이벤트 처리하지 않음 (click만 사용)
+        // 🔧 모바일 확인/취소 버튼 즉시 반응 처리
         if(btn.id === 'keypad-confirm' || btn.id === 'keypad-cancel') {
-          return; // 확인/취소 버튼은 터치 이벤트 처리 안함
+          // 터치 즉시 반응 (300ms 지연 제거)
+          btn.style.transform = 'scale(0.95)';
+          btn.style.filter = 'brightness(1.2)';
+
+          // 즉시 클릭 실행
+          setTimeout(() => {
+            btn.style.transform = '';
+            btn.style.filter = '';
+            btn.click(); // 기존 click 이벤트 트리거
+          }, 100);
+
+          e.preventDefault(); // 300ms 지연 방지
+          return;
         }
 
         // 이미 눌린 상태면 무시 (물리적 누름 상태만 체크)
