@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자막 생성 테스트</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #666;
+            margin-top: 20px;
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .test-case h3 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        .input-data {
+            background: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .output-data {
+            background: #fff3e0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .log-area {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎬 자막 생성 테스트</h1>
+
+        <h2>테스트 설명</h2>
+        <p>Hand 시트의 J열(Key Player)과 K열(국가) 정보를 기반으로 자막을 생성하는 기능을 테스트합니다.</p>
+        <p><strong>자막 형식:</strong> "국가\n이름\n스택 (BB)"</p>
+
+        <div class="test-case">
+            <h3>테스트 케이스 1: 키 플레이어가 있는 경우</h3>
+            <div class="input-data">
+                핸드 #1234
+                - PLAYER: santa, BTN, 1000000, 950000, AK, True, Korea
+                - 빅블라인드: 10000
+            </div>
+            <div class="output-data" id="test1-output">
+                대기 중...
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h3>테스트 케이스 2: 다른 키 플레이어</h3>
+            <div class="input-data">
+                핸드 #5678
+                - PLAYER: Jaewon, SB, 2000000, 1800000, QQ, True, Korea
+                - 빅블라인드: 20000
+            </div>
+            <div class="output-data" id="test2-output">
+                대기 중...
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h3>테스트 케이스 3: 키 플레이어가 없는 경우</h3>
+            <div class="input-data">
+                핸드 #9999
+                - PLAYER: V01, BB, 500000, 500000, JT, False, Unknown
+                - 빅블라인드: 5000
+            </div>
+            <div class="output-data" id="test3-output">
+                대기 중...
+            </div>
+        </div>
+
+        <button onclick="runTests()">테스트 실행</button>
+        <button onclick="clearLogs()">로그 초기화</button>
+
+        <h2>실행 로그</h2>
+        <div class="log-area" id="log-output">
+테스트 준비 완료. "테스트 실행" 버튼을 클릭하세요.
+        </div>
+    </div>
+
+    <script>
+        // 로그 출력 함수
+        function log(message) {
+            const logArea = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            logArea.textContent += `\n[${timestamp}] ${message}`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 로그 초기화
+        function clearLogs() {
+            document.getElementById('log-output').textContent = '로그 초기화됨.';
+        }
+
+        // 모의 CSV 데이터 생성
+        function generateMockCSVData() {
+            return [
+                ['HAND', '1234', 'T01', '500', '10000', 'HOLDEM'],
+                ['PLAYER', 'santa', 'BTN', '1000000', '950000', 'AK', '', '', '', 'True', 'Korea'],
+                ['PLAYER', 'V01', 'SB', '800000', '800000', 'QJ', '', '', '', 'False', 'Unknown'],
+                ['ACTION', 'santa', 'RAISE TO 30000'],
+                ['HAND', '5678', 'T02', '1000', '20000', 'HOLDEM'],
+                ['PLAYER', 'Jaewon', 'SB', '2000000', '1800000', 'QQ', '', '', '', 'True', 'Korea'],
+                ['PLAYER', 'V02', 'BB', '1500000', '1500000', 'A5', '', '', '', 'False', 'USA'],
+                ['ACTION', 'Jaewon', 'ALL IN'],
+                ['HAND', '9999', 'T03', '2500', '5000', 'HOLDEM'],
+                ['PLAYER', 'V01', 'BB', '500000', '500000', 'JT', '', '', '', 'False', 'Unknown'],
+                ['PLAYER', 'V03', 'BTN', '600000', '600000', '99', '', '', '', 'False', 'Unknown'],
+                ['ACTION', 'V01', 'FOLD']
+            ];
+        }
+
+        // CSV 파싱 함수 (간단한 버전)
+        function parseCSV(text) {
+            return text.split('\n').map(row =>
+                row.split(',').map(cell => cell.trim())
+            );
+        }
+
+        // 자막 생성 함수 (모의 버전)
+        async function generateSubtitle(handNumber, mockData) {
+            try {
+                log(`자막 생성 시작: 핸드 #${handNumber}`);
+
+                // 해당 핸드의 키 플레이어 찾기
+                let inTargetHand = false;
+                let keyPlayer = null;
+                let bigBlind = 0;
+
+                for (const row of mockData) {
+                    // HAND 행으로 핸드 시작 확인
+                    if (row[0] === 'HAND' && row[1] === handNumber.toString()) {
+                        inTargetHand = true;
+                        bigBlind = parseInt(row[4]) || 1000; // F열: 빅블라인드
+                        log(`  핸드 시작 감지, 빅블라인드: ${bigBlind}`);
+                        continue;
+                    }
+
+                    // 다른 핸드 시작 시 종료
+                    if (inTargetHand && row[0] === 'HAND' && row[1] !== handNumber.toString()) {
+                        break;
+                    }
+
+                    // 현재 핸드의 PLAYER 행 처리
+                    if (inTargetHand && row[0] === 'PLAYER') {
+                        const playerName = row[1];         // B열: 플레이어 이름
+                        const position = row[2];           // C열: 포지션
+                        const startStack = parseInt(row[3]) || 0;   // D열: 시작 스택
+                        const currentStack = parseInt(row[4]) || 0; // E열: 현재 스택
+                        const cards = row[5];              // F열: 카드
+                        const isKeyPlayer = row[9];        // J열: 키 플레이어 여부
+                        const country = row[10];           // K열: 국가
+
+                        log(`  플레이어 발견: ${playerName}, 키플레이어: ${isKeyPlayer}, 국가: ${country}`);
+
+                        // 키 플레이어 확인
+                        if (isKeyPlayer === 'True' || isKeyPlayer === 'TRUE' || isKeyPlayer === 'true') {
+                            keyPlayer = {
+                                name: playerName,
+                                position: position,
+                                startStack: startStack,
+                                currentStack: currentStack,
+                                cards: cards,
+                                country: country || 'Unknown'
+                            };
+                            log(`  키 플레이어 발견: ${playerName}`);
+                            break;
+                        }
+                    }
+                }
+
+                // 키 플레이어가 없으면 빈 문자열 반환
+                if (!keyPlayer) {
+                    log(`⚠️ 핸드 #${handNumber}에서 키 플레이어를 찾을 수 없음`);
+                    return '';
+                }
+
+                // BB 계산
+                const stackInBB = Math.round(keyPlayer.currentStack / bigBlind);
+                const stackFormatted = keyPlayer.currentStack.toLocaleString();
+
+                // 자막 생성: 큰따옴표도 줄바꿈으로 처리
+                const subtitle = `"
+${keyPlayer.country}
+${keyPlayer.name.toUpperCase()}
+${stackFormatted} (${stackInBB}BB)
+"`;
+
+                log(`✅ 자막 생성 완료`);
+                return subtitle;
+
+            } catch (error) {
+                log(`❌ 자막 생성 오류: ${error.message}`);
+                return '';
+            }
+        }
+
+        // 테스트 실행
+        async function runTests() {
+            log('\n========== 자막 생성 테스트 시작 ==========');
+
+            const mockData = generateMockCSVData();
+            log(`모의 데이터 로드 완료: ${mockData.length}행`);
+
+            // 테스트 케이스 1: santa (키 플레이어)
+            log('\n[테스트 1] 핸드 #1234 - santa (키 플레이어)');
+            const result1 = await generateSubtitle(1234, mockData);
+            document.getElementById('test1-output').innerHTML =
+                result1 ?
+                `<span class="success">결과:</span>\n${result1}` :
+                `<span class="error">키 플레이어 없음</span>`;
+            log(`결과: ${result1 || '빈 문자열'}`);
+
+            // 테스트 케이스 2: Jaewon (키 플레이어)
+            log('\n[테스트 2] 핸드 #5678 - Jaewon (키 플레이어)');
+            const result2 = await generateSubtitle(5678, mockData);
+            document.getElementById('test2-output').innerHTML =
+                result2 ?
+                `<span class="success">결과:</span>\n${result2}` :
+                `<span class="error">키 플레이어 없음</span>`;
+            log(`결과: ${result2 || '빈 문자열'}`);
+
+            // 테스트 케이스 3: 키 플레이어 없음
+            log('\n[테스트 3] 핸드 #9999 - 키 플레이어 없음');
+            const result3 = await generateSubtitle(9999, mockData);
+            document.getElementById('test3-output').innerHTML =
+                result3 ?
+                `<span class="success">결과:</span>\n${result3}` :
+                `<span class="error">키 플레이어 없음 (예상 결과)</span>`;
+            log(`결과: ${result3 || '빈 문자열 (예상)'}`);
+
+            log('\n========== 테스트 완료 ==========');
+            log('자막 생성 기능이 정상적으로 작동하는지 확인하세요.');
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.onload = function() {
+            log('페이지 로드 완료.');
+            log('자막 생성 테스트 환경이 준비되었습니다.');
+        };
+    </script>
+</body>
+</html>

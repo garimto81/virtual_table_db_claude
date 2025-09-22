@@ -1,0 +1,51 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: List files
+      run: |
+        echo "📁 현재 디렉토리 파일 목록:"
+        ls -la
+
+    - name: Inject Environment Variables (Optional)
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        GOOGLE_APP_SCRIPT: ${{ secrets.GOOGLE_APP_SCRIPT }}
+      run: |
+        # index.html 파일 존재 확인
+        if [ ! -f "index.html" ]; then
+          echo "❌ index.html 파일이 없습니다!"
+          exit 1
+        fi
+
+        # 환경 변수가 설정된 경우에만 주입
+        if [ -n "${GEMINI_API_KEY}" ]; then
+          cat > env-config.js << EOF
+        // GitHub Secrets에서 주입된 환경 변수
+        window.ENV_CONFIG = {
+          GEMINI_API_KEY: '${GEMINI_API_KEY}',
+          GOOGLE_APP_SCRIPT: '${GOOGLE_APP_SCRIPT}'
+        };
+        EOF
+          # index.html에 env-config.js 스크립트 태그 추가
+          sed -i '/<head>/a <script src="env-config.js"></script>' index.html
+        else
+          echo "⚠️ 환경 변수가 설정되지 않았습니다. 건너뜁니다."
+        fi
+
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./
+        cname: garimto81.github.io

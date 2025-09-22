@@ -1,0 +1,27 @@
+{
+  "name": "claude01",
+  "version": "1.0.0",
+  "description": "AI 기반 포커 핸드 모니터링 및 분석 시스템으로 Google Sheets와 연동하여 실시간 핸드 데이터를 관리합니다.",
+  "main": "cors-proxy.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/garimto81/virtual_table_db_claude.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/garimto81/virtual_table_db_claude/issues"
+  },
+  "homepage": "https://github.com/garimto81/virtual_table_db_claude#readme",
+  "dependencies": {
+    "@playwright/test": "^1.55.0",
+    "playwright": "^1.55.0"
+  }
+}

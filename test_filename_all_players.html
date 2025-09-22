@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파일명 생성 테스트 - 모든 플레이어 포함</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #666;
+            margin-top: 20px;
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .test-case h3 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        .input-data {
+            background: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .output-data {
+            background: #fff3e0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .log-area {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 파일명 생성 테스트 - 모든 플레이어 포함</h1>
+
+        <h2>테스트 설명</h2>
+        <p>이 테스트는 파일명 생성 로직이 모든 플레이어의 이름과 카드 정보를 포함하도록 수정되었는지 확인합니다.</p>
+
+        <div class="test-case">
+            <h3>테스트 케이스 1: 2명 플레이어</h3>
+            <div class="input-data">
+                플레이어: Santa(AK), Villain(QQ)
+            </div>
+            <div class="output-data" id="test1-output">
+                대기 중...
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h3>테스트 케이스 2: 4명 플레이어</h3>
+            <div class="input-data">
+                플레이어: Santa(AK), Player2(QQ), Player3(JT), Player4(99)
+            </div>
+            <div class="output-data" id="test2-output">
+                대기 중...
+            </div>
+        </div>
+
+        <div class="test-case">
+            <h3>테스트 케이스 3: 6명 플레이어 (풀 테이블)</h3>
+            <div class="input-data">
+                플레이어: Santa(AK), Player2(QQ), Player3(JT), Player4(99), Player5(A5), Player6(KJ)
+            </div>
+            <div class="output-data" id="test3-output">
+                대기 중...
+            </div>
+        </div>
+
+        <button onclick="runTests()">테스트 실행</button>
+        <button onclick="clearLogs()">로그 초기화</button>
+
+        <h2>실행 로그</h2>
+        <div class="log-area" id="log-output">
+테스트 준비 완료. "테스트 실행" 버튼을 클릭하세요.
+        </div>
+    </div>
+
+    <script>
+        // 로그 출력 함수
+        function log(message) {
+            const logArea = document.getElementById('log-output');
+            const timestamp = new Date().toLocaleTimeString();
+            logArea.textContent += `\n[${timestamp}] ${message}`;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // 로그 초기화
+        function clearLogs() {
+            document.getElementById('log-output').textContent = '로그 초기화됨.';
+        }
+
+        // 모의 generateCustomFilename 함수 (키워드 제거 버전)
+        async function generateCustomFilename(handNumber, analysisData) {
+            try {
+                const prefix = 'H';
+                const suffix = '';
+                let filename = `${prefix}${handNumber}`;
+
+                if (analysisData) {
+                    // 모든 플레이어와 핸드 정보 추가 (전체 플레이어 포함)
+                    if (analysisData.players && analysisData.players.length > 0) {
+                        log(`플레이어 수: ${analysisData.players.length}명`);
+                        // 모든 플레이어 정보를 파일명에 추가
+                        analysisData.players.forEach((player, idx) => {
+                            if (player && player.name && player.cards) {
+                                filename += `_${player.name}_${player.cards}`;
+                                log(`  플레이어 ${idx + 1}: ${player.name} (${player.cards})`);
+                            }
+                        });
+                    }
+                    // 키워드/요약 로직 제거 - 플레이어 정보만 사용
+                }
+
+                // 접미사 추가
+                filename = filename + suffix;
+
+                // 특수문자 제거
+                filename = filename.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+                // 연속 밑줄 정리
+                filename = filename
+                    .replace(/_+/g, '_')
+                    .replace(/^_|_$/g, '');
+
+                return filename;
+            } catch (error) {
+                log(`오류 발생: ${error.message}`);
+                return `H${handNumber}_error`;
+            }
+        }
+
+        // 테스트 실행
+        async function runTests() {
+            log('\n========== 테스트 시작 ==========');
+
+            // 테스트 케이스 1: 2명
+            log('\n[테스트 1] 2명 플레이어');
+            const test1Data = {
+                players: [
+                    { name: 'Santa', cards: 'AK' },
+                    { name: 'Villain', cards: 'QQ' }
+                ]
+            };
+            const result1 = await generateCustomFilename(1001, test1Data);
+            document.getElementById('test1-output').innerHTML =
+                `<span class="success">결과:</span> ${result1}<br>
+                <span style="color: #666;">예상: H1001_Santa_AK_Villain_QQ</span>`;
+            log(`결과: ${result1}`);
+
+            // 테스트 케이스 2: 4명
+            log('\n[테스트 2] 4명 플레이어');
+            const test2Data = {
+                players: [
+                    { name: 'Santa', cards: 'AK' },
+                    { name: 'Player2', cards: 'QQ' },
+                    { name: 'Player3', cards: 'JT' },
+                    { name: 'Player4', cards: '99' }
+                ]
+            };
+            const result2 = await generateCustomFilename(1002, test2Data);
+            document.getElementById('test2-output').innerHTML =
+                `<span class="success">결과:</span> ${result2}<br>
+                <span style="color: #666;">예상: H1002_Santa_AK_Player2_QQ_Player3_JT_Player4_99</span>`;
+            log(`결과: ${result2}`);
+
+            // 테스트 케이스 3: 6명
+            log('\n[테스트 3] 6명 플레이어 (풀 테이블)');
+            const test3Data = {
+                players: [
+                    { name: 'Santa', cards: 'AK' },
+                    { name: 'Player2', cards: 'QQ' },
+                    { name: 'Player3', cards: 'JT' },
+                    { name: 'Player4', cards: '99' },
+                    { name: 'Player5', cards: 'A5' },
+                    { name: 'Player6', cards: 'KJ' }
+                ]
+            };
+            const result3 = await generateCustomFilename(1003, test3Data);
+            document.getElementById('test3-output').innerHTML =
+                `<span class="success">결과:</span> ${result3}<br>
+                <span style="color: #666;">예상: H1003_Santa_AK_Player2_QQ_Player3_JT_Player4_99_Player5_A5_Player6_KJ</span>`;
+            log(`결과: ${result3}`);
+
+            log('\n========== 테스트 완료 ==========');
+            log('모든 플레이어의 정보가 파일명에 포함되는지 확인하세요.');
+        }
+
+        // 페이지 로드 시 자동 실행
+        window.onload = function() {
+            log('페이지 로드 완료.');
+            log('테스트 환경이 준비되었습니다.');
+        };
+    </script>
+</body>
+</html>
