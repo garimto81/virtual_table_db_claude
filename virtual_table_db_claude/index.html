@@ -901,6 +901,9 @@
     // 포커 핸드 모니터링 시스템 - Gemini AI 분석 시스템
     // ====================================
 
+    // 🔧 debugLog 함수를 빈 함수로 정의 (구문 오류 방지)
+    window.debugLog = function() {};
+
     // ====================================
     // 🔧 통합 디버그 로깅 시스템
     // ====================================
@@ -979,7 +982,8 @@
         // 🔗 핸드번호-파일명 매핑 즉시 저장 (중복 추출 방지)
         saveHandFilenameMapping(handNumber, filename);
 
-        debugLog(`✅ 커스텀 파일명 생성 완료: ${filename} (매핑 저장됨)"; // Fixed: template literal        return filename;
+        // debugLog 호출 제거됨 - 커스텀 파일명 생성 완료
+        return filename;
       } catch (error) {
         console.error('ERROR', '파일명 생성 오류:', error);
         // 기본 파일명으로 폴백
@@ -1080,7 +1084,7 @@
 
         // 캐시에 저장
         handAnalysisCache.set(handNumber, analysis);
-        debugLog(`✅ 핸드 #${handNumber} 분석 완료 및 캐시 저장"; // Fixed: template literal
+        // debugLog 호출 제거됨 - 핸드 분석 완료 및 캐시 저장
         return analysis;
       } catch (error) {
         console.error('ERROR', `통합 핸드 분석 오류 (핸드 #${handNumber}):`, error);
@@ -5640,7 +5644,7 @@ return result;
           preciseAnalysis = createPreciseThreeLineSummary(analysis.handData);
         }
 
-        debugLog('✅ 핸드 분석 완룼');
+        // debugLog 호출 제거됨 - 핸드 분석 완료
         return preciseAnalysis;
 
       } catch (error) {
