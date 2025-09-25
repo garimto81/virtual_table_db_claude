@@ -1,4 +1,4 @@
-# Virtual Table DB v13.5.10
+# Virtual Table DB v13.5.11
 
 포커 핸드 모니터링 및 분석 시스템
 
@@ -16,7 +16,7 @@ virtual_table_db_claude/
 ├── index.html                    # 메인 애플리케이션
 ├── g-column-checkbox-handler.js  # G열 처리 로직
 ├── scripts/
-│   └── appScripts.gs            # Google Apps Script v13.5.10
+│   └── appScripts.gs            # Google Apps Script v13.5.11
 ├── docs/                        # 프로젝트 문서
 └── .github/                     # GitHub 설정
 ```
@@ -27,14 +27,15 @@ virtual_table_db_claude/
 2. **Apps Script**: `scripts/appScripts.gs` 배포
 3. **Gemini API**: 설정 패널에서 API 키 입력
 
-## 🔧 최신 업데이트 (v13.5.10)
+## 🔧 최신 업데이트 (v13.5.11)
 
-- **✅ 구문 오류 완전 해결**: 끝없이 발생하던 JavaScript 구문 오류 완전 정리
-  - 1638번 줄 'Unexpected token "||"' 오류 해결
-  - 불완전한 debugLog 매개변수들 모두 정리
-  - 깨진 템플릿 리터럴들 완전 수정 (2172, 2179, 6102, 8473번 줄)
-  - orphaned 매개변수 및 빈 블록들 정리
-  - 브라우저 테스트로 구문 검증 완료
+- **🔥 대량 구문 오류 근본 해결**: Python 스크립트로 20+ 개 일괄 수정
+  - ‘Unexpected token ‘.’’, ‘||’ 오류 완전 해결 (1734, 1638, 4099, 6833번 줄)
+  - 모든 ‘Fixed: template literal’ 오류 일괄 수정
+  - 깨진 alert() 및 throw Error() 문 복구
+  - orphaned 매개변수 및 븈 블록 완전 제거
+  - 함수 단위 체계적 검수로 안정성 확보
+  - 브라우저 로드 성공 및 구문 오류 완전 해결
 - **🚀 이전 버전 주요 개선사항**:
   - **v13.5.8**: 114개 구문 오류 완전 해결
   - **v13.5.7**: 39개 구문 오류 자동 검출 및 수정
