@@ -1,4 +1,4 @@
-# Virtual Table DB v13.5.3
+# Virtual Table DB v13.5.4
 
 포커 핸드 모니터링 및 분석 시스템
 
@@ -16,7 +16,7 @@ virtual_table_db_claude/
 ├── index.html                    # 메인 애플리케이션
 ├── g-column-checkbox-handler.js  # G열 처리 로직
 ├── scripts/
-│   └── appScripts.gs            # Google Apps Script v13.5.3
+│   └── appScripts.gs            # Google Apps Script v13.5.4
 ├── docs/                        # 프로젝트 문서
 └── .github/                     # GitHub 설정
 ```
@@ -27,26 +27,20 @@ virtual_table_db_claude/
 2. **Apps Script**: `scripts/appScripts.gs` 배포
 3. **Gemini API**: 설정 패널에서 API 키 입력
 
-## 🔧 최신 업데이트 (v13.5.3)
+## 🔧 최신 업데이트 (v13.5.4)
 
-- **🔥 순환 참조 치명적 버그 수정**: Maximum call stack size exceeded 오류 완전 해결
-  - logger 시스템 순환 참조 제거 (log → logger.error → log 루프)
-  - 재귀 호출 방지 안전장치 추가
-  - try-catch 예외 처리 시스템 강화
-- **🔄 마이너 버전 업데이트**: v13.5.1 → v13.5.2 버전 업데이트
-- **🔧 DEFAULT_CONFIG 스코프 오류 수정**: 'DEFAULT_CONFIG is not defined' ReferenceError 해결
-- **🎆 대규모 디버깅 시스템 최적화**: 739개 console.log를 체계적인 로그 시스템으로 교체
-- **🚀 성능 최적화**: 프로덕션 모드에서 로그 오버헤드 완전 제거
-- **🎯 새로운 디버그 컨트롤 시스템**:
-  - 12개 카테고리별 로그 분류 (API, UI, DATA, SHEET, AI 등)
-  - 4단계 로그 레벨 (ERROR, WARN, INFO, DEBUG)
-  - localStorage 기반 런타임 제어
-  - 개발/프로덕션 환경 자동 감지
-- **🔍 디버그 명령어 지원**:
-  - `debugControl.enable()` - 디버깅 활성화
-  - `debugControl.setLevel('DEBUG')` - 로그 레벨 설정
-  - `debugControl.toggleCategory('API')` - 카테고리별 토글
-  - `debugControl.status()` - 현재 상태 확인
+- **🚀 프로덕션 완전 최적화**: 디버그 시스템 전체 제거로 성능 극대화
+  - 744개 logger 호출을 직접 console 호출로 교체
+  - DEBUG_CONFIG 시스템 완전 제거 (160라인 삭제)
+  - Maximum call stack size exceeded 오류 완전 근절
+- **🔧 에러 및 경고 완전 제거**:
+  - TailwindCSS 프로덕션 경고 무음 처리
+  - 404 에러 유발 파일 참조 제거
+  - favicon 추가로 아이콘 404 에러 방지
+- **🎯 이전 버전 주요 수정사항**:
+  - **v13.5.3**: 순환 참조 치명적 버그 수정
+  - **v13.5.2**: 마이너 버전 업데이트
+  - **v13.5.1**: DEFAULT_CONFIG 스코프 오류 해결
 
 ---
 
