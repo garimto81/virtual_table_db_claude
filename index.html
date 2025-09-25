@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 13.5.0
+  Version: 13.5.3
   Last Updated: 2025-09-19
   Description: SSE(Server-Sent Events) 실시간 새 핸드 감지 시스템 구현
 -->
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v13.5.0 - AI 분석 시스템 [최적화 버전]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.5.3 - AI 분석 시스템 [버그 수정]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -341,7 +341,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.5.0</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.5.3</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -968,57 +968,83 @@
         return;
       }
 
-      // 로그 출력 (레벨별 색상)
+      // 로그 출력 (레벨별 색상) - 순환 참조 방지를 위해 console 직접 호출
       const timestamp = new Date().toISOString().slice(11, 23);
       const prefix = `[${timestamp}] [${level}] [${category}]`;
 
-      switch (level) {
-        case 'ERROR':
-          logger.error('ERROR', prefix, ...args);
-          break;
-        case 'WARN':
-          logger.warn('WARN', prefix, ...args);
-          break;
-        case 'INFO':
-          logger.info('INFO', prefix, ...args);
-          break;
-        case 'DEBUG':
-          console.log(prefix, ...args);
-          break;
-        default:
-          console.log(prefix, ...args);
+      try {
+        switch (level) {
+          case 'ERROR':
+            console.error(prefix, ...args);
+            break;
+          case 'WARN':
+            console.warn(prefix, ...args);
+            break;
+          case 'INFO':
+            console.info(prefix, ...args);
+            break;
+          case 'DEBUG':
+            console.log(prefix, ...args);
+            break;
+          default:
+            console.log(prefix, ...args);
+        }
+      } catch (e) {
+        // 안전장치: 로그 출력 중 에러 발생 시 기본 console 사용
+        console.error('[DEBUG_SYSTEM_ERROR]', 'Logging failed:', e);
       }
     }
 
-    // 편의 함수들 (성능 최적화를 위한 조건부 실행)
+    // 재귀 호출 방지 플래그
+    let loggingInProgress = false;
+
+    // 안전한 logger 래퍼 함수
+    function safeLog(level, category, ...args) {
+      if (loggingInProgress) {
+        // 재귀 호출 방지
+        return;
+      }
+
+      try {
+        loggingInProgress = true;
+        log(level, category, ...args);
+      } catch (e) {
+        // 최후의 안전장치
+        console.error('[LOGGER_SAFETY_ERROR]', 'Logger failed:', e);
+      } finally {
+        loggingInProgress = false;
+      }
+    }
+
+    // 편의 함수들 (성능 최적화를 위한 조건부 실행 + 안전장치)
     const logger = {
       error: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (category, ...args) => log('ERROR', category, ...args),
+        () => {} : (category, ...args) => safeLog('ERROR', category, ...args),
 
       warn: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (category, ...args) => log('WARN', category, ...args),
+        () => {} : (category, ...args) => safeLog('WARN', category, ...args),
 
       info: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (category, ...args) => log('INFO', category, ...args),
+        () => {} : (category, ...args) => safeLog('INFO', category, ...args),
 
       debug: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (category, ...args) => log('DEBUG', category, ...args),
+        () => {} : (category, ...args) => safeLog('DEBUG', category, ...args),
 
-      // 특수 목적 로거들
+      // 특수 목적 로거들 (안전장치 적용)
       api: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (...args) => log('INFO', 'API', ...args),
+        () => {} : (...args) => safeLog('INFO', 'API', ...args),
 
       ui: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (...args) => log('DEBUG', 'UI', ...args),
+        () => {} : (...args) => safeLog('DEBUG', 'UI', ...args),
 
       data: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (...args) => log('DEBUG', 'DATA', ...args),
+        () => {} : (...args) => safeLog('DEBUG', 'DATA', ...args),
 
       cache: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (...args) => log('DEBUG', 'CACHE', ...args),
+        () => {} : (...args) => safeLog('DEBUG', 'CACHE', ...args),
 
       perf: DEBUG_CONFIG.isProduction && !DEBUG_CONFIG.enabled ?
-        () => {} : (...args) => log('INFO', 'PERFORMANCE', ...args)
+        () => {} : (...args) => safeLog('INFO', 'PERFORMANCE', ...args)
     };
 
     // 디버그 설정 제어 함수
@@ -1350,7 +1376,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.5.0'; // 대규모 디버깅 시스템 최적화 및 성능 개선
+    const APP_VERSION = '13.5.3'; // 순환 참조 치명적 버그 수정
     const BUILD_TIME = '2025-09-22T15:00:00Z';
 
     // ====================================

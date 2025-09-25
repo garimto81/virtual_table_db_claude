@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 13.5.2
+  Version: 13.5.3
   Last Updated: 2025-09-19
   Description: SSE(Server-Sent Events) 실시간 새 핸드 감지 시스템 구현
 -->
@@ -12,7 +12,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title id="page-title">포커 핸드 모니터링 v13.5.2 - AI 분석 시스템</title>
+  <title id="page-title">포커 핸드 모니터링 v13.5.3 - AI 분석 시스템 [버그 수정]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <!-- Papa Parse for accurate CSV parsing (multiline support) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
@@ -341,7 +341,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.5.2</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.5.3</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -1350,7 +1350,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.5.2'; // 마이너 버전 업데이트
+    const APP_VERSION = '13.5.3'; // 순환 참조 치명적 버그 수정
     const BUILD_TIME = '2025-09-22T15:00:00Z';
 
     // ====================================
