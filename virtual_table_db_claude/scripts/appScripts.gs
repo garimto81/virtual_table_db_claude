@@ -1,4 +1,4 @@
-// Virtual Table DB - Google Apps Script 완전판 v13.5.7
+// Virtual Table DB - Google Apps Script 완전판 v13.5.8
 // updateSheet 액션 포함 + CORS 문제 해결 + G열 업데이트 지원
 
 // ========================================
