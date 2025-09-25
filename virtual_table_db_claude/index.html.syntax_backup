@@ -13,7 +13,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
-  <title id="page-title">포커 핸드 모니터링 v13.5.7 - AI 분석 시스템 [전체 구문 최적화]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.5.6 - AI 분석 시스템 [구문 오류 수정]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <script>
     // TailwindCSS 프로덕션 경고 무음 처리
@@ -342,7 +342,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.5.7</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.5.6</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -1242,7 +1242,7 @@
           return '';
         }
 
-        // Fixed syntax error
+        `);
         // 빅블라인드는 이미 위에서 추출했으므로 다시 추출할 필요 없음
         if (!bigBlind) {
           // 혹시 놓친 경우를 위한 재추출
@@ -1562,8 +1562,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           if (rows.length > 0) {
             const firstRow = rows[0];
             const lastRow = rows[rows.length - 1];
-            // Fixed syntax error
-            // Fixed syntax error
+            `);
+            `);
+
             // 17시 이후 데이터 확인
             let after17Count = 0;
             rows.forEach(row => {
@@ -1576,7 +1577,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
           // 처음 3개 행 디버깅
           if (rows.length > 0) {
-            //');
+            :');
             for (let i = 0; i < Math.min(3, rows.length); i++) {
               }
           }
@@ -1658,7 +1659,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             else if (!data.status) emptyCount++;
           }
 
-          }ms
+          }ms`);
+
           // 디버깅 모드에서만 상세 정보
           if (window.DEBUG_MODE) {
             , 복사완료(${completeCount}), 빈값(${emptyCount})`);
@@ -1820,7 +1822,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 4. 매칭 실패
         this.missCount++;
         if (window.DEBUG_MODE) {
-          // Fixed syntax error
+          `);
         }
 
         return null;
@@ -1857,7 +1859,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const hour = parseInt(time.split(':')[0]);
           return hour >= 22 || hour <= 2;
         });
-        // ${nightTimes.length}개
+        : ${nightTimes.length}개`);
         if (nightTimes.length > 0) {
           );
         }
@@ -2222,7 +2224,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       // localStorage에 영구 저장
       saveHandFilenameMappingsToStorage();
 
-      // 핸드 #${handNum} ↔ "${filename// Fixed syntax error
+      : 핸드 #${handNum} ↔ "${filename}"`);
     }
 
     /**
@@ -2254,7 +2256,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         }
       }
-      }]
+      }]`);
       return result;
     }
 
@@ -3150,7 +3152,7 @@ return hands;
       // 캐시에서 먼저 확인
       if (csvParseCache.has(cacheKey)) {
         const cached = csvParseCache.get(cacheKey);
-        // Fixed syntax error
+        `);
         return cached;
       }
 
@@ -3176,7 +3178,8 @@ return hands;
           csvParseCache.delete(firstKey);
         }
         csvParseCache.set(cacheKey, result.data);
-        // Fixed syntax error
+        `);
+
         return result.data;
       }
 
@@ -3254,7 +3257,8 @@ return hands;
         csvParseCache.delete(firstKey);
       }
       csvParseCache.set(cacheKey, rows);
-      // Fixed syntax error
+      `);
+
       return rows;
     }
     
@@ -3716,7 +3720,7 @@ return parseHandDetails(handRows);
                 }
                 
                 if (DEBUG_MODE) {
-                  // Fixed syntax error
+                  `);
                 }
               }
             } else if (eventType === 'POT CORRECTION') {
@@ -3725,7 +3729,7 @@ return parseHandDetails(handRows);
               if (amount > 0) {
                 hand.pot += amount;
                 if (DEBUG_MODE) {
-                  // Fixed syntax error
+                  `);
                 }
               }
             } else {
@@ -3747,13 +3751,13 @@ return parseHandDetails(handRows);
                 if ((currentBet === 0 && amount <= hand.blinds.bb) || amount === currentBet) {
                   displayAction = 'CHECK/CALL';
                   if (DEBUG_MODE) {
-                    // Fixed syntax error
+                    `);
                   }
                 } else {
                   // 진짜 CALL
                   displayAction = 'CHECK/CALL';
                   if (DEBUG_MODE) {
-                    // Fixed syntax error
+                    `);
                   }
                 }
               } else if (eventType === 'CHECK') {
@@ -3792,7 +3796,7 @@ return parseHandDetails(handRows);
                   hand.potContributions[playerName] += amount;
                   
                   if (DEBUG_MODE) {
-                    // Fixed syntax error
+                    `);
                   }
                 }
               }
@@ -4731,16 +4735,16 @@ return null;
         // // ⚠️ 콘솔 스팸 방지
         // for (let i = 0; i < Math.min(5, rows.length); i++) {
         //   // ⚠️ 콘솔 스팸 방지
-        //   '// Fixed syntax error // ⚠️ 콘솔 스팸 방지
-        //   '// Fixed syntax error // ⚠️ 콘솔 스팸 방지
-        //   '// Fixed syntax error // ⚠️ 콘솔 스팸 방지
-        //   '// Fixed syntax error // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
           
         //   // 각 열에서 시간 형식 찾기
         //   for (let j = 0; j < Math.min(4, rows[i].length); j++) {
         //     const value = rows[i][j];
         //     if (value && value.match(/\d{1,2}:\d{2}/)) {
-        //       }열에 시간 형식 발견: "${value// Fixed syntax error // ⚠️ 콘솔 스팸 방지
+        //       }열에 시간 형식 발견: "${value}"`); // ⚠️ 콘솔 스팸 방지
         //     }
         //   }
         // }
@@ -4841,10 +4845,10 @@ return null;
               // `); // ⚠️ 콘솔 스팸 방지
               // `); // ⚠️ 콘솔 스팸 방지
               // // ⚠️ 콘솔 스팸 방지
-              // : "${rows[i][0] || ''// Fixed syntax error // ⚠️ 콘솔 스팸 방지
-              // : "${rows[i][1] || ''// Fixed syntax error // ⚠️ 콘솔 스팸 방지
-              // : "${rows[i][2] || ''// Fixed syntax error // ⚠️ 콘솔 스팸 방지
-              // : "${rows[i][3] || ''// Fixed syntax error // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][0] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][1] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][2] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][3] || ''}"`); // ⚠️ 콘솔 스팸 방지
               break;
             }
           }
@@ -4925,7 +4929,7 @@ return null;
           for (let i = 0; i < Math.min(10, rows.length); i++) {
             const value = rows[i][1];
             if (value && value.trim()) {
-              console.error('ERROR', `   행 ${i+1}: "${value// Fixed syntax error
+              console.error('ERROR', `   행 ${i+1}: "${value}"`);
             }
           }
           
@@ -5693,7 +5697,7 @@ return result;
         // AI 사용 여부 확인
         const useAI = localStorage.getItem('useAIForHColumn') === 'true';
         // 🔍 강화된 디버깅
-        // Fixed syntax error
+        }"`);
         let preciseAnalysis;
 
         if (useAI && CONFIG.GEMINI_API_KEY) {
@@ -7539,12 +7543,12 @@ try {
             completeRows.push(index + 1);
           } else {
             otherCount++;
-            // "${eValue// Fixed syntax error
+            : "${eValue}"`);
           }
         });
 
         if (miCompleteCount > 0) {
-          .join(', ')}${miCompleteRows.length > 10 ? '...' : ''}
+          .join(', ')}${miCompleteRows.length > 10 ? '...' : ''}`);
         }
 
         if (completeCount > 0) {
@@ -7555,7 +7559,7 @@ try {
         [938, 694].forEach(rowNum => {
           if (rowNum <= rows.length) {
             const row = rows[rowNum - 1]; // 0-based index
-            || '(빈 값)'// Fixed syntax error
+            || '(빈 값)'}"`);
           }
         });
 
@@ -7629,7 +7633,7 @@ try {
         }
       }
 
-      //
+      :`);
       if (exactMatches.length > 0) {
         exactMatches.forEach(m => {
 });
@@ -7637,10 +7641,10 @@ try {
         console.error('ERROR', '      ❌ 없음');
       }
 
-      //
+      :`);
       nearMatches.sort((a, b) => a.diff - b.diff);
       nearMatches.forEach(m => {
-        , 상태="${m.data.status || '(빈값)'// Fixed syntax error
+        , 상태="${m.data.status || '(빈값)'}"`);
       });
 
       // 3. parseTimeToTimestamp 테스트
@@ -7679,7 +7683,7 @@ try {
         if (data) {
           '}", 타임스탬프=${data.timestamp}`);
         } else {
-          // Fixed syntax error
+          `);
         }
       }
 
@@ -7705,7 +7709,7 @@ try {
     window.handWorkSessions = window.handWorkSessions || new Map();    // 핸드 상태 정보 섹션 업데이트 (더 이상 사용되지 않음 - Virtual 시트 정보로 대체)
     function updateHandStatusSection(handNumber, status) {
       // Virtual 시트 정보 표시로 대체됨
-      // ${status}
+      : ${status}`);
     }
 
     // 편집 시작 시간 기록
@@ -8045,7 +8049,7 @@ try {
         const timeDiff = matchResult.timeDifference;
 
         // 상세 정보 구성
-        // Fixed syntax error
+        `);
         const detailedInfo = {
           rowNumber: matchedRow.row,
           filename: matchedRow.filename || '', // F열 파일명 (이미 파싱됨)
@@ -8141,7 +8145,7 @@ return detailedInfo;
 
       if (apiKey) {
         CONFIG.GEMINI_API_KEY = apiKey;
-        // Fixed syntax error
+        `);
       } else {
         CONFIG.GEMINI_API_KEY = '';
         }
@@ -8295,7 +8299,7 @@ return detailedInfo;
       
       // 최근 핸드 버퍼 상태 확인
       const bufferStatus = recentHandsBuffer.getStatus();
-      // Fixed syntax error
+      `);
       if (bufferStatus.size > 0) {
         }
 
@@ -8794,7 +8798,8 @@ return detailedInfo;
               const endTime = performance.now();
               const totalTime = ((endTime - startTime) / 1000).toFixed(2);
 
-              // Fixed syntax error
+              `);
+
               // 성공 알림
               if (updatedCount > 0) {
                 showNotification(`${updatedCount}개 핸드 상태가 동기화되었습니다.`, 'success');
