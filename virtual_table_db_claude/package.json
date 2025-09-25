@@ -1,6 +1,6 @@
 {
   "name": "virtual-table-db-claude",
-  "version": "13.5.9",
+  "version": "13.5.10",
   "description": "포커 핸드 모니터링 및 분석 시스템",
   "main": "index.html",
   "scripts": {

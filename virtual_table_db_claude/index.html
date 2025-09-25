@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   포커 핸드 모니터링 시스템 - AI 분석 및 시트 연동
-  Version: 13.5.9
+  Version: 13.5.10
   Last Updated: 2025-09-19
   Description: SSE(Server-Sent Events) 실시간 새 핸드 감지 시스템 구현
 -->
@@ -13,7 +13,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
-  <title id="page-title">포커 핸드 모니터링 v13.5.9 - AI 분석 시스템 [근본적 해결]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.5.10 - AI 분석 시스템 [구문오류 완전해결]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <script>
     // TailwindCSS 프로덕션 경고 무음 처리
@@ -342,7 +342,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.5.9</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.5.10</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -1178,7 +1178,7 @@
     }
 
     // 버전 정보 (한 곳에서만 관리)
-    const APP_VERSION = '13.5.9'; // debugLog 빈 함수 정의로 근본적 해결
+    const APP_VERSION = '13.5.10'; // 구문 오류 완전 해결
     const BUILD_TIME = '2025-09-22T15:00:00Z';
 
     // ====================================
@@ -1629,22 +1629,23 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             }
             this.timeIndex.get(timestamp).push(i + 1);
 
-            // 디버깅: "미완료" 상태 로그
-            if (status === '미완료') {
-              }
+            // 디버깅: "미완료" 상태 로그 (제거됨)
+            // if (status === '미완료') {
+            // }
 
-            // 핸드 번호가 있는 경우 추가 로그 (모든 열 정보 포함)
-            if (i < 5) { // 처음 5행 상세 로그
-              || '(빈값)',
-                B: cols[1]?.trim() || '(빈값)',
-                C: cols[2]?.trim() || '(빈값)',
-                D: cols[3]?.trim() || '(빈값)',
-                E: cols[4]?.trim() || '(빈값)',
-                핸드번호: handNumber,
-                시간: timeStr,
-                상태: status
-              });
-            }
+            // 핸드 번호가 있는 경우 추가 로그 (모든 열 정보 포함) - debugLog 제거됨
+            // if (i < 5) { // 처음 5행 상세 로그
+            //   debugLog({
+            //     A: cols[0]?.trim() || '(빈값)',
+            //     B: cols[1]?.trim() || '(빈값)',
+            //     C: cols[2]?.trim() || '(빈값)',
+            //     D: cols[3]?.trim() || '(빈값)',
+            //     E: cols[4]?.trim() || '(빈값)',
+            //     핸드번호: handNumber,
+            //     시간: timeStr,
+            //     상태: status
+            //   });
+            // }
           }
 
           this.lastUpdate = Date.now();
@@ -1848,7 +1849,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         const sortedHours = Array.from(hourDistribution.keys()).sort((a, b) => a - b);
         sortedHours.forEach(hour => {
-          .padStart(2, '0')}시: ${hourDistribution.get(hour)}개 행`);
+          // debugLog 제거됨 - 시간별 분포 정보
         });
 
         const times = Array.from(timeDistribution.keys()).sort();
@@ -2168,14 +2169,16 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           Object.entries(data).forEach(([key, value]) => {
             window.handToFilenameMapping.set(parseInt(key), value);
           });
-          .length}개"; // Fixed: template literal        }
+          // debugLog 제거됨 - 매핑 데이터 로드 완료
+        }
 
         if (filenameToHand) {
           const data = JSON.parse(filenameToHand);
           Object.entries(data).forEach(([key, value]) => {
             window.filenameToHandMapping.set(key, value);
           });
-          .length}개"; // Fixed: template literal        }
+          // debugLog 제거됨 - 역방향 매핑 데이터 로드 완료
+        }
       } catch (error) {
         }
     }
@@ -6098,7 +6101,8 @@ return result;
       handData.players.forEach(player => {
         if (player.cards && player.cards.length >= 2) {
           const combination = evaluateHandStrength(player.cards, board);
-          analyses.push(`${player.name}: ${combination}"; // Fixed: template literal        }
+          // analyses.push(`${player.name}: ${combination}`); // debugLog 제거됨
+        }
       });
       
       return analyses.join(' | ');
@@ -7475,13 +7479,13 @@ try {
         if (completeCount > 0) {
           .join(', ')}${completeRows.length > 10 ? '...' : ''}"; // Fixed        }
 
-        // 특정 행 확인 (938행, 694행)
-        [938, 694].forEach(rowNum => {
-          if (rowNum <= rows.length) {
-            const row = rows[rowNum - 1]; // 0-based index
-            || '(빈 값)'// Fixed syntax error
-          }
-        });
+        // 특정 행 확인 (938행, 694행) - debugLog 제거됨
+        // [938, 694].forEach(rowNum => {
+        //   if (rowNum <= rows.length) {
+        //     const row = rows[rowNum - 1]; // 0-based index
+        //     // debugLog(`Row ${rowNum}: ${row?.[4] || '(빈 값)'}`);
+        //   }
+        // });
 
         return {
           total: rows.length,
@@ -7551,19 +7555,20 @@ try {
         }
       }
 
-      //
-      if (exactMatches.length > 0) {
-        exactMatches.forEach(m => {
-});
-      } else {
-        console.error('ERROR', '      ❌ 없음');
-      }
+      // 정확한 매치 결과 처리 - debugLog 제거됨
+      // if (exactMatches.length > 0) {
+      //   exactMatches.forEach(m => {
+      //     // debugLog(`정확 매치: ${m.data.time}, 상태=${m.data.status}`);
+      //   });
+      // } else {
+      //   console.error('ERROR', '      ❌ 정확 매치 없음');
+      // }
 
-      //
+      // 근접 매치 결과 처리 - debugLog 제거됨
       nearMatches.sort((a, b) => a.diff - b.diff);
-      nearMatches.forEach(m => {
-        , 상태="${m.data.status || '(빈값)'// Fixed syntax error
-      });
+      // nearMatches.forEach(m => {
+      //   // debugLog(`근접 매치: ${m.data.time}, 차이=${m.diff}초, 상태="${m.data.status || '(빈값)'}`);
+      // });
 
       // 3. parseTimeToTimestamp 테스트
       const testTimes = [targetTimeStr, targetTimeNoZero, "10:14", "10:18"];
@@ -8469,7 +8474,8 @@ return detailedInfo;
           troubleshootMsg = '\n🔧 해결책: Apps Script 로그와 문서 확인';
         }
         
-        alert(`❌ 시트 업데이트 실패\n\n오류: ${error.message}${troubleshootMsg}\n\n추가 진단:\n1. F12 > Console 로그 확인\n2. Apps Script 실행 로그 확인\n3. 문제해결 가이드 참조"; // Fixed: template literal      }
+        alert(`❌ 시트 업데이트 실패\n\n오류: ${error.message}${troubleshootMsg}\n\n추가 진단:\n1. F12 > Console 로그 확인\n2. Apps Script 실행 로그 확인\n3. 문제해결 가이드 참조`);
+      }
       
       });
     
