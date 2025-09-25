@@ -1,4 +1,4 @@
-// Virtual Table DB - Google Apps Script 완전판 v13.5.8
+// Virtual Table DB - Google Apps Script 완전판 v13.5.9
 // updateSheet 액션 포함 + CORS 문제 해결 + G열 업데이트 지원
 
 // ========================================
@@ -28,7 +28,7 @@ function doGet(e) {
     status: 'ok',
     method: 'GET',
     time: new Date().toISOString(),
-    version: 'v13.5.3',
+    version: 'v13.5.9',
     service: 'Virtual Table Sheet Updater',
     features: ['Sheet Update', 'Gemini AI Analysis', 'CORS Support', 'G Column Update'],
     message: '서비스가 정상 작동 중입니다'
@@ -104,7 +104,7 @@ function doPost(e) {
           status: 'success',
           message: 'Apps Script 연결 성공!',
           timestamp: new Date().toISOString(),
-          version: 'v13.5.3',
+          version: 'v13.5.9',
           receivedData: requestData
         };
         break;
@@ -792,7 +792,7 @@ function getDeploymentInfo() {
   const url = ScriptApp.getService().getUrl();
 
   return {
-    version: 'v13.5.3',
+    version: 'v13.5.9',
     lastUpdated: '2025-09-24',
     description: 'Virtual Table DB - 완전판 + G열 업데이트',
     webAppUrl: url || 'Not deployed yet',
