@@ -13,7 +13,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
-  <title id="page-title">포커 핸드 모니터링 v13.5.4 - AI 분석 시스템 [프로덕션 최적화]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.5.5 - AI 분석 시스템 [최종 최적화]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <script>
     // TailwindCSS 프로덕션 경고 무음 처리
@@ -342,7 +342,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.5.4</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.5.5</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -477,10 +477,7 @@
           <button id="edit-btn" class="px-2 py-1 bg-yellow-600 text-xs rounded" disabled>편집</button>
           <button id="complete-btn" class="px-2 py-1 bg-green-600 text-xs rounded" disabled>완료</button>
         </div>
-      </div>
-
-
-      <!-- 팟 정보 -->
+      </div>      <!-- 팟 정보 -->
       <div class="pot-display mb-3">
         POT: <span id="pot-amount">0</span>
       </div>
@@ -931,7 +928,6 @@
      * 형식: 접두사(핸드번호)_플레이어A이름_핸드_플레이어B이름_핸드_(3단어 요약)
      */
     async function generateCustomFilename(handNumber) {
-      console.warn('API', '⚠️ [DEPRECATED] generateCustomFilename - 모듈로 리다이렉트됨');
       try {
         // localStorage에서 설정 불러오기
         const prefix = localStorage.getItem('filenamePrefix') || 'H';
@@ -939,12 +935,7 @@
 
         const useAI = localStorage.getItem('useAIForFilename') === 'true';
         // 🔍 강화된 디버깅
-        console.log('API', `🔍 [generateCustomFilename] 함수 호출 - 핸드 #${handNumber}`);
-        console.log('API', `🔍 localStorage.useAIForFilename: "${localStorage.getItem('useAIForFilename')}"`);
-        console.log('API', `🔍 useAI boolean: ${useAI}`);
-        console.log('API', `🔍 CONFIG.GEMINI_API_KEY 존재: ${!!CONFIG.GEMINI_API_KEY}`);
-        debugLog(`🤖 파일명 AI 설정 확인: useAI=${useAI}, API키=${!!CONFIG.GEMINI_API_KEY}`);
-
+        }"`);
         // 통합 분석 데이터 가져오기 (캐시됨)
         const analysis = await getUnifiedHandAnalysis(handNumber);
 
@@ -1063,17 +1054,13 @@
     async function getUnifiedHandAnalysis(handNumber) {
       // 캐시 확인
       if (handAnalysisCache.has(handNumber)) {
-        debugLog(`✅ 핸드 #${handNumber} 캐시에서 로드`);
         return handAnalysisCache.get(handNumber);
       }
 
       try {
-        debugLog(`🔄 핸드 #${handNumber} 새로운 분석 시작`);
-
         // 1. 핸드 데이터 한 번만 로드
         const handData = await loadHandData(handNumber);
         if (!handData) {
-          console.warn('WARN', `핸드 #${handNumber} 데이터를 찾을 수 없음`);
           return null;
         }
 
@@ -1204,31 +1191,20 @@
      */
     async function generateSubtitle(handNumber) {
       try {
-        console.log('AI', `🎬 자막 생성 시작: 핸드 #${handNumber}`);
-
         // Hand 시트 CSV 데이터 로드
         const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
-        console.log('API', `📥 Hand 시트 응답 상태: ${response.status}`);
-
         const text = await response.text();
-        console.log('SHEET', `📝 CSV 텍스트 길이: ${text.length} 문자`);
-
         const rows = parseCSV(text);
-        console.log('SHEET', `📊 파싱된 행 수: ${rows.length}`);
-
         // 해당 핸드의 키 플레이어 찾기
         let inTargetHand = false;
         let keyPlayer = null;
         let bigBlind = 0;
-
-        console.log('PERFORMANCE', `🔍 핸드 #${handNumber} 검색 시작...`);
 
         for (const row of rows) {
           // HAND 행으로 핸드 시작 확인
           if (row[1] === 'HAND' && row[2] === handNumber.toString()) {
             inTargetHand = true;
             bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
-            console.log('MAPPING', `🎯 핸드 #${handNumber} 발견! 빅블라인드: ${bigBlind}`);
             continue;
           }
 
@@ -1264,21 +1240,16 @@
 
         // 키 플레이어가 없으면 빈 문자열 반환
         if (!keyPlayer) {
-          console.log('MAPPING', `⚠️ 핸드 #${handNumber}에서 키 플레이어를 찾을 수 없음`);
-          console.log('SHEET', `🔍 디버그: 해당 핸드의 모든 PLAYER 행을 확인하세요`);
           return '';
         }
 
-        console.log('DEBUG', `🎯 키 플레이어 발견: ${keyPlayer.name} (${keyPlayer.country})`);
-        console.log('DEBUG', `💰 스택 정보: ${keyPlayer.currentStack} / BB: ${bigBlind}`);
-
+        `);
         // 빅블라인드는 이미 위에서 추출했으므로 다시 추출할 필요 없음
         if (!bigBlind) {
           // 혹시 놓친 경우를 위한 재추출
           for (const row of rows) {
             if (row[1] === 'HAND' && row[2] === handNumber.toString()) {
               bigBlind = parseInt(row[5]) || 1000; // F열: 빅블라인드
-              console.log('DEBUG', `🎲 빅블라인드 재추출: ${bigBlind}`);
               break;
             }
           }
@@ -1295,7 +1266,7 @@ ${keyPlayer.name.toUpperCase()}
 CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 "`;
 
-        console.log('AI', `✅ 자막 생성 완료 (핸드 #${handNumber}):`, subtitle);
+        :`, subtitle);
         return subtitle;
 
       } catch (error) {
@@ -1319,7 +1290,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     async function callGeminiAPI(prompt) {
       const apiKey = CONFIG.GEMINI_API_KEY;
       if (!apiKey) {
-        console.warn('WARN', '⚠️ Gemini API 키가 설정되지 않음');
         return null;
       }
 
@@ -1332,8 +1302,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      * AI를 사용한 파일명 요약 생성 (3단어)
      */
     async function generateAIFileSummary(analysis) {
-      console.warn('WARN', '⚠️ [DEPRECATED] generateAIFileSummary - AIAnalyzer.generateFileSummary 사용 권장');
-
       // AIAnalyzer 모듈로 리다이렉트
       if (window.AIAnalyzer && typeof window.AIAnalyzer.generateFileSummary === 'function') {
         return await window.AIAnalyzer.generateFileSummary(analysis);
@@ -1351,7 +1319,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       const cacheKey = `detail_${analysis.handData.handNumber}`;
       const cached = aiAnalysisCache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp < AI_CACHE_TTL)) {
-        debugLog(`✅ AI 상세분석 캐시 사용`);
         return cached.value;
       }
 
@@ -1380,7 +1347,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           value: result,
           timestamp: Date.now()
         });
-        debugLog(`🤖 AI 상세분석 생성`);
         return result;
       }
 
@@ -1427,8 +1393,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         setTimeout(() => {
           this.overlay.style.display = 'none';
           const totalTime = ((performance.now() - this.startTime) / 1000).toFixed(2);
-          console.log('TIME', `✅ 초기화 완료 - 총 소요 시간: ${totalTime}초`);
-        }, 500);
+          }, 500);
       }
 
       updateStep(stepName, status = 'running', message = '') {
@@ -1556,20 +1521,16 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
 
         const handNumStr = String(handNumber);
-        console.log('MAPPING', `🔍 핸드 번호로 검색: #${handNumber}`);
-
         // 모든 캐시 항목을 순회하며 핸드 번호 확인
         for (const [rowNum, data] of this.cache) {
           if (data.handNumber === handNumStr) {
             this.hitCount++;
-            console.log('SHEET', `✅ 핸드 매칭 성공: #${handNumber} → 행 ${rowNum}, 시간="${data.time}", 상태="${data.status || ''}"`);
             return data;
           }
         }
 
         // 매칭 실패
         this.missCount++;
-        console.log('MAPPING', `❌ 핸드 매칭 실패: #${handNumber}를 찾을 수 없음`);
         return null;
       }
 
@@ -1578,7 +1539,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
        */
       async refreshCache() {
         if (this.isLoading) {
-          console.log('CACHE', '⏳ 캐시 갱신 중... 대기');
           return;
         }
 
@@ -1586,8 +1546,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         const startTime = performance.now();
 
         try {
-          console.log('CACHE', '🔄 [Phase 2] 캐시 갱신 시작...');
-
           const sheetUrl = getSheetUrl();
           if (!sheetUrl) {
             throw new Error('시트 URL이 설정되지 않음');
@@ -1601,14 +1559,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           // CSV 파싱 (parseCSV 함수 사용 - RFC 4180 준수)
           const rows = parseCSV(csvText);
 
-          console.log('SHEET', `📋 CSV 파싱 완료: ${rows.length}개 행`);
-
           // 멀티라인 검증
           if (rows.length > 0) {
             const firstRow = rows[0];
             const lastRow = rows[rows.length - 1];
-            console.log('SHEET', `   첫 행: ${firstRow[1]} (${firstRow.length}개 필드)`);
-            console.log('SHEET', `   마지막 행: ${lastRow[1]} (${lastRow.length}개 필드)`);
+            `);
+            `);
 
             // 17시 이후 데이터 확인
             let after17Count = 0;
@@ -1618,15 +1574,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
                 after17Count++;
               }
             });
-            console.log('SHEET', `   17시 이후 데이터: ${after17Count}개 행`);
-          }
+            }
 
           // 처음 3개 행 디버깅
           if (rows.length > 0) {
-            console.log('SHEET', '🔍 CSV 샘플 (처음 3행):');
+            :');
             for (let i = 0; i < Math.min(3, rows.length); i++) {
-              console.log('SHEET', `   행 ${i + 1}: B열="${rows[i][1]}", E열="${rows[i][4]}"`);
-            }
+              }
           }
 
           // 캐시 초기화
@@ -1677,13 +1631,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
             // 디버깅: "미완료" 상태 로그
             if (status === '미완료') {
-              console.log('CACHE', `🟡 캐시: 행 ${i + 1}에서 "미완료" 발견 - 핸드 #${handNumber}, 시간: ${timeStr}`);
-            }
+              }
 
             // 핸드 번호가 있는 경우 추가 로그 (모든 열 정보 포함)
             if (i < 5) { // 처음 5행 상세 로그
-              console.log('SHEET', `   📝 행 ${i + 1}:`, {
-                A: cols[0]?.trim() || '(빈값)',
+              || '(빈값)',
                 B: cols[1]?.trim() || '(빈값)',
                 C: cols[2]?.trim() || '(빈값)',
                 D: cols[3]?.trim() || '(빈값)',
@@ -1708,13 +1660,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             else if (!data.status) emptyCount++;
           }
 
-          console.log('CACHE', `✅ [Phase 2] 캐시 갱신 완료: ${this.cache.size}개 행, ${duration.toFixed(0)}ms`);
+          }ms`);
 
           // 디버깅 모드에서만 상세 정보
           if (window.DEBUG_MODE) {
-            console.log('TIME', `   - 시간 인덱스: ${this.timeIndex.size}개`);
-            console.log('PERFORMANCE', `   - 상태 분포: 미완료(${incompleteCount}), 복사완료(${completeCount}), 빈값(${emptyCount})`);
-            console.log('DEBUG', `   - TTL: ${this.ttl / 1000}초`);
+            , 복사완료(${completeCount}), 빈값(${emptyCount})`);
             // 캐시 데이터 분석 (디버깅)
             this.analyzeCache();
           }
@@ -1764,18 +1714,15 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           // 케이스 1: 새벽 시간(0-3시)인데 현재가 밤(21-23시)이면 내일 날짜
           if (hours <= 3 && currentHour >= 21) {
             today.setDate(today.getDate() + 1);
-            console.log('TIME', `   🌙 새벽 시간 보정: ${hours}시 → 내일 날짜로 설정`);
-          }
+            }
           // 케이스 2: 밤 시간(21-23시)인데 현재가 새벽(0-3시)이면 어제 날짜
           else if (hours >= 21 && currentHour <= 3) {
             today.setDate(today.getDate() - 1);
-            console.log('TIME', `   🌃 밤 시간 보정: ${hours}시 → 어제 날짜로 설정`);
-          }
+            }
           // 케이스 3: 시간이 미래인 경우 어제로 설정 (24시간 이내는 허용)
           else if (today > now && (today - now) > 24 * 60 * 60 * 1000) {
             today.setDate(today.getDate() - 1);
-            console.log('TIME', `   📅 미래 시간 보정: ${hours}시 → 어제 날짜로 설정`);
-          }
+            }
 
           const timestamp = Math.floor(today.getTime() / 1000);
 
@@ -1785,14 +1732,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
           // 처음 몇 개만 디버깅 로그
           if (this.cache.size < 3) {
-            console.log('TIME', `⏰ 시간 변환: "${str}" → ${adjustedTimestamp} (${new Date(adjustedTimestamp * 1000).toLocaleString()})`);
+            .toLocaleString()})`);
           }
 
           return adjustedTimestamp;
         }
 
         // 디버깅: 파싱 실패한 값 로그
-        console.log('TIME', `⚠️ 시간 파싱 실패: "${str}"`);
         return null;
       }
 
@@ -1814,8 +1760,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         const targetTimeString = `${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}`;
 
         if (window.DEBUG_MODE) {
-          console.log('TIME', `🔍 [시간 매칭] 타겟: ${targetTimeString}`);
-        }
+          }
 
         let bestMatch = null;
         let minTimeDiff = Infinity;
@@ -1828,8 +1773,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           if (data && data.status) {
             this.hitCount++;
             if (window.DEBUG_MODE) {
-              console.log('SHEET', `✅ [정확 매칭] 행 ${rowNum}, 시간: ${data.time}`);
-            }
+              }
             return { row: rowNum, ...data };
           }
         }
@@ -1872,15 +1816,14 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         if (bestMatch && minTimeDiff <= toleranceMinutes) {
           this.hitCount++;
           if (window.DEBUG_MODE) {
-            console.log('SHEET', `✅ [${matchType}] 행 ${bestMatch.row}, 시간: ${bestMatch.time}, 차이: ${minTimeDiff}분`);
-          }
+            }
           return bestMatch;
         }
 
         // 4. 매칭 실패
         this.missCount++;
         if (window.DEBUG_MODE) {
-          console.log('TIME', `❌ [매칭 실패] 타겟: ${targetTimeString}, 최소 차이: ${minTimeDiff}분 (허용: ${toleranceMinutes}분)`);
+          `);
         }
 
         return null;
@@ -1906,26 +1849,20 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         }
 
-        console.log('SHEET', '📊 Virtual 시트 시간대 분포:');
         const sortedHours = Array.from(hourDistribution.keys()).sort((a, b) => a - b);
         sortedHours.forEach(hour => {
-          console.log('DEBUG', `   ${String(hour).padStart(2, '0')}시: ${hourDistribution.get(hour)}개 행`);
+          .padStart(2, '0')}시: ${hourDistribution.get(hour)}개 행`);
         });
 
-        console.log('SHEET', '📊 시간 범위:');
         const times = Array.from(timeDistribution.keys()).sort();
-        console.log('DEBUG', `   최초: ${times[0]}`);
-        console.log('DEBUG', `   최종: ${times[times.length - 1]}`);
-        console.log('TIME', `   총 고유 시간: ${times.length}개`);
-
         // 22시 이후 데이터 확인
         const nightTimes = times.filter(time => {
           const hour = parseInt(time.split(':')[0]);
           return hour >= 22 || hour <= 2;
         });
-        console.log('TIME', `   밤 시간대 (22-02시): ${nightTimes.length}개`);
+        : ${nightTimes.length}개`);
         if (nightTimes.length > 0) {
-          console.log('TIME', `   밤 시간 예시:`, nightTimes.slice(0, 5));
+          );
         }
 
         return { hourDistribution, timeDistribution, times };
@@ -1957,11 +1894,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
 
         // ⚠️ 캐시 통계 로그 비활성화 - 콘솔 스팸 방지
-        // console.log('CACHE', `📊 [Phase 2] 캐시 적중률: ${this.getHitRate()}%`);
-        // console.log('CACHE', `   - 캐시 적중: ${Object.keys(results).length}개`);
-        // console.log('CACHE', `   - 캐시 미스: ${notInCache.length}개`);
-
-        // 캐시에 없는 항목은 Phase 1 방식으로 처리
+        // }%`);
+        // .length}개`);
+        // // 캐시에 없는 항목은 Phase 1 방식으로 처리
         if (notInCache.length > 0) {
           const apiResults = await checkAllHandsStatus(notInCache);
           Object.assign(results, apiResults);
@@ -1975,7 +1910,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
        */
       async ensureFresh() {
         if (this.isExpired() || this.cache.size === 0) {
-          console.log('CACHE', '🔄 [Phase 2] 캐시 만료 또는 비어있음 - 자동 갱신');
           await this.refreshCache();
         }
       }
@@ -2006,8 +1940,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         this.missCount = 0;
         this.lastRowCount = 0;
         this.stopAutoUpdate();  // 자동 갱신 중지
-        console.log('CACHE', '🧹 [Phase 2] 캐시 초기화 완료');
-      }
+        }
 
       /**
        * 스마트 캐시 갱신 시작 (30초마다 증분 업데이트)
@@ -2016,7 +1949,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 이미 실행 중이면 중복 방지
         if (this.updateInterval) return;
 
-        console.log('CACHE', '🔄 스마트 캐시 갱신 시작 (30초 간격)');
+        ');
 
         this.updateInterval = setInterval(async () => {
           await this.incrementalUpdate();
@@ -2030,8 +1963,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         if (this.updateInterval) {
           clearInterval(this.updateInterval);
           this.updateInterval = null;
-          console.log('CACHE', '⏹️ 스마트 캐시 갱신 중지');
-        }
+          }
       }
 
       /**
@@ -2039,7 +1971,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
        */
       async incrementalUpdate() {
         if (this.isUpdating) {
-          console.log('CACHE', '⏳ 이미 갱신 중...');
           return;
         }
 
@@ -2047,8 +1978,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         const startTime = performance.now();
 
         try {
-          console.log('CACHE', '🔄 증분 캐시 갱신 시작...');
-
           // CSV 데이터 다시 가져오기
           const csvUrl = getSheetUrl();
           if (!csvUrl) {
@@ -2069,8 +1998,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const newRowCount = currentRowCount - this.lastRowCount;
 
           if (newRowCount > 0) {
-            console.log('SHEET', `🆕 ${newRowCount}개 신규 행 발견`);
-
             // 신규 행만 캐시에 추가
             const newRows = rows.slice(this.lastRowCount);
             newRows.forEach((row, index) => {
@@ -2086,10 +2013,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               showNotification(`${newRowCount}개 신규 핸드가 추가되었습니다`, 'info');
             }
 
-            console.log('CACHE', `✅ 증분 갱신 완료 (${((performance.now() - startTime) / 1000).toFixed(2)}초)`);
+            - startTime) / 1000).toFixed(2)}초)`);
           } else {
-            console.log('SHEET', 'ℹ️ 신규 행 없음');
-          }
+            }
 
         } catch (error) {
           console.error('ERROR', '❌ 증분 갱신 실패:', error);
@@ -2112,7 +2038,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      */
     async function preloadAllHandStatuses() {
       if (window.isPreloadingInProgress) {
-        console.log('SHEET', '🔄 이미 사전 로딩이 진행 중입니다.');
         return;
       }
 
@@ -2120,8 +2045,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       window.preloadStartTime = performance.now();
 
       try {
-        console.log('SHEET', '🚀 Virtual 시트 전체 사전 로딩 시작...');
-
         // CSV 데이터 로딩
         const csvUrl = getSheetCsvUrl();
         if (!csvUrl) {
@@ -2129,16 +2052,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           return;
         }
 
-        console.log('SHEET', '📥 CSV 데이터 다운로드 중...');
         const response = await fetch(csvUrl + '&v=' + Date.now());
         const csvText = await response.text();
 
         // CSV 파싱
-        console.log('SHEET', '📊 CSV 데이터 파싱 중...');
         const parsedData = parseCSV(csvText);
 
         // 메모리 맵 구축
-        console.log('MAPPING', '🗂️ 메모리 매핑 테이블 구축 중...');
         window.preloadedHandStatuses.clear();
         window.preloadedTimeMapping.clear();
 
@@ -2160,17 +2080,14 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               // 추출 성공 시 매핑 저장 (다음번엔 1번에서 바로 조회됨)
               if (handNumber) {
                 saveHandFilenameMapping(handNumber, filename);
-                debugLog(`🔗 레거시 파일명 매핑 저장: ${filename} → #${handNumber}`);
-              }
+                }
             } else {
-              debugLog(`⚡ 매핑에서 즉시 조회: ${filename} → #${handNumber}`);
-            }
+              }
 
             // 핸드번호가 획득되지 않으면 해당 행 건너뛰기
             if (!handNumber || handNumber <= 0) {
               if (filename) {
-                console.warn('WARN', `⚠️ 핸드번호 획득 실패 - 파일명: "${filename}"`);
-              }
+                }
               continue;
             }
 
@@ -2197,37 +2114,30 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
             // 🔍 상세 디버깅 로그 (처음 10개 행만)
             if (processedCount <= 10) {
-              console.log('SHEET', `🔍 행 ${processedCount}: 파일명="${filename}" → 핸드#${handNumber} → 상태="${status}"`);
-            }
+              }
 
           } catch (error) {
-            console.warn('WARN', '⚠️ 행 처리 오류:', error);
-          }
+            }
         }
 
         const duration = performance.now() - window.preloadStartTime;
-        console.log('PERFORMANCE', `✅ 사전 로딩 완료! (${duration.toFixed(0)}ms)`);
-        console.log('SHEET', `📊 처리된 핸드: ${processedCount}개`);
-        console.log('DEBUG', `📈 상태 분포:`, statusCount);
-        console.log('CACHE', `💾 메모리 사용량: ${(processedCount * 50 / 1024).toFixed(1)}KB`);
+        }ms)`);
+        .toFixed(1)}KB`);
 
         // 🔍 미완료 상태 핸드들을 구체적으로 출력 (디버깅용)
         if (statusCount['미완료'] > 0) {
-          console.log('PERFORMANCE', `🟡 '미완료' 상태 핸드 목록:`);
           const incompleteHands = [];
           for (const [handNumber, status] of window.preloadedHandStatuses) {
             if (status === '미완료') {
               incompleteHands.push(handNumber);
-              console.log('MAPPING', `   - 핸드 #${handNumber}: "${status}"`);
-            }
+              }
           }
           // 전역 변수에 저장 (디버깅 및 접근 편의)
           window.incompleteHandsList = incompleteHands;
-          console.log('PERFORMANCE', `🔎 미완료 핸드 번호 배열: [${incompleteHands.join(', ')}]`);
+          }]`);
         } else {
           window.incompleteHandsList = [];
-          console.log('PERFORMANCE', `ℹ️ '미완료' 상태인 핸드가 없습니다.`);
-        }
+          }
 
         return true;
 
@@ -2249,11 +2159,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       }
 
       window.preloadRefreshInterval = setInterval(async () => {
-        console.log('CACHE', '🔄 백그라운드 데이터 갱신 중...');
         await preloadAllHandStatuses();
       }, 30000); // 30초마다
 
-      console.log('CACHE', '⏰ 백그라운드 갱신 스케줄러 시작 (30초 간격)');
+      ');
     }
 
     /**
@@ -2269,7 +2178,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           Object.entries(data).forEach(([key, value]) => {
             window.handToFilenameMapping.set(parseInt(key), value);
           });
-          console.log('SHEET', `📥 핸드→파일명 매핑 로드: ${Object.keys(data).length}개`);
+          .length}개`);
         }
 
         if (filenameToHand) {
@@ -2277,11 +2186,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           Object.entries(data).forEach(([key, value]) => {
             window.filenameToHandMapping.set(key, value);
           });
-          console.log('SHEET', `📥 파일명→핸드 매핑 로드: ${Object.keys(data).length}개`);
+          .length}개`);
         }
       } catch (error) {
-        console.warn('WARN', '⚠️ 매핑 데이터 로드 실패:', error);
-      }
+        }
     }
 
     /**
@@ -2296,10 +2204,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         localStorage.setItem('handToFilenameMapping', JSON.stringify(handToFilenameObj));
         localStorage.setItem('filenameToHandMapping', JSON.stringify(filenameToHandObj));
 
-        console.log('CACHE', `💾 localStorage 저장: 핸드→파일명 ${window.handToFilenameMapping.size}개, 파일명→핸드 ${window.filenameToHandMapping.size}개`);
-      } catch (error) {
-        console.warn('WARN', '⚠️ localStorage 저장 실패:', error);
-      }
+        } catch (error) {
+        }
     }
 
     /**
@@ -2319,7 +2225,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       // localStorage에 영구 저장
       saveHandFilenameMappingsToStorage();
 
-      console.log('CACHE', `💾 매핑 저장 (메모리+localStorage): 핸드 #${handNum} ↔ "${filename}"`);
+      : 핸드 #${handNum} ↔ "${filename}"`);
     }
 
     /**
@@ -2335,7 +2241,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      * 파일명에서 핸드번호 추출 함수 (폴백용)
      */
     function extractHandNumberFromFilename(filename) {
-      console.warn('WARN', '⚠️ [DEPRECATED] extractHandNumberFromFilename - 모듈로 리다이렉트됨');
       // 모듈화 후 자동 리다이렉트 (filename-adapter.js에서 처리)
       return null;
     }
@@ -2352,7 +2257,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         }
       }
-      console.log('MAPPING', `🔍 상태 "${targetStatus}" 핸드 검색 결과: [${result.join(', ')}]`);
+      }]`);
       return result;
     }
 
@@ -2364,7 +2269,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       const status = window.preloadedHandStatuses.get(parseInt(handNumber));
       const duration = performance.now() - startTime;
 
-      console.log('MAPPING', `⚡ 메모리 조회: 핸드 #${handNumber} = ${status || '미처리'} (${duration.toFixed(2)}ms)`);
+      }ms)`);
       return status;
     }
 
@@ -2411,7 +2316,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 활동 감지 시 새로고침 간격 단축
         if (this.refreshInterval > this.minInterval * 2) {
           this.refreshInterval = Math.max(this.minInterval * 2, this.refreshInterval / 2);
-          console.log('DEBUG', `⚡ 활동 감지 - 새로고침 간격 단축: ${this.refreshInterval / 1000}초`);
           this.scheduleNext();
         }
       }
@@ -2427,8 +2331,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           // 변경이 자주 발생하면 간격 단축
           if (this.changeCount > 2) {
             this.refreshInterval = Math.max(this.minInterval, this.refreshInterval * 0.8);
-            console.log('DEBUG', `📈 잦은 변경 감지 - 간격 단축: ${this.refreshInterval / 1000}초`);
-          }
+            }
         } else {
           this.noChangeCount++;
           this.changeCount = 0;
@@ -2436,8 +2339,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           // 변경이 없으면 간격 증가
           if (this.noChangeCount > 3) {
             this.refreshInterval = Math.min(this.maxInterval, this.refreshInterval * 1.5);
-            console.log('DEBUG', `📉 변경 없음 - 간격 증가: ${this.refreshInterval / 1000}초`);
-          }
+            }
         }
       }
 
@@ -2461,7 +2363,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           await updateVisibleHandsStatus();
 
           const duration = performance.now() - startTime;
-          // console.log('PERFORMANCE', `✅ [Phase 3] 스마트 새로고침 완료: ${duration.toFixed(0)}ms`); // ⚠️ 콘솔 스팸 방지
+          // }ms`); // ⚠️ 콘솔 스팸 방지
 
           // 변경 감지
           const hasChanges = allHands.length > 0;
@@ -2488,21 +2390,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         if (inactiveTime > 10 * 60 * 1000) { // 10분 이상 비활성
           this.isActive = false;
           this.refreshInterval = this.maxInterval;
-          console.log('DEBUG', '😴 비활성 상태 - 새로고침 간격 최대화');
-        }
+          }
 
         this.refreshTimer = setTimeout(() => {
           this.performRefresh();
         }, this.refreshInterval);
 
-        // console.log('DEBUG', `⏱️ 다음 새로고침: ${this.refreshInterval / 1000}초 후`); // ⚠️ 콘솔 스팸 방지
-      }
-
-      /**
-       * 매니저 시작
-       */
-      start() {
-        console.error('ERROR', '⚠️ [Phase 3] 스마트 새로고침 매니저 비활성화 - 푸시 기반 시스템 사용');
+        nsole.error('ERROR', '⚠️ [Phase 3] 스마트 새로고침 매니저 비활성화 - 푸시 기반 시스템 사용');
 
         // ⚠️ 모든 자동 새로고침 로직 완전 비활성화
         // 앱스크립트에서 새 데이터 발생 시 웹훅으로 직접 호출하는 방식으로 전환
@@ -2516,8 +2410,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // document.addEventListener('visibilitychange', () => {
         //   if (document.hidden) {
         //     this.refreshInterval = this.maxInterval;
-        //     console.log('DEBUG', '🌙 페이지 숨김 - 새로고침 일시정지');
-        //   } else {
+        //     //   } else {
         //     this.detectActivity();
         //     this.performRefresh();
         //   }
@@ -2534,8 +2427,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         if (this.refreshTimer) {
           clearTimeout(this.refreshTimer);
         }
-        console.log('DEBUG', '🛑 [Phase 3] 스마트 새로고침 매니저 중지');
-      }
+        }
 
       /**
        * 통계 정보
@@ -2577,7 +2469,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
        */
       async init() {
         if (!this.isSupported) {
-          console.warn('WARN', '⚠️ IndexedDB 미지원');
           return false;
         }
 
@@ -2591,7 +2482,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
           request.onsuccess = () => {
             this.db = request.result;
-            console.log('PERFORMANCE', '✅ [Phase 3] IndexedDB 연결 성공');
             resolve(true);
           };
 
@@ -2616,8 +2506,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               db.createObjectStore('settings', { keyPath: 'key' });
             }
 
-            console.log('PERFORMANCE', '✅ IndexedDB 스키마 생성 완료');
-          };
+            };
         });
       }
 
@@ -2656,8 +2545,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         try {
           await Promise.all(promises);
-          console.log('CACHE', `💾 [Phase 3] ${handsArray.length}개 핸드 로컬 저장 완료`);
-        } catch (error) {
+          } catch (error) {
           console.error('ERROR', '❌ 핸드 저장 실패:', error);
         }
       }
@@ -2688,8 +2576,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         try {
           await Promise.all(promises);
-          console.log('CACHE', `💾 [Phase 3] 시트 캐시 IndexedDB 저장: ${promises.length}행`);
-        } catch (error) {
+          } catch (error) {
           console.error('ERROR', '❌ 시트 캐시 저장 실패:', error);
         }
       }
@@ -2710,7 +2597,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             request.result.forEach(item => {
               cacheMap.set(item.row, item);
             });
-            console.log('CACHE', `📂 [Phase 3] IndexedDB에서 캐시 로드: ${cacheMap.size}행`);
             resolve(cacheMap);
           };
 
@@ -2787,7 +2673,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             settingsStore.clear();
 
             transaction.oncomplete = () => {
-              console.log('SHEET', '✅ IndexedDB 모든 데이터 삭제 완료');
               resolve();
             };
 
@@ -2816,8 +2701,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         });
 
         await Promise.all(promises);
-        console.log('PERFORMANCE', '🧹 [Phase 3] IndexedDB 초기화 완료');
-      }
+        }
     }
 
     // 전역 로컬 저장소 인스턴스
@@ -2855,8 +2739,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     function checkVersion() {
       const storedVersion = localStorage.getItem('app_version');
       if (storedVersion !== APP_VERSION) {
-        console.log('DEBUG', `🔄 버전 업데이트 감지: ${storedVersion || '없음'} → ${APP_VERSION}`);
-
         // 버전 비교 함수 (문자열 버전을 숫자로 변환)
         const compareVersions = (v1, v2) => {
           const parts1 = v1.split('.').map(Number);
@@ -2874,7 +2756,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         // 버전별 마이그레이션 (저장된 버전이 없거나 현재 버전보다 낮을 때만)
         if (!storedVersion || compareVersions(storedVersion, APP_VERSION) < 0) {
-          console.log('CACHE', '🧹 캐시 초기화 중...');
           // 중요한 설정은 보존
           const keepSettings = {
             'GEMINI_API_KEY': localStorage.getItem('GEMINI_API_KEY'),
@@ -2899,8 +2780,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           localStorage.setItem('build_time', BUILD_TIME);
 
           // 새 버전 감지 시 자동 새로고침
-          console.log('PERFORMANCE', '🚀 새 버전 감지 - 페이지를 새로고침합니다...');
-
           // 강제 리로드 (캐시 무시)
           setTimeout(() => {
             location.reload(true);
@@ -2962,10 +2841,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       // 디버그 로그
       if (!url) {
-        console.warn('WARN', '⚠️ Apps Script URL이 설정되지 않았습니다.');
-        console.log('DEBUG', '   입력 필드:', appsScriptUrlInput ? appsScriptUrlInput.value : 'N/A');
-        console.log('DEBUG', '   CONFIG 값:', CONFIG.SHEET_UPDATE_SCRIPT_URL);
-      }
+        }
 
       return url;
     }
@@ -3056,8 +2932,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const stored = localStorage.getItem(this.storageKey);
           if (stored) {
             this.buffer = JSON.parse(stored) || [];
-            console.log('CACHE', `💾 최근 핸드 버퍼 로드: ${this.buffer.length}개`);
-          }
+            }
         } catch (e) {
           console.error('ERROR', '버퍼 로드 실패:', e);
           this.buffer = [];
@@ -3077,8 +2952,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       clear() {
         this.buffer = [];
         this.saveToStorage();
-        console.log('PERFORMANCE', '🔄 최근 핸드 버퍼 초기화 완료');
-      }
+        }
     }
     
     // 전역 버퍼 인스턴스
@@ -3090,10 +2964,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     const NOTIFICATION_COOLDOWN = 30000; // 30초 쿨다운
     
     // 디버그 모드 (통합 시스템 사용)
-    // const DEBUG_MODE = false; // Debug mode disabled for production
-    
-    
-    // 알림 기록 불러오기 (시간 정보 포함)
+    // const DEBUG_MODE = false; // Debug mode disabled for production    // 알림 기록 불러오기 (시간 정보 포함)
     function getNotifiedHands() {
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -3101,13 +2972,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const data = JSON.parse(stored);
           // 객체 형태로 저장 (handNumber: timestamp)
           const hands = data.hands || {};
-          console.log('NOTIFICATION', `📚 알림 기록 로드: ${Object.keys(hands).length}개 핸드`);
-          return hands;
+return hands;
         }
       } catch (e) {
         console.error('ERROR', '알림 기록 불러오기 실패:', e);
       }
-      console.log('PERFORMANCE', '📚 알림 기록 없음 - 새로 시작');
       return {};
     }
     
@@ -3159,7 +3028,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
         
         if (DEBUG_MODE) {
-          console.log('CACHE', `💾 알림 기록 저장: 총 ${Object.keys(cleanedHands).length}개 핸드 기록 유지`);
+          .length}개 핸드 기록 유지`);
         }
       } catch (e) {
         console.error('ERROR', '알림 기록 저장 실패:', e);
@@ -3176,21 +3045,21 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     
     // Google Sheets CSV Fetch 함수 (GitHub 저장소 방식 + 프록시 fallback)
     async function fetchCsvWithFallback(url) {
-      // console.log('SHEET', `🔄 CSV 가져오기 시도: ${url}`); // ⚠️ 콘솔 스팸 방지
+      // // ⚠️ 콘솔 스팸 방지
       
       try {
         // 방법 1: GitHub 저장소와 동일한 직접 fetch
-        console.log('DEBUG', '🔄 방법 1: 직접 fetch 시도 (GitHub 방식)');
+        ');
         const res = await fetch(url);
         
-        // console.log('API', `📊 HTTP 응답: ${res.status} ${res.statusText}`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
         if (!res.ok) {
           throw new Error(`CSV fetch failed: ${res.status}`);
         }
         
         const txt = await res.text();
-        // console.log('PERFORMANCE', `✅ 직접 방법 성공: ${txt.length}글자`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
         return { 
           response: {
@@ -3205,11 +3074,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         
       } catch (error) {
         console.error('ERROR', `❌ 직접 방법 실패: ${error.message}`);
-        console.log('DEBUG', '💡 CORS 문제일 가능성이 높습니다. 프록시 방법을 시도합니다.');
-        
         // 방법 2: 프록시 (CORS 우회)
         try {
-          console.log('DEBUG', '🔄 방법 2: AllOrigins 프록시 시도');
           const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
           const proxyResponse = await fetch(proxyUrl);
           
@@ -3227,18 +3093,14 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           
           // Base64로 인코딩된 데이터인지 확인 및 디코딩
           if (csvText.startsWith('data:text/csv;base64,')) {
-            console.log('SHEET', '🔄 Base64 인코딩 데이터 감지 - 디코딩 중...');
             const base64Data = csvText.replace('data:text/csv;base64,', '');
             try {
               csvText = atob(base64Data);
-              console.log('PERFORMANCE', `✅ Base64 디코딩 성공: ${csvText.length}글자`);
-            } catch (decodeError) {
+} catch (decodeError) {
               console.error('ERROR', `❌ Base64 디코딩 실패: ${decodeError.message}`);
               throw new Error(`Base64 디코딩 실패: ${decodeError.message}`);
             }
           }
-          
-          console.log('PERFORMANCE', `✅ 프록시 방법 성공: ${csvText.length}글자`);
           
           return {
             response: {
@@ -3255,7 +3117,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           
           // 방법 3: cors-anywhere 백업 프록시
           try {
-            console.log('DEBUG', '🔄 방법 3: cors-anywhere 프록시 시도');
             const corsUrl = `https://cors-anywhere.herokuapp.com/${url}`;
             const corsResponse = await fetch(corsUrl);
             
@@ -3264,8 +3125,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             }
             
             const corsTxt = await corsResponse.text();
-            console.log('PERFORMANCE', `✅ CORS 프록시 방법 성공: ${corsTxt.length}글자`);
-            
             return {
               response: {
                 ok: true,
@@ -3294,7 +3153,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       // 캐시에서 먼저 확인
       if (csvParseCache.has(cacheKey)) {
         const cached = csvParseCache.get(cacheKey);
-        console.log('CACHE', `🚀 CSV 파싱 캐시 히트: ${cached.length}개 행 (캐시 크기: ${csvParseCache.size})`);
+        `);
         return cached;
       }
 
@@ -3312,10 +3171,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         });
 
         if (result.errors.length > 0) {
-          console.warn('WARN', 'CSV 파싱 경고:', result.errors);
-        }
-
-        console.log('SHEET', `📊 Papa Parse 사용: ${result.data.length}개 행 파싱 완료`);
+          }
 
         // 캐시에 저장 (최대 5개까지 유지)
         if (csvParseCache.size >= 5) {
@@ -3323,13 +3179,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           csvParseCache.delete(firstKey);
         }
         csvParseCache.set(cacheKey, result.data);
-        console.log('CACHE', `💾 CSV 파싱 결과 캐시 저장 (캐시 크기: ${csvParseCache.size})`);
+        `);
 
         return result.data;
       }
 
       // Papa Parse가 없으면 개선된 커스텀 파서 사용 (RFC 4180 준수)
-      console.log('SHEET', '📊 커스텀 CSV 파서 사용 (RFC 4180 준수)');
+      ');
 
       const rows = [];
       let currentRow = [];
@@ -3396,15 +3252,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
       }
 
-      console.log('SHEET', `📊 커스텀 파서: ${rows.length}개 행 파싱 완료`);
-
       // 캐시에 저장 (최대 5개까지 유지)
       if (csvParseCache.size >= 5) {
         const firstKey = csvParseCache.keys().next().value;
         csvParseCache.delete(firstKey);
       }
       csvParseCache.set(cacheKey, rows);
-      console.log('CACHE', `💾 CSV 파싱 결과 캐시 저장 (캐시 크기: ${csvParseCache.size})`);
+      `);
 
       return rows;
     }
@@ -3531,14 +3385,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     function isCSVDataValid(newData) {
       // 기본적인 데이터 유효성만 체크
       if (!newData || newData.length === 0) {
-        console.warn('WARN', '⚠️ CSV 데이터가 비어있음');
         return false;
       }
       
       // 핸드 번호가 있는 데이터 확인
       const validHands = newData.filter(h => h.handNumber && !isNaN(parseInt(h.handNumber)));
       if (validHands.length === 0) {
-        console.warn('WARN', '⚠️ 유효한 핸드가 없음');
         return false;
       }
       
@@ -3550,8 +3402,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     // ====================================
     
     async function loadIndexData(suppressNotification = false) {
-      console.log('NOTIFICATION', `🔄 loadIndexData 호출 - 알림 억제: ${suppressNotification}, 초기로드: ${isInitialLoad}`);
-      console.log('SHEET', `📊 CONFIG.CSV_INDEX_URL: ${CONFIG.CSV_INDEX_URL}`); // 디버깅용 활성화
+      // 디버깅용 활성화
 
       // 초기 로드 시 동기화 팝업 표시
       if (isInitialLoad && !suppressNotification) {
@@ -3563,7 +3414,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 랜덤 파라미터 추가로 캐시 방지 강화
         const randomParam = Math.random().toString(36).substring(7);
         const csvUrl = CONFIG.CSV_INDEX_URL + '&t=' + Date.now() + '&r=' + randomParam;
-        console.log('SHEET', `🌐 CSV 데이터 가져오기: ${csvUrl.substring(0, 100)}...`); // 디버깅용 활성화
+        }...`); // 디버깅용 활성화
         
         // CORS 문제를 위한 대안 시도
         let text;
@@ -3583,18 +3434,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               throw new Error(`프록시 서버 오류: ${proxyResponse.status}`);
             }
             text = await proxyResponse.text();
-            console.log('SHEET', '✅ 프록시를 통한 데이터 로드 성공');
-          } else {
+            } else {
             throw error;
           }
         }
-        // console.log('SHEET', `📄 CSV 원본 데이터 크기: ${text.length}문자`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
         const rows = parseCSV(text);
-        console.log('SHEET', `📄 파싱된 행 수: ${rows.length}개`);
-        console.log('SHEET', `📄 첫 번째 행:`, rows[0]);
-        console.log('SHEET', `📄 두 번째 행:`, rows[1]);
-        
         const dataRows = rows.slice(1);
         
         // CSV에서 읽은 새로운 핸드 데이터
@@ -3623,13 +3469,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         
         // 기본적인 데이터 유효성 체크
         if (!isCSVDataValid(newHandsFromCSV)) {
-          console.warn('WARN', '🚫 비어있는 CSV 데이터, 대기중...');
           return;
         }
         
-        console.log('SHEET', `📄 CSV에서 ${newHandsFromCSV.length}개 핸드 로드 완료`); // 디버깅 활성화
+        // 디버깅 활성화
         if (DEBUG_MODE && newHandsFromCSV.length > 0) {
-          // console.log('SHEET', '🔍 로드된 핸드 번호:', newHandsFromCSV.map(h => h.handNumber).slice(0, 5)); // ⚠️ 콘솔 스팸 방지
+          // .slice(0, 5)); // ⚠️ 콘솔 스팸 방지
         }
         
         // 마스터 핸드 목록에 병합 (삭제하지 않고 추가만)
@@ -3640,8 +3485,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 표시용 배열 생성 (마스터 목록에서)
         allHands = Array.from(masterHandList.values());
         allHands.sort((a, b) => parseInt(b.handNumber) - parseInt(a.handNumber));
-        
-        console.log('MAPPING', `📁 마스터 핸드 목록: 총 ${masterHandList.size}개 핸드`);
         
         // 마스터 핸드 목록 저장
         saveMasterHandList();
@@ -3664,7 +3507,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           
           // 알림 발송
           if (handsToNotify.length > 0 && CONFIG.ENABLE_NOTIFICATIONS) {
-            console.log('MAPPING', `🔔 새로운 핸드 알림: ${handsToNotify.join(', ')}`);
+            }`);
             showNotification(`${handsToNotify.length}개의 새로운 핸드가 추가되었습니다! (${handsToNotify.join(', ')})`);
             playSound('notification');
             
@@ -3677,7 +3520,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         } else if (isInitialLoad) {
           // 초기 로딩시 모든 핸드를 버퍼에 추가 (알림 없이)
-          // console.log('SHEET', `🔍 초기 로딩: ${newHandsFromCSV.length}개 핸드를 버퍼에 추가`); // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
           
           // 모든 핸드를 버퍼에 추가 (최대 100개까지 저장)
           for (const hand of newHandsFromCSV) {
@@ -3687,7 +3530,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           // 초기 로딩 완료 처리
           isInitialLoad = false;
           const bufferStatus = recentHandsBuffer.getStatus();
-          // console.log('SHEET', `🚀 초기 로딩 완료. 핸드 수: ${newHandsFromCSV.length}개, 버퍼: ${bufferStatus.size}개`); // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
         }
         
         updateHandList();
@@ -3708,26 +3551,20 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         if (!hand) return null;
         
         // 🔍 디버그: 행 번호 매핑 확인
-        console.log('MAPPING', `📌 핸드 ${handNumber} 로딩 중...`);
-        console.log('DEBUG', `   Index 정보: startRow=${hand.startRow}, endRow=${hand.endRow}`);
-        
         // 실제 핸드 위치 찾기
         let actualStartRow = -1;
         rows.forEach((row, index) => {
           if (row[1] === 'HAND' && row[2] === handNumber) {
             actualStartRow = index + 1;
-            console.log('SHEET', `   ✅ 실제 위치: 행 ${actualStartRow}`);
-          }
+            }
         });
         
         if (actualStartRow !== hand.startRow) {
-          console.warn('WARN', `   ⚠️ 행 번호 불일치! Index: ${hand.startRow}, 실제: ${actualStartRow}`);
-        }
+          }
         
         // 실제 위치 기반으로 슬라이싱 (Index가 틀렸을 경우 대비)
         let handRows;
         if (actualStartRow > 0 && actualStartRow !== hand.startRow) {
-          console.warn('WARN', '   📍 실제 위치 기반으로 재슬라이싱...');
           // 실제 핸드 위치에서 시작하여 다음 핸드까지 찾기
           let actualEndRow = actualStartRow;
           for (let i = actualStartRow; i < rows.length; i++) {
@@ -3740,13 +3577,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             }
           }
           handRows = rows.slice(actualStartRow - 1, actualEndRow);
-          console.log('DEBUG', `   새 슬라이싱 범위: [${actualStartRow - 1}:${actualEndRow}]`);
-        } else {
+          } else {
           handRows = rows.slice(hand.startRow - 1, hand.endRow);
-          console.log('DEBUG', `   슬라이싱 범위: [${hand.startRow - 1}:${hand.endRow}]`);
-        }
+          }
         
-        console.log('SHEET', '   첫 3행:', handRows.slice(0, 3));
+        );
         
         // 보드 카드 미리보기
         const boardPreview = [];
@@ -3755,9 +3590,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             boardPreview.push(row[4]);
           }
         });
-        console.log('DEBUG', '   🎴 보드 카드:', boardPreview);
-        
-        return parseHandDetails(handRows);
+return parseHandDetails(handRows);
         
       } catch (error) {
         console.error('ERROR', 'Hand 데이터 로드 실패:', error);
@@ -3805,12 +3638,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               hand.blinds.bb = parseFloat(row[9]) || 0;
               // 초기 팟에 SB와 BB 추가
               hand.pot = hand.blinds.sb + hand.blinds.bb;
-              console.log('TIME', `💰 블라인드 파싱: I열 SB=${hand.blinds.sb}, J열 BB=${hand.blinds.bb}, 초기팟=${hand.pot}`);
               if (DEBUG_MODE) {
-                console.log('DEBUG', `💰 초기 팟 설정: SB(${hand.blinds.sb}) + BB(${hand.blinds.bb}) = ${hand.pot}`);
+                + BB(${hand.blinds.bb}) = ${hand.pot}`);
               }
             } else {
-              console.warn('WARN', `⚠️ 블라인드 정보 없음: I열=${row[8]}, J열=${row[9]}`);
               hand.blinds.sb = 0;
               hand.blinds.bb = 0;
               hand.pot = 0;
@@ -3890,7 +3721,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
                 }
                 
                 if (DEBUG_MODE) {
-                  console.log('DEBUG', `🎴 BOARD: ${card} (카드 ${cardCount}개, ${currentStreet})`);
+                  `);
                 }
               }
             } else if (eventType === 'POT CORRECTION') {
@@ -3899,7 +3730,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               if (amount > 0) {
                 hand.pot += amount;
                 if (DEBUG_MODE) {
-                  console.log('DEBUG', `💰 POT CORRECTION: +${amount} (총 팟: ${hand.pot})`);
+                  `);
                 }
               }
             } else {
@@ -3921,13 +3752,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
                 if ((currentBet === 0 && amount <= hand.blinds.bb) || amount === currentBet) {
                   displayAction = 'CHECK/CALL';
                   if (DEBUG_MODE) {
-                    console.log('PERFORMANCE', `✅ CHECK 감지: ${playerName} (${currentStreet}, bet=${currentBet}, amount=${amount})`);
+                    `);
                   }
                 } else {
                   // 진짜 CALL
                   displayAction = 'CHECK/CALL';
                   if (DEBUG_MODE) {
-                    console.log('DEBUG', `📞 CALL 감지: ${playerName} ${amount} (${currentStreet}, bet=${currentBet})`);
+                    `);
                   }
                 }
               } else if (eventType === 'CHECK') {
@@ -3938,8 +3769,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               if (eventType === 'BET' || eventType === 'RAISE' || eventType === 'RAISE TO') {
                 streetBetAmount[currentStreet] = amount;
                 if (DEBUG_MODE) {
-                  console.log('SHEET', `📊 ${currentStreet} 베팅 업데이트: ${amount}`);
-                }
+                  }
               }
               
               const action = {
@@ -3967,7 +3797,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
                   hand.potContributions[playerName] += amount;
                   
                   if (DEBUG_MODE) {
-                    console.log('DEBUG', `💰 POT 추가: ${playerName} ${displayAction} ${amount} (현재 POT: ${hand.pot}, ${playerName} 총 기여: ${hand.potContributions[playerName]})`);
+                    `);
                   }
                 }
               }
@@ -4036,8 +3866,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      */
     async function checkAllHandsStatus(handNumbers) {
       const startTime = performance.now();
-      console.log('PERFORMANCE', `🚀 [Phase 1] ${handNumbers.length}개 핸드 일괄 상태 확인 시작...`);
-
       // batchData를 try 블록 밖에서 선언
       let batchData = null;
 
@@ -4056,11 +3884,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         }
 
-        console.log('CACHE', `📦 캐시 히트: ${Object.keys(cachedResults).length}개, 미스: ${uncachedHands.length}개`);
+        .length}개, 미스: ${uncachedHands.length}개`);
 
         // 모든 핸드가 캐시에 있으면 바로 반환
         if (uncachedHands.length === 0) {
-          console.log('CACHE', '✅ 모든 핸드가 캐시에서 발견됨');
           return cachedResults;
         }
 
@@ -4092,7 +3919,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 유효한 행 번호만 추출
         const validRows = rowMatches.filter(item => item.row);
         if (validRows.length === 0) {
-          console.log('SHEET', '⚠️ 매칭되는 행이 없음');
           return cachedResults;
         }
 
@@ -4137,10 +3963,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         });
 
         const duration = performance.now() - startTime;
-        console.log('PERFORMANCE', `✅ [Phase 1] 일괄 확인 완료: ${duration.toFixed(0)}ms`);
-        console.log('API', `📊 성능: ${handNumbers.length}개 핸드, ${validRows.length}개 API 확인, 1회 호출`);
-
-        return statusMap;
+        }ms`);
+return statusMap;
 
       } catch (error) {
         console.error('ERROR', '❌ [Phase 1] 일괄 상태 확인 오류:', error);
@@ -4149,7 +3973,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           console.error('ERROR', '📋 요청 데이터:', batchData);
         }
         // 🔴 Apps Script 오류 시 캐시만 사용 (개별 API 호출 방지)
-        console.log('CACHE', '📊 캐시 전용 모드로 전환');
         const results = {};
         for (const handNum of handNumbers) {
           const time = await getHandTimestamp(handNum);
@@ -4179,23 +4002,17 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     // 개별 상태 확인 함수 (Apps Script 직접 호출로 CSV 캐싱 우회)
     async function checkHandStatusInSheet(handNumber) {
       try {
-        console.log('TIME', `🔍 핸드 #${handNumber} 상태 확인: Apps Script 실시간 모드`);
-
         const handTime = await getHandTimestamp(handNumber);
         if (!handTime) {
-          console.log('MAPPING', `❌ 핸드 #${handNumber} 타임스탬프 조회 실패`);
           return null;
         }
 
         // Apps Script URL 확인
         const appsScriptUrl = getAppsScriptUrl();
         if (!appsScriptUrl) {
-          console.log('SHEET', '⚠️ Apps Script URL 미설정 - CSV 폴백 모드로 전환');
-
           // 폴백: CSV에서 직접 확인
           const virtualSheetUrl = getSheetUrl();
           if (!virtualSheetUrl) {
-            console.log('SHEET', `⚠️ Virtual 시트 URL 미설정 - 편집 가능 상태로 설정`);
             return null;
           }
 
@@ -4211,8 +4028,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
 
         // Apps Script를 통한 실시간 상태 확인
-        console.log('TIME', `🚀 Apps Script로 실시간 E열 상태 확인: 핸드 #${handNumber}`);
-
         const requestData = {
           action: 'getHandStatus', // Apps Script v3.4.4 이상 필요
           sheetUrl: getSheetUrl(),
@@ -4221,8 +4036,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           handTime: handTime
         };
 
-        console.log('MAPPING', '🔗 Apps Script 연결 테스트 중...', {
-          url: getAppsScriptUrl(),
+        ,
           action: requestData.action
         });
 
@@ -4231,7 +4045,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           action: 'test'
         };
 
-        console.log('SHEET', '📋 Apps Script 버전 확인 중...');
         try {
           const versionResponse = await fetch(getAppsScriptUrl(), {
             method: 'POST',
@@ -4239,11 +4052,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             body: JSON.stringify(versionTest)
           });
           const versionResult = await versionResponse.json();
-          console.log('SHEET', '📊 현재 배포된 Apps Script 버전:', versionResult.version || 'Unknown');
-          console.log('SHEET', '📊 지원 기능:', versionResult.features || []);
-        } catch (versionError) {
-          console.warn('WARN', '⚠️ 버전 확인 실패:', versionError);
-        }
+          } catch (versionError) {
+          }
 
         try {
           const response = await fetch(appsScriptUrl, {
@@ -4263,15 +4073,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
           if (result.status === 'success' && result.data) {
             const handStatus = result.data.handStatus || '';
-            console.log('API', `✅ Apps Script 응답: 핸드 #${handNumber}`);
-            console.log('SHEET', `   - 행 번호: ${result.data.row}`);
-            console.log('DEBUG', `   - E열 상태: "${handStatus}"`);
-            console.log('DEBUG', `   - 원본 값: "${result.data.rawStatus}"`);
-
             return handStatus;
           } else if (result.status === 'not_found') {
-            console.log('SHEET', `⚠️ 핸드 #${handNumber}를 시트에서 찾을 수 없음`);
-            return null;
+return null;
           } else {
             console.error('ERROR', '❌ Apps Script 오류:', result.message);
             console.error('ERROR', '📋 요청 데이터:', requestData);
@@ -4282,7 +4086,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           console.error('ERROR', '❌ Apps Script 통신 오류:', fetchError);
 
           // 오류 시 CSV 폴백
-          console.log('SHEET', '🔄 CSV 폴백 모드로 전환...');
           const virtualSheetUrl = getSheetUrl();
           if (!virtualSheetUrl) return null;
 
@@ -4326,7 +4129,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           window.preloadedHandStatuses.get(parseInt(handNumber)) : null;
 
         const duration = performance.now() - startTime;
-        console.log('MAPPING', `⚡ [즉시 메모리 조회] 핸드 #${handNumber}: ${status || '미처리'} (${duration.toFixed(1)}ms)`);
+        }ms)`);
 
         // UI 즉시 업데이트
         updateButtonStatesFromStatus(handNumber, status);
@@ -4353,11 +4156,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         if (!editBtn || !completeBtn) return;
 
         // 🔍 상태 값 상세 디버깅 (타입, 길이, 내용 확인)
-        console.log('MAPPING', `🔍 핸드 #${handNumber} 상태 분석:`, {
-          status: status,
-          type: typeof status,
-          length: status?.length,
-          rawValue: JSON.stringify(status),
+        ,
           trimmed: status?.trim?.(),
           isEmpty: status === null || status === undefined || status === '',
           isIncomplete: status === '미완료'
@@ -4370,7 +4169,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               editBtn.textContent = '편집';
               completeBtn.disabled = true;
               completeBtn.textContent = '완료';
-              console.log('DEBUG', '🔴 미처리 - 편집 가능');
               break;
 
             case '미완료':
@@ -4378,7 +4176,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               editBtn.textContent = '편집';
               completeBtn.disabled = false;
               completeBtn.textContent = '완료';
-              console.log('PERFORMANCE', '🟡 미완료 - 완료 가능');
               break;
 
             case '복사완료':
@@ -4386,7 +4183,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               editBtn.textContent = '편집';
               completeBtn.disabled = true;
               completeBtn.textContent = '완료';
-              console.log('PERFORMANCE', '🟢 복사완료 - 모두 비활성화');
               break;
 
             default:
@@ -4440,8 +4236,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       // 디버깅 모드에서만 로그
       if (window.DEBUG_MODE) {
-        console.log('MAPPING', `👁️ ${visibleHands.length}개의 보이는 핸드 상태 확인`);
-      }
+        }
 
       // 사전 로딩 시스템: 메모리에서 즉시 조회
       const statuses = {};
@@ -4462,7 +4257,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       const duration = performance.now() - startTime;
       if (window.DEBUG_MODE) {
-        console.log('PERFORMANCE', `✅ 보이는 핸드 상태 업데이트 완료: ${duration.toFixed(0)}ms`);
+        }ms`);
       }
     }
 
@@ -4502,7 +4297,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     }
 
     async function updateHandList() {
-      console.log('SHEET', `📋 updateHandList 호출 - 총 핸드 수: ${allHands.length}`);
       const listEl = document.getElementById('hand-list');
       const tableFilter = document.getElementById('table-filter').value;
       const statusFilter = document.getElementById('status-filter').value;
@@ -4693,7 +4487,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       await loadVirtualSheetInfo(handNumber);
 
       // E열 상태 기반 버튼 업데이트 (비동기)
-      console.log('UI', `🔄 핸드 #${handNumber} 선택 완료 - 버튼 상태 업데이트 예약`);
       setTimeout(() => updateButtonStates(handNumber), 200); // 약간의 딱레이로 UI 완성 후 실행
     }
     
@@ -4785,152 +4578,15 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     
     function playSound(type = 'notification') {
       if (!CONFIG.ENABLE_SOUND) {
-        console.log('DEBUG', '🔇 소리 비활성화 상태');
         return;
       }
       
       if (!userInteracted) {
-        console.log('DEBUG', '🔇 사용자 상호작용 대기 중 - 소리 재생 건너뛰기');
         return;
       }
       
-      console.log('NOTIFICATION', `🔔 소리 재생 시도: ${type}`);
-      
-      const soundMap = {
-        // 부드러운 벨 소리 (새 핸드 알림용)
-        notification: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPDTgjMGHm7A7+OZURE',
-        
-        // 성공 소리 (완료/업데이트 성공시)
-        success: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPDTgjMGHm7A7+OZURE',
-        
-        // 차임벨 소리 (더 부드러운 알림)
-        chime: 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPDTgjMGHm7A7+OZURE'
-      };
-      
-      // Web Audio API를 사용한 더 예쁜 소리 생성
-      try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        if (type === 'chime') {
-          // 부드러운 차임벨 소리
-          playChimeSound(audioContext);
-        } else if (type === 'success') {
-          // 성공 소리 (상승하는 톤)
-          playSuccessSound(audioContext);
-        } else {
-          // 기본 알림 소리 (부드러운 벨)
-          playBellSound(audioContext);
-        }
-        console.log('PERFORMANCE', '✅ 소리 재생 성공');
-      } catch (error) {
-        console.error('ERROR', '⚠️ 소리 재생 실패:', error.message);
-        // Web Audio API 실패시 기본 오디오 사용
-        const audio = new Audio(soundMap[type] || soundMap.notification);
-        audio.volume = 0.5;
-        audio.play().catch(e => console.error('ERROR', '소리 재생 실패:', e));
-      }
-    }
-    
-    // 부드러운 벨 소리 생성
-    function playBellSound(audioContext) {
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-      oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.3);
-      
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
-      
-      oscillator.type = 'sine';
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.8);
-    }
-    
-    // 성공 소리 생성 (상승하는 3음계)
-    function playSuccessSound(audioContext) {
-      const frequencies = [523.25, 659.25, 783.99]; // C5, E5, G5
-      const duration = 0.15;
-      
-      frequencies.forEach((freq, index) => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.setValueAtTime(freq, audioContext.currentTime + (index * duration));
-        oscillator.type = 'sine';
-        
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime + (index * duration));
-        gainNode.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + (index * duration) + 0.02);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + (index * duration) + duration);
-        
-        oscillator.start(audioContext.currentTime + (index * duration));
-        oscillator.stop(audioContext.currentTime + (index * duration) + duration);
-      });
-    }
-    
-    // 차임벨 소리 생성 (화음)
-    function playChimeSound(audioContext) {
-      const frequencies = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 화음
-      
-      frequencies.forEach((freq, index) => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
-        oscillator.type = 'sine';
-        
-        const volume = 0.15 / (index + 1); // 높은 음일수록 작게
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-        gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 1.2);
-        
-        oscillator.start(audioContext.currentTime);
-        oscillator.stop(audioContext.currentTime + 1.2);
-      });
-    }
-    
-    // ====================================
-    // 핸드 편집 상태 업데이트
-    // ====================================
-    
-    // 핸드 시간 가져오기
-    async function getHandTimestamp(handNumber) {
-      try {
-        const response = await fetch(CONFIG.CSV_HAND_URL + '&t=' + Date.now());
-        const text = await response.text();
-        const rows = parseCSV(text);
-        
-        for (const row of rows) {
-          if (row[1] === 'HAND' && row[2] === String(handNumber)) {
-            const timestamp = parseInt(row[3]);
-            if (!isNaN(timestamp) && timestamp > 0) {
-              return timestamp;
-            }
-          }
-        }
-      } catch (error) {
-        console.error('ERROR', '핸드 시간 가져오기 실패:', error);
-      }
-      return null;
-    }
-    
-
-
-    // Virtual 시트에서 가장 비슷한 시간 찾기 (날짜 제외, 시간만 비교)
-    async function findClosestVirtualRow(targetTime, virtualSheetUrl, showProgress = true) {
-      // console.log('SHEET', '🔍 === Virtual 시트 매칭 시작 ==='); // ⚠️ 콘솔 스팸 방지
-      // console.log('SHEET', `📋 입력 URL: ${virtualSheetUrl}`); // ⚠️ 콘솔 스팸 방지
-      // console.log('TIME', `⏰ 타겟 타임스탬프: ${targetTime} (${new Date(targetTime * 1000)})`); // ⚠️ 콘솔 스팸 방지
-      // console.log('SHEET', `📊 진행률 표시: ${showProgress}`); // ⚠️ 콘솔 스팸 방지
+      // ⚠️ 콘솔 스팸 방지
+      // // ⚠️ 콘솔 스팸 방지
 
       // 진행률 모달 표시 (명시적으로 요청된 경우만)
       if (showProgress) {
@@ -4951,28 +4607,28 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         let csvUrl = '';
         
         // URL 형식 감지 및 적절한 CSV URL 생성
-        // console.log('API', '\n📄 === Virtual Sheet CSV 데이터 요청 ==='); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `🔗 입력 URL: ${virtualSheetUrl}`); // ⚠️ 콘솔 스팸 방지
-        // console.log('DEBUG', '🔍 URL 형식 분석 중...'); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
         let urlType = '';
         
         // 1. 이미 웹 게시된 CSV URL인지 확인 (가장 권장하는 형식)
         if (virtualSheetUrl.includes('/pub?') && virtualSheetUrl.includes('output=csv')) {
-          // console.log('SHEET', '✅ 웹 게시 CSV URL 감지 (권장 형식!)'); // ⚠️ 콘솔 스팸 방지
+          // '); // ⚠️ 콘솔 스팸 방지
           csvUrl = virtualSheetUrl;
           urlType = 'published-csv';
         }
         // 2. 웹 게시된 일반 URL인지 확인 (2PACX 형식)
         else if (virtualSheetUrl.includes('/spreadsheets/d/e/2PACX-')) {
-          // console.log('SHEET', '🔄 웹 게시 일반 URL 감지 - CSV 변환 중'); // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
           // gid 추출
           const gidMatch = virtualSheetUrl.match(/gid=(\d+)/);
           const gid = gidMatch ? gidMatch[1] : '0';
           const publishedIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/e\/(2PACX-[a-zA-Z0-9-_]+)/);
           if (publishedIdMatch) {
             csvUrl = `https://docs.google.com/spreadsheets/d/e/${publishedIdMatch[1]}/pub?gid=${gid}&single=true&output=csv`;
-            // console.log('SHEET', '✅ 웹 게시 CSV URL로 자동 변환됨'); // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
             urlType = 'published-converted';
           } else {
             throw new Error('웹 게시 URL에서 ID를 추출할 수 없습니다');
@@ -4980,8 +4636,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
         // 3. 일반 시트 편집 URL인지 확인 (비추천 - CORS 문제 발생 가능)
         else if (virtualSheetUrl.includes('/spreadsheets/d/') && !virtualSheetUrl.includes('/pub?')) {
-          // console.log('TIME', '⚠️ 일반 편집 URL 감지 - Export URL로 변환 시도'); // ⚠️ 콘솔 스팸 방지
-          // console.log('DEBUG', '❗ 주의: 이 방식은 CORS 및 권한 문제가 발생할 수 있습니다!'); // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
           const sheetIdMatch = virtualSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
           if (sheetIdMatch) {
             const sheetId = sheetIdMatch[1];
@@ -4989,12 +4645,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             const gidMatch = virtualSheetUrl.match(/gid=(\d+)/);
             const gid = gidMatch ? gidMatch[1] : '0';
             csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
-            // console.log('SHEET', '🔄 Export CSV URL로 변환됨'); // ⚠️ 콘솔 스팸 방지
-            // console.log('DEBUG', '\n💡 권장 해결책:'); // ⚠️ 콘솔 스팸 방지
-            // console.log('SHEET', '1. Google Sheets 열기'); // ⚠️ 콘솔 스팸 방지
-            // console.log('DEBUG', '2. 파일 → 웹에 게시'); // ⚠️ 콘솔 스팸 방지
-            // console.log('DEBUG', '3. "쉼표로 구분된 값(.csv)" 선택'); // ⚠️ 콘솔 스팸 방지
-            // console.log('SHEET', '4. 게시 후 생성된 CSV 링크 사용'); // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
+            // " 선택'); // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
             urlType = 'export-url';
           } else {
             throw new Error('시트 ID를 추출할 수 없습니다');
@@ -5004,36 +4660,36 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           throw new Error('지원되지 않는 Google Sheets URL 형식입니다.\n\n📝 올바른 사용법:\n1. Google Sheets → 파일 → 웹에 게시\n2. "쉼표로 구분된 값(.csv)" 선택\n3. 게시 후 생성된 CSV 링크 사용\n\n✅ 올바른 형식 예시:\nhttps://docs.google.com/spreadsheets/d/e/2PACX-.../pub?gid=0&single=true&output=csv');
         }
         
-        // console.log('API', `📡 최종 요청 URL: ${csvUrl}`); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `📋 URL 형식: ${urlType}`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
-        // console.log('API', '📥 Google Sheets CSV 요청 중... (다중 방법 시도)'); // ⚠️ 콘솔 스팸 방지
+        // '); // ⚠️ 콘솔 스팸 방지
         const csvData = await fetchCsvWithFallback(csvUrl);
         const text = csvData.csvText;
         
-        // console.log('SHEET', `📊 사용된 방법: ${csvData.fetchMethod}`); // ⚠️ 콘솔 스팸 방지
-        // console.log('API', `📊 응답 상태: ${csvData.response.status} ${csvData.response.statusText}`); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `📄 CSV 데이터 크기: ${text.length} characters`); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `📄 CSV 데이터 미리보기 (첫 500자):`); // ⚠️ 콘솔 스팸 방지
-        // console.log('DEBUG', text.substring(0, 500) + (text.length > 500 ? '...' : '')); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // :`); // ⚠️ 콘솔 스팸 방지
+        // + (text.length > 500 ? '...' : '')); // ⚠️ 콘솔 스팸 방지
         
         const rows = parseCSV(text);
-        // console.log('SHEET', `📋 파싱된 행 수: ${rows.length}`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
         if (rows.length === 0) {
           throw new Error('CSV에 데이터가 없습니다');
         }
         
         // 첫 5행 데이터 샘플 로그
-        // console.log('SHEET', '📋 CSV 데이터 샘플 (첫 5행):'); // ⚠️ 콘솔 스팸 방지
+        // :'); // ⚠️ 콘솔 스팸 방지
         // for (let i = 0; i < Math.min(5, rows.length); i++) {
-        //   console.log('SHEET', `   행 ${i+1}: A="${rows[i][0] || ''}", B="${rows[i][1] || ''}", C="${rows[i][2] || ''}", D="${rows[i][3] || ''}"`); // ⚠️ 콘솔 스팸 방지
+        //   // ⚠️ 콘솔 스팸 방지
         // }
         
         // 타겟 시간 직접 사용 (시간대 변환 제거)
-        // console.log('TIME', '⏰ === 시간 분석 시작 ==='); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         const targetDate = new Date(targetTime * 1000);
-        // console.log('TIME', `📅 타겟 시간: ${targetDate.toLocaleString()}`); // ⚠️ 콘솔 스팸 방지
+        // }`); // ⚠️ 콘솔 스팸 방지
         
         // 로컬 시간 직접 사용 (시간대 변환하지 않음)
         // CSV 파일과 핸드 시간이 모두 동일한 시간대라고 가정
@@ -5041,12 +4697,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         const targetMinutes = targetDate.getMinutes();
         const targetSeconds = targetDate.getSeconds();
         
-        // console.log('TIME', `🎯 매칭할 시간: ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`); // ⚠️ 콘솔 스팸 방지
+        // .padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')}`); // ⚠️ 콘솔 스팸 방지
         
         // 초 단위까지 정확한 타겟 시간 계산
         const targetTotalSeconds = targetHours * 3600 + targetMinutes * 60 + targetSeconds;
         
-        // console.log('TIME', `🎯 타겟 시간 (Seoul): ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')} (${targetTotalSeconds}초)`); // ⚠️ 콘솔 스팸 방지
+        // : ${targetHours.toString().padStart(2, '0')}:${targetMinutes.toString().padStart(2, '0')}:${targetSeconds.toString().padStart(2, '0')} (${targetTotalSeconds}초)`); // ⚠️ 콘솔 스팸 방지
         
         let closestRow = null;
         let minDiff = Infinity;
@@ -5072,24 +4728,24 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           { pattern: /\d{4}-\d{2}-\d{2}\s+(\d{1,2}):(\d{2}):(\d{2})/, name: 'YYYY-MM-DD HH:MM:SS' }
         ];
         
-        // console.log('SHEET', `🔍 === B열 시간 데이터 매칭 시작 ===`); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `🔍 총 ${rows.length}개 행에서 검색 중...`); // ⚠️ 콘솔 스팸 방지
-        // console.log('TIME', `🔍 타겟 시간: ${targetHours}:${targetMinutes}:${targetSeconds} (총 ${targetTotalSeconds}초)`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // `); // ⚠️ 콘솔 스팸 방지
         
         // 디버깅: 처음 5개 행의 전체 데이터 확인
-        // console.log('SHEET', `📋 처음 5개 행의 전체 데이터 샘플:`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         // for (let i = 0; i < Math.min(5, rows.length); i++) {
-        //   console.log('SHEET', `   행 ${i+1}:`); // ⚠️ 콘솔 스팸 방지
-        //   console.log('DEBUG', `      A열: "${rows[i][0] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
-        //   console.log('DEBUG', `      B열: "${rows[i][1] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
-        //   console.log('DEBUG', `      C열: "${rows[i][2] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
-        //   console.log('DEBUG', `      D열: "${rows[i][3] || '(비어있음)'}"`); // ⚠️ 콘솔 스팸 방지
+        //   // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
+        //   '}"`); // ⚠️ 콘솔 스팸 방지
           
         //   // 각 열에서 시간 형식 찾기
         //   for (let j = 0; j < Math.min(4, rows[i].length); j++) {
         //     const value = rows[i][j];
         //     if (value && value.match(/\d{1,2}:\d{2}/)) {
-        //       console.log('DEBUG', `      🕐 ${String.fromCharCode(65+j)}열에 시간 형식 발견: "${value}"`); // ⚠️ 콘솔 스팸 방지
+        //       }열에 시간 형식 발견: "${value}"`); // ⚠️ 콘솔 스팸 방지
         //     }
         //   }
         // }
@@ -5114,12 +4770,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           if (timeFoundInColumn > 3) { // 10개 중 3개 이상 시간 형식이면 해당 열 사용
             columnToCheck = col;
             columnName = String.fromCharCode(65 + col);
-            // console.log('SHEET', `🎯 시간 데이터가 ${columnName}열(index ${col})에서 발견됨 (${timeFoundInColumn}/10개)`); // ⚠️ 콘솔 스팸 방지
+            // 에서 발견됨 (${timeFoundInColumn}/10개)`); // ⚠️ 콘솔 스팸 방지
             break;
           }
         }
         
-        // console.log('DEBUG', `📍 ${columnName}열(index ${columnToCheck})에서 시간 데이터 검색 시작`); // ⚠️ 콘솔 스팸 방지
+        // 에서 시간 데이터 검색 시작`); // ⚠️ 콘솔 스팸 방지
         
         // 선택된 열에서 검색
         for (let i = 0; i < rows.length; i++) {
@@ -5143,7 +4799,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             continue;
           }
           
-          // console.log('SHEET', `🔍 행 ${i+1} ${columnName}열 검사: "${cellValue}"`); // ⚠️ 콘솔 스팸 방지 (1468행 모두 로그)
+          // // ⚠️ 콘솔 스팸 방지 (1468행 모두 로그)
           
           let hours, minutes, seconds = 0;
           let timeMatch = null;
@@ -5157,13 +4813,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               minutes = parseInt(timeMatch[2]);
               seconds = timeMatch[3] ? parseInt(timeMatch[3]) : 0;
               matchedPatternName = name;
-              // console.log('PERFORMANCE', `   ✅ 패턴 매칭: ${name} → ${hours}:${minutes}:${seconds}`); // ⚠️ 콘솔 스팸 방지
+              // // ⚠️ 콘솔 스팸 방지
               break;
             }
           }
           
           if (!timeMatch) {
-            // console.log('TIME', `   ❌ 시간 형식 매칭 실패`); // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
             continue;
           }
           
@@ -5173,7 +4829,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const cellTotalSeconds = hours * 3600 + minutes * 60 + seconds;
           const diff = Math.abs(cellTotalSeconds - targetTotalSeconds);
           
-          // console.log('SHEET', `   📊 시간 차이: ${diff}초 (현재 최소: ${minDiff}초)`); // ⚠️ 콘솔 스팸 방지
+          // `); // ⚠️ 콘솔 스팸 방지
           
           // 가장 가까운 시간 업데이트
           if (diff < minDiff) {
@@ -5182,27 +4838,27 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             rowIndex = i + 1;
             matchedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             
-            // console.log('SHEET', `   🎯 새로운 최적 매칭: 행 ${rowIndex}, 차이 ${diff}초`); // ⚠️ 콘솔 스팸 방지
+            // // ⚠️ 콘솔 스팸 방지
             
             // 정확히 일치하거나 매우 가까운 경우 (5초 이내) 즉시 종료
             if (diff <= 5) {
-              // console.log('SHEET', `✅ === Virtual 시트 매칭 성공! ===`); // ⚠️ 콘솔 스팸 방지
-              // console.log('SHEET', `   📍 위치: 행 ${rowIndex}, B열 (Cyprus 시간)`); // ⚠️ 콘솔 스팸 방지
-              // console.log('TIME', `   🕐 시간: ${matchedTime} (${diff}초 차이)`); // ⚠️ 콘솔 스팸 방지
-              // console.log('SHEET', `   📋 전체 행 데이터:`); // ⚠️ 콘솔 스팸 방지
-              // console.log('DEBUG', `      A열(Blinds): "${rows[i][0] || ''}"`); // ⚠️ 콘솔 스팸 방지
-              // console.log('DEBUG', `      B열(Cyprus): "${rows[i][1] || ''}"`); // ⚠️ 콘솔 스팸 방지
-              // console.log('DEBUG', `      C열(Seoul): "${rows[i][2] || ''}"`); // ⚠️ 콘솔 스팸 방지
-              // console.log('DEBUG', `      D열(#): "${rows[i][3] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // // ⚠️ 콘솔 스팸 방지
+              // `); // ⚠️ 콘솔 스팸 방지
+              // `); // ⚠️ 콘솔 스팸 방지
+              // // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][0] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][1] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][2] || ''}"`); // ⚠️ 콘솔 스팸 방지
+              // : "${rows[i][3] || ''}"`); // ⚠️ 콘솔 스팸 방지
               break;
             }
           }
         }
         
-        // console.log('SHEET', `📊 === 매칭 결과 요약 ===`); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `📊 유효한 시간 데이터 발견: ${validTimeFoundCount}개`); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `📊 최소 시간 차이: ${minDiff === Infinity ? '무한' : minDiff + '초'}`); // ⚠️ 콘솔 스팸 방지
-        // console.log('SHEET', `📊 최적 매칭 행: ${rowIndex > 0 ? rowIndex : '없음'}`); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
         // 결과 로깅
         if (minDiff > 5) {
@@ -5216,8 +4872,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             timeDiffStr = `${diffSeconds}초`;
           }
           
-          // console.log('TIME', `⚠️ 정확한 매치 없음. 가장 가까운 시간:`); // ⚠️ 콘솔 스팸 방지
-          // console.log('SHEET', `   📍 행 ${rowIndex}, B열: ${matchedTime} (${timeDiffStr} 차이)`); // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
+          // `); // ⚠️ 콘솔 스팸 방지
         }
         
         // 최종 결과 처리 및 반환
@@ -5232,10 +4888,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
         
         if (closestRow && minDiff !== Infinity) {
-          // console.log('SHEET', `✅ === Virtual 시트 매칭 완료 ===`); // ⚠️ 콘솔 스팸 방지
-          // console.log('SHEET', `✅ 매칭 성공: 행 ${rowIndex}`); // ⚠️ 콘솔 스팸 방지
-          // console.log('TIME', `✅ 시간 차이: ${minDiff}초`); // ⚠️ 콘솔 스팸 방지
-          // console.log('PERFORMANCE', `✅ 정확도: ${minDiff <= 5 ? '정확 (5초 이내)' : minDiff <= 30 ? '근사 (30초 이내)' : '대략적 (30초 초과)'}`); // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
+          // // ⚠️ 콘솔 스팸 방지
+          // ' : minDiff <= 30 ? '근사 (30초 이내)' : '대략적 (30초 초과)'}`); // ⚠️ 콘솔 스팸 방지
           
           // 매칭된 행에서 E열 상태값 추출
           const cols = closestRow;
@@ -5249,9 +4905,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           if (filename.startsWith('"') && filename.endsWith('"')) {
             filename = filename.slice(1, -1).trim();
           }
-
-          console.log('TIME', `🔍 [디버그] E열 원본: "${cols[4]}" → 파싱 후: "${status}"`);
-          console.log('TIME', `🔍 [디버그] F열 원본: "${cols[5]}" → 파싱 후: "${filename}"`);
 
           return {
             row: rowIndex,  // 행 번호 (1-based index)
@@ -5336,8 +4989,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       cancelBtn.onclick = function() {
         isAborted = true;
         hideProgressModal();
-        console.log('DEBUG', '🛑 사용자에 의해 작업이 취소되었습니다');
-      };
+        };
     }
     
     function hideProgressModal() {
@@ -5382,8 +5034,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     
     // 핸드 세부 정보 UI 초기화
     function clearHandDetails() {
-      console.log('PERFORMANCE', '🧹 핸드 세부 정보 초기화...');
-      
       // 헤더 정보 초기화
       document.getElementById('hand-number').textContent = '-';
       document.getElementById('table-name').textContent = '-';
@@ -5419,8 +5069,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         resultEl.innerHTML = '<div class="text-gray-500 text-center py-4">핸드 결과가 없습니다</div>';
       }
       
-      console.log('PERFORMANCE', '✅ 핸드 세부 정보 초기화 완료');
-    }
+      }
     
     // ===== URL 유효성 검사 함수들 =====
     
@@ -5547,11 +5196,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       const appsScriptUrlInput = document.getElementById('apps-script-url');
       const appsScriptUrl = appsScriptUrlInput ? appsScriptUrlInput.value : CONFIG.SHEET_UPDATE_SCRIPT_URL;
       
-      console.log('DEBUG', '🔍 Apps Script URL 디버깅:', appsScriptUrl);
-      console.log('DEBUG', '🔍 입력 필드 값:', appsScriptUrlInput ? appsScriptUrlInput.value : 'N/A');
-      console.log('DEBUG', '🔍 CONFIG 값:', CONFIG.SHEET_UPDATE_SCRIPT_URL);
-      console.log('DEBUG', '🔍 사용할 URL:', appsScriptUrl);
-      
       if (!appsScriptUrl || appsScriptUrl.trim() === '') {
         alert('⚠️ Apps Script URL이 설정되지 않았습니다.\n\n설정 단계:\n1. 설정 버튼 클릭\n2. "Apps Script 시트 연동" 섹션 찾기\n3. "Apps Script Web App URL" 필드에 URL 입력\n4. 설정 저장 후 다시 테스트');
         return false;
@@ -5563,9 +5207,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         return false;
       }
       
-      console.log('PERFORMANCE', '🧪 Apps Script 연결 테스트 시작...');
-      console.log('API', '🌐 요청 URL:', appsScriptUrl);
-      
       // 테스트 버튼 상태 변경
       const testBtn = document.getElementById('test-apps-script');
       const originalText = testBtn.textContent;
@@ -5574,8 +5215,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       
       try {
         // Apps Script 연결 테스트 (POST 사용 - CORS 회피)
-        console.log('API', '📡 POST 요청 전송 중...');
-        
         const testData = {
           action: 'test',
           timestamp: new Date().toISOString(),
@@ -5591,29 +5230,22 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           body: JSON.stringify(testData)
         });
 
-        console.log('API', '📡 응답 상태:', response.status);
-        console.log('API', '📡 응답 헤더:', response.headers);
-
         // no-cors 모드에서는 response.status가 항상 0이므로 다른 방식으로 성공 여부 판단
         if (response.type === 'opaque' || response.status === 0) {
           // no-cors 요청이 성공적으로 전송되었다면 Apps Script 연결이 가능한 것으로 판단
-          console.log('PERFORMANCE', '✅ Apps Script 연결 성공 (no-cors 모드)');
+          ');
           alert(`✅ Apps Script 연결 성공!\n\n🔗 요청 전송 완료\n📊 상태: no-cors 모드로 전송됨\n⏰ 시간: ${new Date().toLocaleString()}\n📠 메시지: Apps Script와 통신 가능`);
           return true;
         } else if (response.ok) {
           const responseText = await response.text();
-          console.log('API', '📡 원본 응답 텍스트:', responseText);
-          
           try {
             const data = JSON.parse(responseText);
-            console.log('PERFORMANCE', '✅ Apps Script 연결 성공:', data);
-            
             alert(`✅ Apps Script 연결 성공!\n\n🔗 서비스: ${data.service || 'Virtual Table Sheet Updater'}\n📊 상태: ${data.status}\n📈 버전: ${data.version || 'v1.1'}\n⏰ 시간: ${data.timestamp ? new Date(data.timestamp).toLocaleString() : new Date().toLocaleString()}\n📠 메시지: ${data.message || '서비스 정상 작동'}`);
             return true;
             
           } catch (jsonError) {
             console.error('ERROR', '❌ JSON 파싱 오류:', jsonError);
-            console.log('API', '📄 응답이 JSON이 아님. HTML 응답일 수 있음:', responseText.substring(0, 200));
+            );
             alert(`⚠️ Apps Script 응답을 파싱할 수 없습니다.\n\n응답 상태: ${response.status}\n응답 내용: ${responseText.substring(0, 100)}...\n\n해결책:\n• Apps Script가 올바르게 배포되었는지 확인\n• doGet 함수가 JSON 응답을 반환하는지 확인`);
             return false;
           }
@@ -5621,8 +5253,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         } else {
           console.error('ERROR', '❌ Apps Script 연결 실패:', response.status, response.statusText);
           const responseText = await response.text();
-          console.log('API', '❌ 오류 응답:', responseText);
-          
           alert(`❌ Apps Script 연결 실패\n\n📊 상태 코드: ${response.status}\n❌ 오류: ${response.statusText}\n📄 상세: ${responseText.substring(0, 200)}...\n\n해결책:\n• Apps Script URL이 정확한지 확인\n• 웹앱이 "모든 사용자" 액세스로 배포되었는지 확인\n• Apps Script 실행 권한 확인`);
           return false;
         }
@@ -5652,20 +5282,15 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // 🧪 간단한 AI API 테스트 (콘솔용)
     window.quickAITest = async function() {
-      console.log('API', '🧪 빠른 AI API 테스트 시작');
-
-      if (!CONFIG.GEMINI_API_KEY) {
+if (!CONFIG.GEMINI_API_KEY) {
         console.error('ERROR', '❌ API 키가 설정되지 않음');
         return '❌ API 키 없음';
       }
 
       const testPrompt = "포커 핸드: AA vs KK. 결과를 한 줄로 요약해주세요.";
-      console.log('DEBUG', '📝 테스트 프롬프트:', testPrompt);
-
       try {
         const result = await callGeminiAPIAdvanced(testPrompt, CONFIG.GEMINI_API_KEY);
-        console.log('API', '✅ AI 응답:', result);
-        return result;
+return result;
       } catch (error) {
         console.error('ERROR', '❌ AI 테스트 실패:', error);
         return `❌ 오류: ${error.message}`;
@@ -5674,8 +5299,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // 💾 모든 설정 로드하는 함수
     async function loadAllSettings() {
-      console.log('CACHE', '💾 설정 로드 시작...');
-
       try {
         // 1. 기본 설정 로드
         const refreshInterval = localStorage.getItem('refreshInterval');
@@ -5711,15 +5334,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
           const elem = document.getElementById('main-sheet-url');
           if (elem) elem.value = savedMainSheetUrl;
-          console.log('SHEET', `📋 메인 시트 URL 로드: ${savedMainSheetUrl.substring(0, 50)}...`);
+          }...`);
         }
 
         if (savedAppsScriptUrl) {
           CONFIG.SHEET_UPDATE_SCRIPT_URL = savedAppsScriptUrl;
           const elem = document.getElementById('apps-script-url');
-          if (elem) elem.value = savedAppsScriptUrl;
-          console.log(`🔧 Apps Script URL 로드: ${savedAppsScriptUrl.substring(0, 50)}...`);
-        }
+          if (elem) elem.value = savedAppsScriptUrl;}
 
         // 3. 파일명 커스터마이징 설정 로드
         const filenamePrefix = localStorage.getItem('filenamePrefix');
@@ -5728,30 +5349,23 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         if (filenamePrefix !== null) {
           const elem = document.getElementById('filename-prefix');
           if (elem) elem.value = filenamePrefix;
-          console.log('MAPPING', `📁 파일명 접두사 로드: "${filenamePrefix}"`);
-        }
+          }
 
         if (filenameSuffix !== null) {
           const elem = document.getElementById('filename-suffix');
           if (elem) elem.value = filenameSuffix;
-          console.log('MAPPING', `📁 파일명 접미사 로드: "${filenameSuffix}"`);
-        }
+          }
 
         // 4. AI 기능 설정 로드 (가장 중요!)
         const useAIForFilename = localStorage.getItem('useAIForFilename');
         const useAIForHColumn = localStorage.getItem('useAIForHColumn');
-
-        console.log('AI', `🤖 localStorage AI 설정 확인:`);
-        console.log('AI', `   - useAIForFilename: "${useAIForFilename}"`);
-        console.log('AI', `   - useAIForHColumn: "${useAIForHColumn}"`);
 
         if (useAIForFilename !== null && useAIForFilename !== 'null') {
           const elem = document.getElementById('ai-filename-enable');
           const isEnabled = useAIForFilename === 'true';
           if (elem) {
             elem.checked = isEnabled;
-            console.log('AI', `🤖 AI 파일명 체크박스: ${isEnabled}`);
-          }
+            }
         }
 
         if (useAIForHColumn !== null && useAIForHColumn !== 'null') {
@@ -5759,22 +5373,16 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const isEnabled = useAIForHColumn === 'true';
           if (elem) {
             elem.checked = isEnabled;
-            console.log('AI', `🤖 AI H열 체크박스: ${isEnabled}`);
-          }
+            }
         }
 
         // 5. Gemini API 키 로드 (이미 loadAPIKeys에서 처리되지만 UI도 업데이트)
         if (CONFIG.GEMINI_API_KEY) {
           const elem = document.getElementById('gemini-api-key');
           if (elem && !elem.value) { // 이미 입력된 값이 없을 때만
-            elem.value = CONFIG.GEMINI_API_KEY;
-            console.log('API', `🔑 API 키 UI 복원 완료 (길이: ${CONFIG.GEMINI_API_KEY.length})`);
-          }
+            elem.value = CONFIG.GEMINI_API_KEY;}
         }
-
-        console.log('PERFORMANCE', '✅ 모든 설정 로드 완료');
-
-      } catch (error) {
+} catch (error) {
         console.error('ERROR', '❌ 설정 로드 오류:', error);
       }
     }
@@ -5835,8 +5443,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // 💾 모든 설정 저장하는 함수 (개선된 버전)
     function saveAllSettings() {
-      console.log('CACHE', '💾 모든 설정 저장 시작...');
-
       try {
         // 1. 기본 설정 저장
         const refreshInterval = document.getElementById('refresh-interval')?.value;
@@ -5894,17 +5500,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         localStorage.setItem('useAIForFilename', String(aiFilenameEnabled));
         localStorage.setItem('useAIForHColumn', String(aiHColumnEnabled));
 
-        console.log('AI', `🤖 AI 설정 저장:`);
-        console.log('AI', `   - useAIForFilename: ${aiFilenameEnabled}`);
-        console.log('AI', `   - useAIForHColumn: ${aiHColumnEnabled}`);
-
         // 5. API 키 저장
         const apiKey = document.getElementById('gemini-api-key')?.value?.trim() || '';
         CONFIG.GEMINI_API_KEY = apiKey;
-
-        console.log('CACHE', '✅ 모든 설정 저장 완료');
-
-        // 저장 완료 알림
+// 저장 완료 알림
         showNotification('✅ 모든 설정이 저장되었습니다.', 'success');
 
       } catch (error) {
@@ -5915,8 +5514,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // Gemini API 연결 테스트
     async function testGeminiAPIConnection() {
-      console.log('API', '🧪 Gemini API 테스트 시작');
-      
       // 테스트 버튼 상태 변경
       const testBtn = document.getElementById('test-gemini-api');
       const originalText = testBtn.textContent;
@@ -5928,12 +5525,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         const apiKeyInput = document.getElementById('gemini-api-key').value.trim();
         if (apiKeyInput) {
           CONFIG.GEMINI_API_KEY = apiKeyInput;
-          console.log('API', '💾 입력된 API 키를 CONFIG에 임시 저장:', apiKeyInput.length + '글자');
-        }
+          }
         
         // CONFIG에서 API 키 가져오기 (저장된 값 또는 방금 입력한 값)
         const apiKeyToTest = CONFIG.GEMINI_API_KEY;
-        console.log('API', '🔑 테스트할 API 키:', apiKeyToTest ? `설정됨 (길이: ${apiKeyToTest.length})` : '없음');
+        ` : '없음');
         
         // API 키 기본 검증
         if (!apiKeyToTest || apiKeyToTest.trim() === '') {
@@ -5949,10 +5545,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 테스트용 간단한 프롬프트
         const testPrompt = "안녕하세요. 이것은 API 연결 테스트입니다. '테스트 성공'이라고 응답해주세요.";
         
-        console.log('API', '🌐 Gemini API 테스트 호출 중...');
         const result = await callGeminiAPIAdvanced(testPrompt, apiKeyToTest);
-        
-        console.log('API', '📦 테스트 응답:', result);
         
         if (result.includes('❌')) {
           alert(`❌ Gemini API 연결 실패\n\n${result}\n\n해결책:\n• API 키가 올바른지 확인\n• Gemini API 서비스가 활성화되었는지 확인\n• 할당량이 남아있는지 확인`);
@@ -5987,14 +5580,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       if (!sheetUrl) {
         throw new Error('시트 URL이 설정되지 않았습니다.');
       }
-
-      console.log('SHEET', '📊 === 시트 업데이트 시작 ===');
-      console.log('SHEET', `📍 매칭된 행: ${matchedRow}`);
-      console.log('MAPPING', `🔢 핸드 번호: ${handNumber}`);
-      console.log('MAPPING', `📁 파일명: ${filename}`);
-      console.log('AI', `🤖 AI 분석: ${aiAnalysis}`);
-      console.log('DEBUG', `🔍 customData:`, customData);
-      console.log('AI', `🎬 자막 정보: ${customData?.subtitle || '없음'}`);
 
       // AI 분석 텍스트를 CSV 안전하게 처리 (큰따옴표로 묶고 내부 큰따옴표는 이중화)
       let safeAiAnalysis = aiAnalysis || `핸드 #${handNumber} - ${new Date().toLocaleString('ko-KR')}`;
@@ -6031,23 +5616,14 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           status: '복사완료'  // ✅ 완료 버튼에서 기본값으로 '복사완료' 설정
         };
       }
-
-      console.log('SHEET', `📋 E열 상태: ${updateData.status || '설정되지 않음'}`);
-      console.log('DEBUG', `🎯 Action: ${updateData.action}`);
-      console.log(`🔧 G열 값: ${updateData.gColumnValue || '설정되지 않음'}`);
-      console.log('AI', `🎬 최종 자막 확인: ${updateData.subtitle || '없음'}`);
-
-      // action이 누락된 경우 경고
+// action이 누락된 경우 경고
       if (!updateData.action) {
         console.error('ERROR', '⚠️ 경고: action이 설정되지 않았습니다!');
         updateData.action = 'updateSheet';  // 기본값 설정
       }
 
       try {
-        console.log('SHEET', '📤 Apps Script로 데이터 전송 중...');
-        console.log('SHEET', '📤 전송 데이터:', JSON.stringify(updateData, null, 2));
-        console.log('PERFORMANCE', `🔄 업데이트 유형: ${updateData.status === '미완료' ? '편집 단계' : '완료 단계'}`);
-        
+        );
         const response = await fetch(appsScriptUrl, {
           method: 'POST',
           headers: {
@@ -6056,16 +5632,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           body: JSON.stringify(updateData)
         });
         
-        console.log('API', `📊 응답 상태: ${response.status} ${response.statusText}`);
-        
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const result = await response.json();
-        console.log('API', '✅ Apps Script 응답:', result);
-
-        // Apps Script에서 받은 오류 메시지 디버깅
+// Apps Script에서 받은 오류 메시지 디버깅
         if (result.message && result.message.includes('알 수 없는 액션')) {
           console.error('ERROR', '❌ Apps Script 액션 인식 실패!');
           console.error('ERROR', '   전송한 action:', updateData.action);
@@ -6080,16 +5652,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
 
         if (result.status === 'success') {
-          console.log('SHEET', '✅ 시트 업데이트 성공!');
-          console.log('PERFORMANCE', `✅ E열 상태 설정: ${updateData.status}`);
-
           // 🚀 사전 로딩 데이터 즉시 업데이트 (CSV 지연 문제 해결)
           if (window.preloadedHandStatuses && updateData.handNumber) {
             const handNumber = parseInt(updateData.handNumber);
             const oldStatus = window.preloadedHandStatuses.get(handNumber);
             window.preloadedHandStatuses.set(handNumber, updateData.status);
-            console.log('SHEET', `🔄 사전 로딩 데이터 즉시 업데이트: 핸드 #${handNumber} "${oldStatus}" → "${updateData.status}"`);
-          }
+            }
 
           return {
             success: true,
@@ -6114,18 +5682,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           error: error
         };
       }
-    }
-    
-    
-    // 핸드에서 키 플레이어 찾기
+    }    // 핸드에서 키 플레이어 찾기
     /**
      * @deprecated 모듈화 완료 - AIAnalyzer.analyzeHand() 사용
      * AI 핸드 분석 함수
      */
     async function analyzeHandWithAI(handNumber) {
       try {
-        debugLog('🔍 정확한 핸드 분석 시작 - 핸드 #' + handNumber);
-
         // 통합 분석 캐시 사용 (중복 로드 방지)
         const analysis = await getUnifiedHandAnalysis(handNumber);
         if (!analysis || !analysis.handData) {
@@ -6135,11 +5698,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // AI 사용 여부 확인
         const useAI = localStorage.getItem('useAIForHColumn') === 'true';
         // 🔍 강화된 디버깅
-        console.log('AI', `🔍 [analyzeHandWithAI] 함수 호출 - 핸드 #${handNumber}`);
-        console.log('AI', `🔍 localStorage.useAIForHColumn: "${localStorage.getItem('useAIForHColumn')}"`);
-        console.log('AI', `🔍 useAI boolean: ${useAI}`);
-        console.log('API', `🔍 CONFIG.GEMINI_API_KEY 존재: ${!!CONFIG.GEMINI_API_KEY}`);
-        debugLog(`🤖 H열 AI 설정 확인: useAI=${useAI}, API키=${!!CONFIG.GEMINI_API_KEY}`);
+        }"`);
         let preciseAnalysis;
 
         if (useAI && CONFIG.GEMINI_API_KEY) {
@@ -6155,8 +5714,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       } catch (error) {
         console.error('ERROR', '❌ 핸드 분석 오류:', error);
-        debugLog(`❌ 분석 실패: ${error.message}`);
-
         // 오류 시 기본 정보라도 반환
         const fallbackSummary = createFallbackSummary({ players: [], pot: 0, blinds: { bb: 0 } });
         return fallbackSummary;
@@ -6202,11 +5759,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // BB 정보가 없으면 기본값 사용 (1/2 NL의 경우 BB=100)
         bbValue = 100; // 기본값
         potInBB = Math.round((handData.pot / bbValue) * 10) / 10;
-        console.warn('WARN', `⚠️ BB 값 없음, 기본값 ${bbValue} 사용`);
-      }
+        }
 
       // 디버깅을 위해 계산 과정 출력
-      console.log('DEBUG', `🎲 BB 계산: 팟(${handData.pot}) / BB(${bbValue}) = ${potInBB}BB`);
+      / BB(${bbValue}) = ${potInBB}BB`);
       
       // 카드 문양 변환 함수
       const convertCardSuits = (cards) => {
@@ -6429,15 +5985,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         'models/gemini-pro'
       ];
 
-      debugLog('🌐 Gemini API 호출 시작');
-      debugLog('📝 프롬프트 길이:', prompt.length);
-
       // 각 모델을 순서대로 시도
       for (let i = 0; i < models.length; i++) {
         const model = models[i];
         try {
-          debugLog(`🔍 모델 시도 ${i + 1}/${models.length}:`, model);
-          debugLog('🔗 API URL:', `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.substring(0, 10)}...`);
+          }...`);
           
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
           method: 'POST',
@@ -6453,18 +6005,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           })
         });
         
-          debugLog('📡 API 응답 상태:', response.status, response.statusText);
-          
           if (response.ok) {
             const data = await response.json();
-            debugLog('📦 API 응답 데이터:', data);
-            
             if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0] && data.candidates[0].content.parts[0].text) {
               const result = data.candidates[0].content.parts[0].text;
-              debugLog(`✅ 모델 '${model}' 성공! 결과 길이:`, result.length);
               return result;
             } else {
-              debugLog(`⚠️ 모델 '${model}' 응답 구조 이상:`, data);
               if (i === models.length - 1) {
                 return '❌ API 응답 구조가 예상과 다릅니다: ' + JSON.stringify(data);
               }
@@ -6472,10 +6018,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             }
           } else {
             const errorText = await response.text();
-            debugLog(`❌ 모델 '${model}' 실패 (${response.status}):`, errorText);
+            :`, errorText);
             
             if (response.status === 404 && i < models.length - 1) {
-              debugLog('🔄 다음 모델로 fallback...');
               continue; // 404면 다음 모델 시도
             } else if (i === models.length - 1) {
               return `❌ 모든 모델 실패. 마지막 오류 (${response.status}): ${errorText}`;
@@ -6485,7 +6030,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
           
         } catch (modelError) {
-          debugLog(`❌ 모델 '${model}' 네트워크 오류:`, modelError);
           if (i === models.length - 1) {
             return '❌ 모든 모델에서 네트워크 오류: ' + modelError.message;
           }
@@ -6604,9 +6148,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         // 🚀 매핑 저장
         saveHandFilenameMapping(handNumber, filename);
 
-        console.log('PERFORMANCE', '✅ 핸드 완료:', { handNumber, filename, aiSummary, handAnalysis });
-        
-      } catch (error) {
+        } catch (error) {
         throw error; // 상위 함수에서 처리
       }
     }
@@ -6900,9 +6442,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         timestamp: new Date().toISOString()
       };
       
-      console.log('MAPPING', '📤 Apps Script로 핸드 업데이트 전송:', payload);
-      console.log('DEBUG', '📤 사용 중인 Apps Script URL:', scriptUrl);
-      
       try {
         const response = await fetch(scriptUrl, {
           method: 'POST',
@@ -6912,21 +6451,15 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           body: JSON.stringify(payload)
         });
         
-        console.log('API', `📊 응답 상태: ${response.status} ${response.statusText}`);
-        
         if (!response.ok) {
           throw new Error(`Apps Script 요청 실패: HTTP ${response.status} ${response.statusText}`);
         }
         
         const result = await response.json();
-        console.log('API', '📦 Apps Script 응답:', result);
-        
         if (!result.success && result.status !== 'success') {
           throw new Error(result.error || result.message || 'Apps Script 처리 실패');
         }
-        
-        console.log('SHEET', '✅ 시트 업데이트 성공:', result);
-        return result;
+return result;
         
       } catch (error) {
         console.error('ERROR', '❌ 시트 업데이트 오류:', error);
@@ -7065,24 +6598,13 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         filenameInput.value = filename;
         summaryTextarea.value = aiSummary;
         
-        console.log('PERFORMANCE', '✅ 모든 처리 완료:', {
-          handNumber,
-          filename,
-          aiSummary,
-          matchedRow: matchedRow.row,
-          isExactMatch
-        });
-        
-      } catch(error) {
+        } catch(error) {
         console.error('ERROR', '❌ 처리 오류:', error);
         matchedRowInput.value = '❌ 오류 발생: ' + error.message;
         summaryTextarea.value = `❌ 처리 실패\n\n오류: ${error.message}\n\n다시 시도해주세요.`;
         filenameInput.value = `오류_${handNumber}`;
       }
-    }
-    
-    
-    // 기존 완료 모달 표시 (백업용)
+    }    // 기존 완료 모달 표시 (백업용)
     async function showCompletionModal(handNumber, timestamp, virtualSheetUrl) {
       const modal = document.getElementById('completion-modal');
       const timestampInput = document.getElementById('hand-timestamp');
@@ -7137,32 +6659,17 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       modal.classList.remove('hidden');
       
       // 디버깅: 모달과 DOM 요소 상태 확인
-      console.log('DEBUG', '🔍 === 모달 표시 직후 DOM 상태 ===');
-      console.log('DEBUG', '  모달 표시 상태:', !modal.classList.contains('hidden'));
-      console.log('DEBUG', '  matched-row input 존재:', !!matchedRowInput);
-      console.log('DEBUG', '  matched-row 현재 값:', matchedRowInput.value);
-      console.log('DEBUG', '  ai-summary 존재:', !!summaryTextarea);
-      console.log('DEBUG', '  ai-summary 현재 값:', summaryTextarea.value);
-      
+      );
       // Virtual 시트 매칭 및 AI 분석 비동기 실행 - async/await 사용
       try {
-        // console.log('AI', '🚀 Virtual 시트 매칭 및 AI 분석 시작...'); // ⚠️ 콘솔 스팸 방지
+        // // ⚠️ 콘솔 스팸 방지
         
         // 병렬 실행 (여기서는 모달이 이미 표시된 상태이므로 progress false)
         const [virtualMatch, aiSummary] = await Promise.all([
           findClosestVirtualRow(timestamp, virtualSheetUrl, false),  // 진행률 모달 숨김
           analyzeHandWithAI(handNumber)
-        ]);
-        console.log('UI', '✅ Promise.all 완료 - UI 업데이트 시작');
-        console.log('SHEET', '📊 virtualMatch:', virtualMatch);
-        console.log('DEBUG', '📝 aiSummary:', aiSummary);
-        
-        // 디버깅: DOM 요소 상태 재확인
-        console.log('PERFORMANCE', '🔍 === Promise 완료 후 DOM 상태 ===');
-        console.log('DEBUG', '  모달 표시 상태:', !modal.classList.contains('hidden'));
-        console.log('DEBUG', '  matched-row input 존재:', !!matchedRowInput);
-        console.log('DEBUG', '  matched-row 현재 값:', matchedRowInput.value);
-        
+        ]);// 디버깅: DOM 요소 상태 재확인
+        );
         if (virtualMatch && virtualMatch.row) {
           const diffMinutes = Math.floor(virtualMatch.timeDiff / 60);
           const diffSeconds = virtualMatch.timeDiff % 60;
@@ -7225,23 +6732,15 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const matchedRowText = `${accuracyIcon} Row ${virtualMatch.rowIndex} [핸드 ${targetTimeFormatted} ↔ 시트 ${matchedTimeFormatted}] (차이: ${timeDiffStr}) - ${accuracyText}`;
           
           // UI 업데이트
-          console.log('DEBUG', '📝 matched-row 업데이트 시도...');
           matchedRowInput.value = matchedRowText;
           
-          console.log('PERFORMANCE', '✅ matched-row 업데이트 완료:', matchedRowText);
-          console.log('PERFORMANCE', '✅ 실제 값 확인:', matchedRowInput.value);
-          console.log('PERFORMANCE', '✅ DOM에 반영 확인:', document.getElementById('matched-row').value);
+          .value);
         } else {
-          matchedRowInput.value = '❌ 매칭되는 행을 찾을 수 없음';
-          console.log('UI', '❌ 매칭 실패 - UI 업데이트');
-        }
+          matchedRowInput.value = '❌ 매칭되는 행을 찾을 수 없음';}
         
         // AI 요약 업데이트
-        console.log('DEBUG', '📝 ai-summary 업데이트 시도...');
         summaryTextarea.value = aiSummary || '분석 실패';
-        console.log('PERFORMANCE', '✅ ai-summary 업데이트 완료');
-        
-      } catch(error) {
+} catch(error) {
         console.error('ERROR', '❌ 비동기 처리 오류:', error);
         matchedRowInput.value = '❌ 오류 발생: ' + error.message;
         summaryTextarea.value = '분석 실패';
@@ -7299,8 +6798,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           timestamp: new Date().toISOString()
         };
 
-        console.log('SHEET', '🔄 완료 처리 데이터:', completeUpdateData);
-
         // Apps Script를 통한 시트 업데이트 (E열 '복사완료' 포함)
         const updateResult = await updateSheetData(
           rowNumber,  // 숫자 타입 행 번호 전달
@@ -7314,8 +6811,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           throw new Error(updateResult.message || '시트 업데이트 실패');
         }
 
-        console.log('SHEET', '✅ 완료 처리 시트 업데이트 성공!');
-        
         // 로컬 상태 업데이트
         const handIndex = allHands.findIndex(h => h.handNumber === handNumber);
         if (handIndex !== -1) {
@@ -7375,8 +6870,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const cachedData = window.handStatusCache.get(handNumber);
           if (cachedData.rowNumber) {
             rowNumber = cachedData.rowNumber;
-            console.log('CACHE', `✅ 캐시에서 행 번호 발견: ${rowNumber}`);
-          }
+            }
         }
 
         // 3. 캐시에 없으면 시트에서 찾기
@@ -7404,17 +6898,14 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
 
         // 5. AI 분석 실행
-        console.log('AI', `🔍 [processEditButton] AI 분석 호출 시작 - 핸드 #${handNumber}`);
         const aiAnalysis = await analyzeHandWithAI(handNumber);
-        console.log('AI', `🔍 [processEditButton] AI 분석 완료: ${aiAnalysis?.substring?.(0, 50) || String(aiAnalysis).substring(0, 50) || 'N/A'}...`);
+        || String(aiAnalysis).substring(0, 50) || 'N/A'}...`);
 
         // 편집 시 저장된 파일명 확인, 없으면 새로 생성
         let filename = getFilenameForHand(handNumber);
         if (!filename) {
           // 편집 없이 바로 완료하는 경우 새 파일명 생성
-          console.log('PERFORMANCE', `🔍 [processEditButton] 파일명 생성 호출 시작 - 핸드 #${handNumber}`);
           filename = await generateCustomFilename(handNumber);
-          console.log('PERFORMANCE', `🔍 [processEditButton] 파일명 생성 완료: ${filename}`);
           // 🚀 매핑 저장
           saveHandFilenameMapping(handNumber, filename);
         }
@@ -7428,49 +6919,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         // G열 고정값 'A' 설정
         const gColumnValue = 'A';
-        console.log(`🔧 G열 고정값: "${gColumnValue}"`);
-
-        // 6. 시트 업데이트 (복사완료 상태로)
-        const updateData = {
-          action: 'updateSheet',
-          sheetUrl: sheetUrl,
-          rowNumber: rowNumber,
-          // handNumber: handNumber, // D열 입력 차단
-          handNumber: null,
-          filename: filename,
-          gColumnValue: gColumnValue,  // G열 드롭다운 선택값
-          aiAnalysis: safeAiAnalysis,  // CSV 안전 처리된 AI 분석
-          status: '복사완료',  // ✅ 완료 단계에서 '복사완료' 설정
-          timestamp: handTime
-        };
-
-        console.log('SHEET', '📤 완료 상태 업데이트 데이터:', updateData);
-
-        const result = await updateSheetData(rowNumber, handNumber, filename, aiAnalysis, updateData);
-
-        if (result && result.success) {
-          // 7. 성공 시 UI 업데이트
-          completeBtn.textContent = '완료';
-          completeBtn.disabled = true;  // 완료 후 비활성화
-          editBtn.disabled = true;      // 편집 버튼도 비활성화
-
-          // 🚀 즉시 버튼 상태 재확인 (사전 로딩 데이터 업데이트 반영)
-          setTimeout(() => {
-            console.log('UI', '🔄 완료 처리 후 버튼 상태 재확인...');
-            updateButtonStatesFromStatus(handNumber, '복사완료');
-            // 📊 완료 시간 기록
-            recordCompleteTime(handNumber);
-          }, 100);
-
-          hideLoadingPopup();  // 로딩 팝업 닫기
-
-          // 상세한 정보를 포함한 팝업 메시지
-          const detailMessage = `✅ 완료 처리되었습니다!
-
-📊 Google Sheets 업데이트 정보:
-━━━━━━━━━━━━━━━━━━━━━━━━
-📍 시트 위치: ${rowNumber}번째 행
-📁 D열 (핸드번호): ${handNumber}
+        : ${handNumber}
 📝 E열 (상태): 복사완료 ✅
 📂 F열 (파일명): ${filename}
 🤖 H열 (AI분석): ${String(aiAnalysis).substring(0, 50)}...
@@ -7542,8 +6991,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // 편집 버튼 처리 함수 (캐시 우선 사용)
     async function processEditButton(handNumber) {
-      if (window.DEBUG_MODE) console.log('UI', `\n🔴🔴🔴 [편집 버튼 클릭] 핸드 #${handNumber} 처리 시작 🔴🔴🔴`);
-      const editBtn = document.getElementById('edit-btn');
+      if (window.DEBUG_MODE)const editBtn = document.getElementById('edit-btn');
       const completeBtn = document.getElementById('complete-btn');
 
       // 로딩 팝업 표시
@@ -7570,8 +7018,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           const cachedData = window.handStatusCache.get(handNumber);
           if (cachedData.rowNumber) {
             rowNumber = cachedData.rowNumber;
-            console.log('CACHE', `✅ 캐시에서 행 번호 발견: ${rowNumber}`);
-          }
+            }
         }
 
         // 3. 캐시에 없으면 시트에서 찾기
@@ -7598,13 +7045,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           window.handStatusCache.set(handNumber, { ...existing, rowNumber });
         }
 
-        // 🔴 디버깅: 편집 시 매칭된 행 번호
-        console.log('UI', `🔴 [편집 버튼] 핸드 #${handNumber} 매칭 결과:`);
-        console.log('TIME', `   - 핸드 타임스탬프: ${handTime} (${new Date(handTime * 1000).toLocaleTimeString()})`);
-        console.log('SHEET', `   - 매칭된 행 번호: ${rowNumber}`);
-        console.log('UI', `🔴🔴🔴 편집 버튼 매칭 완료 🔴🔴🔴\n`);
-
-        // 5. AI 분석 및 자막 생성 실행
+        // 🔴 디버깅: 편집 시 매칭된 행 번호.toLocaleTimeString()})`);// 5. AI 분석 및 자막 생성 실행
         const aiAnalysis = await analyzeHandWithAI(handNumber);
         const filename = await generateCustomFilename(handNumber);
         const subtitle = await generateSubtitle(handNumber);
@@ -7620,53 +7061,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         // G열 고정값 'A' 설정
         const gColumnValue = 'A';
-        console.log(`🔧 G열 고정값: "${gColumnValue}"`);
-
-        // 6. 시트 업데이트 (미완료 상태로)
-        const updateData = {
-          action: 'updateSheet',
-          sheetUrl: sheetUrl,
-          rowNumber: rowNumber,  // 숫자 타입 사용
-          // handNumber: handNumber, // D열 입력 차단
-          handNumber: null,
-          filename: filename,
-          gColumnValue: gColumnValue,  // G열 고정값 'A'
-          aiAnalysis: safeAiAnalysis,  // CSV 안전 처리된 AI 분석
-          subtitle: subtitle,  // 자막 정보 추가
-          status: '미완료',  // ✅ 편집 단계에서 '미완료' 설정
-          timestamp: handTime
-        };
-
-        console.log('SHEET', '📤 편집 상태 업데이트 데이터:', updateData);
-        console.log('AI', '🎬 생성된 자막:', subtitle);
-
-        const result = await updateSheetData(rowNumber, handNumber, filename, aiAnalysis, updateData);
-
-        if (result && result.success) {
-          // 7. 성공 시 UI 업데이트
-          hideLoadingPopup();  // 로딩 팝업 닫기
-          editBtn.textContent = '편집';
-          editBtn.disabled = true;      // 편집 완료 후 비활성화
-          completeBtn.disabled = false;  // 완료 버튼 활성화
-
-          // 🚀 즉시 버튼 상태 재확인 (사전 로딩 데이터 업데이트 반영)
-          setTimeout(() => {
-            console.log('UI', '🔄 편집 완료 후 버튼 상태 재확인...');
-            updateButtonStatesFromStatus(handNumber, '미완료');
-            // 📊 편집 시작 시간 기록
-            recordEditStartTime(handNumber);
-          }, 100);
-
-          // 로컬 상태 업데이트
-          updateHandEditStatus(handNumber, false, true); // 마지막 매개변수는 skipServerCall
-
-          // 상세한 정보를 포함한 팝업 메시지
-          const detailMessage = `✅ 편집 모드로 전환되었습니다!
-
-📊 Google Sheets 업데이트 정보:
-━━━━━━━━━━━━━━━━━━━━━━━━
-📍 시트 위치: ${rowNumber}번째 행
-📁 D열 (핸드번호): ${handNumber}
+        : ${handNumber}
 📝 E열 (상태): 미완료
 📂 F열 (파일명): ${filename}
 🤖 H열 (AI분석): ${String(aiAnalysis).substring(0, 50)}...
@@ -7699,7 +7094,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       if (skipServerCall) {
         // 로컬 상태만 업데이트 (서버 호출 없이)
-        console.log('DEBUG', '🔄 로컬 상태 업데이트:', handNumber);
         return;
       }
 
@@ -7714,41 +7108,28 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           // handNumber: handNumber, // D열 입력 차단
           handNumber: null,
           checked: checked
-        };
-
-        console.log('🔧 완료 버튼 클릭 - 전송할 데이터:', payload);
-        console.log('🔧 현재 CONFIG.APPS_SCRIPT_URL:', CONFIG.APPS_SCRIPT_URL);
-
-        const formData = new FormData();
+        };const formData = new FormData();
         formData.append('payload', JSON.stringify(payload));
 
-        console.log('API', '📤 Google Apps Script 요청 전송 중...');
-        console.log('DEBUG', '📤 사용 중인 URL:', CONFIG.APPS_SCRIPT_URL);
         const response = await fetch(CONFIG.APPS_SCRIPT_URL + '?_t=' + Date.now(), {
           method: 'POST',
           body: formData,
           cache: 'no-cache'
         });
         
-        console.log('API', '📨 응답 상태:', response.status, response.statusText);
-        console.log('API', '📨 응답 헤더:', Object.fromEntries(response.headers.entries()));
+        ));
         
         const responseText = await response.text();
-        console.log('API', '📨 응답 원본 텍스트:', responseText);
-        
         let result;
         try {
           result = JSON.parse(responseText);
-          console.log('TIME', '📨 파싱된 결과:', result);
-        } catch (parseError) {
+} catch (parseError) {
           console.error('ERROR', '❌ JSON 파싱 실패:', parseError);
           console.error('ERROR', '❌ 응답이 JSON이 아님:', responseText);
           throw new Error('서버 응답을 파싱할 수 없습니다: ' + responseText);
         }
         
         if (result.success === true || result.status === 'success') {
-          console.log('MAPPING', '핸드 편집 상태 업데이트 성공:', result);
-          
           // 성공 알림
           showNotification(
             checked ? '✅ 핸드 편집이 완료되었습니다!' : '📝 핸드가 편집 대기 상태로 변경되었습니다!',
@@ -7811,12 +7192,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     
     // ====================================
     // 이벤트 리스너
-    // ====================================
-    
-
-
-    document.getElementById('refresh-btn').addEventListener('click', () => {
-      console.log('DEBUG', '🔄 수동 새로고침');
+    // ====================================    document.getElementById('refresh-btn').addEventListener('click', () => {
       loadIndexData(false); // 수동 새로고침은 알림 허용
     });
     
@@ -7928,7 +7304,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         refreshTimerInterval = null;
       }
 
-      console.log('CACHE', '⚠️ 설정 저장 - 기존 타이머 시스템 비활성화 유지 (Phase 3 사용)');
+      ');
       
       document.getElementById('settings-modal').classList.add('hidden');
     });
@@ -7947,8 +7323,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         localStorage.removeItem(MASTER_LIST_KEY);
         
         showNotification('✅ 최근 핸드 버퍼가 초기화되었습니다.', 'success');
-        console.log('PERFORMANCE', '🔄 버퍼 초기화 완료');
-        
         // 설정 창 닫기
         document.getElementById('settings-modal').classList.add('hidden');
       }
@@ -8081,9 +7455,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         return;
       }
       
-      console.log('SHEET', '📊 시트 업데이트 시작...');
-      console.log('SHEET', `📍 행: ${matchedRow}, 핸드: ${currentHand}, 파일명: ${filename}`);
-      
       try {
         // 업데이트 버튼 비활성화
         const updateBtn = document.getElementById('confirm-sheet-update');
@@ -8128,9 +7499,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     
     // E열 데이터 분석 함수 (디버깅용)
     async function analyzeEColumnData() {
-      console.log('SHEET', '\n🔍🔍🔍 E열 데이터 분석 시작 🔍🔍🔍');
-
-      try {
+try {
         const sheetUrl = getSheetUrl();
         if (!sheetUrl) {
           console.error('ERROR', '❌ 시트 URL이 설정되지 않음');
@@ -8150,14 +7519,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         }
 
-        console.log('SHEET', `📊 CSV URL: ${csvUrl}`);
-        console.log('SHEET', '📥 CSV 데이터 다운로드 중...');
-
         const response = await fetch(csvUrl + '&t=' + Date.now());
         const text = await response.text();
         const rows = parseCSV(text);
-
-        console.log('SHEET', `✅ 총 ${rows.length}개 행 로드됨`);
 
         // E열 데이터 분석
         let emptyCount = 0;
@@ -8180,36 +7544,25 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             completeRows.push(index + 1);
           } else {
             otherCount++;
-            console.log('SHEET', `   기타 값 (행 ${index + 1}): "${eValue}"`);
+            : "${eValue}"`);
           }
         });
 
-        console.log('SHEET', '\n📊 === E열 데이터 분석 결과 ===');
-        console.log('DEBUG', `   빈 값: ${emptyCount}개`);
-        console.log('PERFORMANCE', `   "미완료": ${miCompleteCount}개`);
-        console.log('PERFORMANCE', `   "복사완료": ${completeCount}개`);
-        console.log('DEBUG', `   기타: ${otherCount}개`);
-
         if (miCompleteCount > 0) {
-          console.log('SHEET', '\n📌 "미완료" 상태인 행들:');
-          console.log('DEBUG', `   ${miCompleteRows.slice(0, 10).join(', ')}${miCompleteRows.length > 10 ? '...' : ''}`);
+          .join(', ')}${miCompleteRows.length > 10 ? '...' : ''}`);
         }
 
         if (completeCount > 0) {
-          console.log('SHEET', '\n✅ "복사완료" 상태인 행들:');
-          console.log('DEBUG', `   ${completeRows.slice(0, 10).join(', ')}${completeRows.length > 10 ? '...' : ''}`);
+          .join(', ')}${completeRows.length > 10 ? '...' : ''}`);
         }
 
         // 특정 행 확인 (938행, 694행)
-        console.log('SHEET', '\n🎯 특정 행 확인:');
         [938, 694].forEach(rowNum => {
           if (rowNum <= rows.length) {
             const row = rows[rowNum - 1]; // 0-based index
-            console.log('SHEET', `   행 ${rowNum}: E열 = "${row[4]?.trim() || '(빈 값)'}"`);
+            || '(빈 값)'}"`);
           }
         });
-
-        console.log('SHEET', '🔍🔍🔍 E열 데이터 분석 완료 🔍🔍🔍\n');
 
         return {
           total: rows.length,
@@ -8231,9 +7584,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // 시간 매칭 테스트 함수
     window.testTimeMatching = async function(handNumber) {
-      console.log('TIME', '🧪 ============ 시간 매칭 종합 테스트 시작 ============');
-      console.log('MAPPING', `📌 테스트 대상: 핸드 #${handNumber}`);
-
       // 1. Hand 시트에서 타임스탬프 가져오기
       const handTimestamp = await getHandTimestamp(handNumber);
       if (!handTimestamp) {
@@ -8242,13 +7592,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       }
 
       const handDate = new Date(handTimestamp * 1000);
-      console.log('SHEET', '\n📊 [1] Hand 시트 데이터:');
-      console.log('TIME', `   - 타임스탬프: ${handTimestamp}`);
-      console.log('TIME', `   - 날짜/시간: ${handDate.toLocaleString()}`);
-      console.log('TIME', `   - 시간만: ${handDate.getHours()}:${handDate.getMinutes().toString().padStart(2,'0')}:${handDate.getSeconds().toString().padStart(2,'0')}`);
+      }`);
+      }:${handDate.getMinutes().toString().padStart(2,'0')}:${handDate.getSeconds().toString().padStart(2,'0')}`);
 
       // 2. 캐시 데이터 확인
-      console.log('CACHE', '\n📊 [2] 캐시 데이터 분석:');
       await sheetDataCache.ensureFresh();
 
       // 목표 시간 문자열들
@@ -8256,8 +7603,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       const targetMin = handDate.getMinutes();
       const targetTimeStr = `${targetHour.toString().padStart(2,'0')}:${targetMin.toString().padStart(2,'0')}`;
       const targetTimeNoZero = `${targetHour}:${targetMin.toString().padStart(2,'0')}`;
-
-      console.log('TIME', `   - 찾는 시간: "${targetTimeStr}" 또는 "${targetTimeNoZero}"`);
 
       // 캐시에서 정확한 매칭 찾기
       let exactMatches = [];
@@ -8289,74 +7634,61 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
       }
 
-      console.log('TIME', `\n   🎯 정확한 매칭 (${targetTimeStr}):`);
+      :`);
       if (exactMatches.length > 0) {
         exactMatches.forEach(m => {
-          console.log('SHEET', `      - 행 ${m.row}: 시간="${m.data.time}", 상태="${m.data.status || '(빈값)'}", 타임스탬프=${m.data.timestamp}`);
-        });
+});
       } else {
         console.error('ERROR', '      ❌ 없음');
       }
 
-      console.log('DEBUG', `\n   📍 근접 매칭 (±5분):`);
+      :`);
       nearMatches.sort((a, b) => a.diff - b.diff);
       nearMatches.forEach(m => {
-        console.log('SHEET', `      - 행 ${m.row}: 시간="${m.time}" (${m.diff}분 차이), 상태="${m.data.status || '(빈값)'}"`);
+        , 상태="${m.data.status || '(빈값)'}"`);
       });
 
       // 3. parseTimeToTimestamp 테스트
-      console.log('SHEET', '\n📊 [3] parseTimeToTimestamp 함수 테스트:');
       const testTimes = [targetTimeStr, targetTimeNoZero, "10:14", "10:18"];
       testTimes.forEach(time => {
         const parsed = sheetDataCache.parseTimeToTimestamp(time);
         const parsedDate = parsed ? new Date(parsed * 1000) : null;
-        console.log('TIME', `   - "${time}" → ${parsed} ${parsedDate ? `(${parsedDate.toLocaleTimeString()})` : '(파싱 실패)'}`);
+        })` : '(파싱 실패)'}`);
       });
 
       // 4. 현재 findClosestRow 동작 테스트
-      console.log('SHEET', '\n📊 [4] findClosestRow 함수 실행:');
       const result = sheetDataCache.findClosestRow(handTimestamp);
       if (result) {
-        console.log('PERFORMANCE', `   ✅ 매칭 결과:`);
-        console.log('SHEET', `      - 행: ${result.row}`);
-        console.log('TIME', `      - 시간: "${result.time}"`);
-        console.log('DEBUG', `      - 상태: "${result.status || '(빈값)'}"`);
-        console.log('DEBUG', `      - 타임스탬프: ${result.timestamp}`);
-      } else {
+
+} else {
         console.error('ERROR', '   ❌ 매칭 실패');
       }
 
       // 5. 캐시 시간 인덱스 분석
-      console.log('SHEET', '\n📊 [5] 시간 인덱스 분석:');
-      console.log('DEBUG', `   - 총 타임스탬프 개수: ${sheetDataCache.timeIndex.size}`);
-
       // 타임스탬프 범위 확인
       const timestamps = Array.from(sheetDataCache.timeIndex.keys()).sort((a, b) => a - b);
       if (timestamps.length > 0) {
         const minTime = new Date(timestamps[0] * 1000);
         const maxTime = new Date(timestamps[timestamps.length - 1] * 1000);
-        console.log('TIME', `   - 최소: ${timestamps[0]} (${minTime.toLocaleString()})`);
-        console.log('TIME', `   - 최대: ${timestamps[timestamps.length - 1]} (${maxTime.toLocaleString()})`);
+        })`);
+        })`);
 
         // Hand 타임스탬프가 범위 내에 있는지
         if (handTimestamp < timestamps[0] || handTimestamp > timestamps[timestamps.length - 1]) {
-          console.log('CACHE', `   ⚠️ Hand 타임스탬프 ${handTimestamp}가 캐시 범위를 벗어남!`);
-        }
+          }
       }
 
       // 6. 618-622행 근처 데이터 확인
-      console.log('SHEET', '\n📊 [6] 618-622행 데이터:');
       for (let i = 618; i <= 622; i++) {
         const data = sheetDataCache.cache.get(i);
         if (data) {
-          console.log('SHEET', `   - 행 ${i}: 시간="${data.time}", 상태="${data.status || '(빈값)'}", 타임스탬프=${data.timestamp}`);
+          '}", 타임스탬프=${data.timestamp}`);
         } else {
-          console.log('CACHE', `   - 행 ${i}: (캐시에 없음)`);
+          `);
         }
       }
 
-      console.log('PERFORMANCE', '\n🧪 ============ 테스트 완료 ============');
-    };
+      };
 
     document.getElementById('edit-btn').addEventListener('click', async () => {
       if (currentHand) {
@@ -8375,13 +7707,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     // ====================================
 
     // 전역 상태 저장소 (편집 시작 시간, 작업 정보 등)
-    window.handWorkSessions = window.handWorkSessions || new Map();
-
-
-    // 핸드 상태 정보 섹션 업데이트 (더 이상 사용되지 않음 - Virtual 시트 정보로 대체)
+    window.handWorkSessions = window.handWorkSessions || new Map();    // 핸드 상태 정보 섹션 업데이트 (더 이상 사용되지 않음 - Virtual 시트 정보로 대체)
     function updateHandStatusSection(handNumber, status) {
       // Virtual 시트 정보 표시로 대체됨
-      console.log('SHEET', `📊 핸드 #${handNumber} 상태 업데이트 (Virtual 시트로 대체): ${status}`);
+      : ${status}`);
     }
 
     // 편집 시작 시간 기록
@@ -8390,7 +7719,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       session.editStartTime = Date.now();
       window.handWorkSessions.set(handNumber, session);
 
-      console.log('TIME', `📝 핸드 #${handNumber} 편집 시작 시간 기록: ${new Date(session.editStartTime).toLocaleString()}`);
+      .toLocaleString()}`);
     }
 
     // 완료 시간 기록
@@ -8401,12 +7730,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       // 총 소요 시간 계산
       if (session.editStartTime) {
         session.totalDuration = session.completeTime - session.editStartTime;
-        console.log('TIME', `✅ 핸드 #${handNumber} 완료 - 총 소요시간: ${Math.round(session.totalDuration / 1000)}초`);
+        }초`);
       }
 
       window.handWorkSessions.set(handNumber, session);
 
-      console.log('TIME', `✅ 핸드 #${handNumber} 완료 시간 기록: ${new Date(session.completeTime).toLocaleString()}`);
+      .toLocaleString()}`);
     }
 
     // 진행 시간 실시간 카운터 시작
@@ -8481,8 +7810,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     async function updateHandCardSheetInfo(hands) {
       if (!hands || hands.length === 0) return;
 
-      console.log('SHEET', `📊 핸드 카드별 Virtual 시트 정보 업데이트 시작: ${hands.length}개 핸드`);
-
       for (const hand of hands) {
         const handNumber = hand.handNumber;
 
@@ -8496,8 +7823,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         updateHandCardVirtualInfo(handNumber, status);
       }
 
-      console.log('SHEET', `📊 핸드 카드별 Virtual 시트 정보 업데이트 완료`);
-    }
+      }
 
     // 개별 핸드 카드의 Virtual 시트 정보 업데이트
     function updateHandCardVirtualInfo(handNumber, status) {
@@ -8578,8 +7904,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       if (!sheetInfoSection) return;
 
       try {
-        console.log('SHEET', `📋 핸드 #${handNumber} Virtual 시트 정보 로드 시작`);
-
         // 섹션 표시
         sheetInfoSection.classList.remove('hidden');
 
@@ -8593,8 +7917,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         let virtualSheetData = null;
         if (window.preloadedHandStatuses && window.preloadedHandStatuses.has(parseInt(handNumber))) {
           const status = window.preloadedHandStatuses.get(parseInt(handNumber));
-          console.log('SHEET', `📋 사전 로딩 데이터에서 핸드 #${handNumber} 상태: ${status}`);
-
           // 사전 로딩 데이터가 있으면 기본 정보 먼저 표시
           updateBasicSheetInfo(handNumber, status, null);
         }
@@ -8605,7 +7927,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           updateDetailedSheetInfo(handNumber, detailedInfo);
         } else {
           // 상세 정보를 찾을 수 없는 경우
-          console.log('SHEET', `📋 핸드 #${handNumber} Virtual 시트에서 상세 정보 찾을 수 없음`);
           updateBasicSheetInfo(handNumber, null, "Virtual 시트에 등록되지 않음");
         }
 
@@ -8661,7 +7982,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // 상세 Virtual 시트 정보 업데이트
     function updateDetailedSheetInfo(handNumber, detailedInfo) {
-      console.log('SHEET', `📋 updateDetailedSheetInfo - F열 파일명: "${detailedInfo.filename}"`);
       // 기본 정보 업데이트
       document.getElementById('sheet-row-number').textContent = detailedInfo.rowNumber || '-';
       document.getElementById('sheet-filename').textContent = detailedInfo.filename || 'Virtual 파일명 없음';
@@ -8703,8 +8023,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         rawData.textContent = '원본 데이터 없음';
       }
 
-      console.log('SHEET', `📋 핸드 #${handNumber} Virtual 시트 상세 정보 업데이트 완료`);
-    }
+      }
 
     // Virtual 시트 상세 정보 조회
     async function getVirtualSheetDetailedInfo(handNumber) {
@@ -8731,7 +8050,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         const timeDiff = matchResult.timeDifference;
 
         // 상세 정보 구성
-        console.log('SHEET', `📋 Virtual 시트 F열 파일명 확인: "${matchedRow.filename}" (행 ${matchedRow.row})`);
+        `);
         const detailedInfo = {
           rowNumber: matchedRow.row,
           filename: matchedRow.filename || '', // F열 파일명 (이미 파싱됨)
@@ -8744,9 +8063,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           aiAnalysis: null, // H열은 나중에 추가
           rawData: matchedRow
         };
-
-        console.log('SHEET', `📋 핸드 #${handNumber} Virtual 시트 상세 정보 조회 완료:`, detailedInfo);
-        return detailedInfo;
+return detailedInfo;
 
       } catch (error) {
         console.error('ERROR', `❌ 핸드 #${handNumber} Virtual 시트 상세 정보 조회 오류:`, error);
@@ -8776,10 +8093,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         editBtn.disabled = true;
         completeBtn.disabled = true;
         editBtn.textContent = '편집';
-        completeBtn.textContent = '완료';
-
-        console.log('UI', '⚙️ 초기 버튼 상태 설정 완료 - 모두 비활성화');
-      }
+        completeBtn.textContent = '완료';}
     }
 
     // 마스터 핸드 목록 로드
@@ -8792,8 +8106,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           for (const [handNumber, hand] of Object.entries(data)) {
             masterHandList.set(handNumber, hand);
           }
-          console.log('MAPPING', `📁 마스터 핸드 목록 로드: ${masterHandList.size}개`);
-        }
+}
       } catch (e) {
         console.error('ERROR', '마스터 핸드 목록 로드 실패:', e);
       }
@@ -8822,25 +8135,21 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       if (apiKey) {
         apiKeySource = 'localStorage';
-        console.log('API', '📦 Gemini API 키: localStorage에서 로드');
-      } else if (window.ENV_CONFIG?.GEMINI_API_KEY) {
+        } else if (window.ENV_CONFIG?.GEMINI_API_KEY) {
         // GitHub Secrets에서 로드 및 localStorage에 저장
         apiKey = window.ENV_CONFIG.GEMINI_API_KEY;
         apiKeySource = 'GitHub Secrets';
         localStorage.setItem('GEMINI_API_KEY', apiKey);
-        console.log('API', '🔐 Gemini API 키: GitHub Secrets에서 로드 및 저장');
-      } else {
+        } else {
         apiKeySource = '미설정';
-        console.log('API', '⚠️ Gemini API 키: 미설정 상태');
-      }
+        }
 
       if (apiKey) {
         CONFIG.GEMINI_API_KEY = apiKey;
-        console.log('API', `✅ Gemini API 키 설정 완료 [출처: ${apiKeySource}] (길이: ${apiKey.length})`);
+        `);
       } else {
         CONFIG.GEMINI_API_KEY = '';
-        console.log('API', '🔓 API 키 로드: 없음');
-      }
+        }
     }
 
     // Gemini API 키 저장
@@ -8854,11 +8163,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     /**
      * @deprecated 기존 debugLog 호환성 유지용
-     * 새로운 코드는 console.log() 사용 권장
-     */
-    function debugLog(...args) {
-      console.log('LEGACY', ...args);
-    }
+     * 새로운 코드는}
 
     async function init() {
       // 버전 체크 먼저 실행
@@ -8866,9 +8171,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         return; // 리로드 중이면 중단
       }
       
-      console.log('DEBUG', '='.repeat(60));
-      console.log('API', `🚀 포커 핸드 모니터링 시스템 v${APP_VERSION} - Gemini AI 분석 시스템`);
-      
+      );
       // 버전 표시 업데이트
       const versionDisplay = document.getElementById('version-display');
       if (versionDisplay) {
@@ -8886,7 +8189,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       // 💾 모든 설정 로드
       await loadAllSettings();
-      console.log('DEBUG', '='.repeat(60));
+      );
 
       // 초기 버튼 상태 설정 (핸드 선택 전에는 비활성화)
       initializeButtonStates();
@@ -8899,19 +8202,15 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       if (savedCache.size > 0) {
         sheetDataCache.cache = savedCache;
         sheetDataCache.lastUpdate = Date.now();
-        console.log('CACHE', `📂 [Phase 3] 로컬 캐시 복구: ${savedCache.size}행`);
-      }
+        }
 
       // 완전한 사전 로딩 시스템: Virtual 시트 전체를 메모리에 로딩
-      console.log('PERFORMANCE', '🚀 완전한 사전 로딩 시스템 시작...');
       const preloadSuccess = await preloadAllHandStatuses();
 
       if (preloadSuccess) {
         // 백그라운드 갱신 시작
         startBackgroundRefresh();
-        console.log('API', '✅ 사전 로딩 완료 - 핸드 클릭 시 즉시 응답 가능');
-      } else {
-        console.warn('WARN', '⚠️ 사전 로딩 실패 - 기존 캐시 시스템으로 폴백');
+        } else {
         await loadAllHandsStatusAtOnce();
       }
 
@@ -8922,7 +8221,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         handListContainer.addEventListener('scroll', () => {
           clearTimeout(scrollDebounceTimer);
           scrollDebounceTimer = setTimeout(() => {
-            console.log('MAPPING', '📜 스크롤 감지 - 보이는 핸드 상태 확인');
             updateVisibleHandsStatus();
           }, 500); // 스크롤 후 500ms 대기
         });
@@ -8936,13 +8234,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       // 마스터 핸드 목록 로드
       loadMasterHandList();
-      console.log('MAPPING', `📁 기존 마스터 핸드: ${masterHandList.size}개`);
-      
       // Virtual 시트 URL은 CONFIG에서 관리됨
-      // console.log('SHEET', `📊 Virtual 시트 설정: ${CONFIG.READ_SHEET_URL ? CONFIG.READ_SHEET_URL.substring(0, 50) + '...' : '미설정'}`); // ⚠️ 콘솔 스팸 방지
-      
-      
-      // 초기 로드 동기화 팝업 표시
+      // + '...' : '미설정'}`); // ⚠️ 콘솔 스팸 방지      // 초기 로드 동기화 팝업 표시
       initSyncManager.show();
 
       // 🚀 핸드-파일명 매핑 데이터 로드
@@ -8972,7 +8265,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         document.getElementById('read-sheet-url').value = sheetUrl;
         document.getElementById('write-sheet-url').value = sheetUrl;
         
-        console.log('SHEET', `📋 메인 시트 URL 로드됨: ${sheetUrl.substring(0, 50)}...`);
+        }...`);
       }
       if (savedScriptUrl) {
         // 이전 URL이 저장되어 있으면 새 URL로 자동 교체
@@ -8984,12 +8277,10 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           CONFIG.SHEET_UPDATE_SCRIPT_URL = newUrl;
           document.getElementById('apps-script-url').value = newUrl;
           localStorage.setItem('sheet_update_script_url', newUrl);
-          console.log('PERFORMANCE', `✅ Apps Script URL 자동 업데이트 완료`);
-        } else {
+          } else {
           CONFIG.SHEET_UPDATE_SCRIPT_URL = savedScriptUrl;
           document.getElementById('apps-script-url').value = savedScriptUrl;
-          console.log('MAPPING', `🔗 Apps Script URL 로드됨`);
-        }
+          }
       } else if (CONFIG.SHEET_UPDATE_SCRIPT_URL) {
         // 하드코딩된 URL도 체크
         const oldUrl = 'AKfycbyiop6JQBJyRk2pNsPvrCo8Q2HJ2CB-tqwBeb17SYqrmz1C_xZWVi0wzXio2v3mzC76mQ';
@@ -9002,19 +8293,16 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         } else {
           // CONFIG에서 가져온 값을 입력 필드에 설정
           document.getElementById('apps-script-url').value = CONFIG.SHEET_UPDATE_SCRIPT_URL;
-          console.log('MAPPING', `🔗 Apps Script URL CONFIG에서 로드: ${CONFIG.SHEET_UPDATE_SCRIPT_URL}`);
-        }
+          }
       } else {
         // Apps Script URL이 전혀 설정되지 않은 경우
-        console.warn('WARN', '⚠️ Apps Script URL이 설정되지 않았습니다. 설정 메뉴에서 URL을 입력해주세요.');
-      }
+        }
       
       // 최근 핸드 버퍼 상태 확인
       const bufferStatus = recentHandsBuffer.getStatus();
-      console.log('CACHE', `💾 최근 핸드 버퍼: ${bufferStatus.size}/${bufferStatus.maxSize}개 (최대 100개 저장)`);
+      `);
       if (bufferStatus.size > 0) {
-        console.log('CACHE', `💾 버퍼 내용:`, bufferStatus.buffer);
-      }
+        }
 
       // 설정 로드 완료
       initSyncManager.updateStep('settings', 'complete', '설정 로드 완료');
@@ -9024,7 +8312,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       initSyncManager.updateStep('sheets', 'running', 'Google Sheets 연결 중...');
       initSyncManager.addLog('Google Sheets API 초기화...');
 
-      console.log('API', '🔔 알림 권한 요청 중...');
       if ('Notification' in window && Notification.permission === 'default') {
         await Notification.requestPermission();
       }
@@ -9033,7 +8320,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       initSyncManager.updateStep('sheets', 'complete', 'Google Sheets 연결 완료');
       initSyncManager.addLog('✅ Google Sheets 연결 성공', 'success');
 
-      console.log('SHEET', '📄 초기 데이터 로딩 시작...');
       // 초기 로딩 플래그를 true로 설정하여 알림 방지
       isInitialLoad = true;
       await loadIndexData();
@@ -9076,9 +8362,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       
       // ⚠️ 자동 새로고침 완전 비활성화 (v12.0.0)
       // 사용자가 수동으로 새로고침 버튼을 클릭하여 데이터 업데이트
-      console.log('DEBUG', 'ℹ️ 자동 새로고침 비활성화 - 수동 새로고침만 사용');
-      console.log('SHEET', '💡 팁: 새로고침 버튼을 클릭하여 데이터를 업데이트하세요');
-
       // 모든 자동 타이머 정리
       if (refreshTimerInitial) {
         clearTimeout(refreshTimerInitial);
@@ -9089,8 +8372,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         refreshTimerInterval = null;
       }
       
-      console.log('PERFORMANCE', '초기화 완료');
-    }
+      }
     
     // 앱 시작
     init();
@@ -9098,8 +8380,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     // 페이지 종료 시 타이머 정리
     // 디버그 버튼 이벤트 리스너
     document.getElementById('debug-sheet-btn').addEventListener('click', async () => {
-      console.log('SHEET', '🔍 === 시트 업데이트 디버그 시작 ===');
-      
       const debugInfo = {
         sheetUrl: getSheetUrl(), // 통합된 시트 URL 사용
         appsScriptUrl: CONFIG.SHEET_UPDATE_SCRIPT_URL,
@@ -9107,9 +8387,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       };
       
       // 1. Google Sheets URL 검증
-      console.log('SHEET', '\n1️⃣ Google Sheets URL 검증');
-      console.log('DEBUG', '   URL:', debugInfo.sheetUrl);
-      
       if (!debugInfo.sheetUrl) {
         alert('❌ 시트 URL이 설정되지 않았습니다.\n설정 버튼을 클릭하여 URL을 입력하세요.');
         return;
@@ -9126,13 +8403,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       const gidMatch = debugInfo.sheetUrl.match(/[#&]gid=([0-9]+)/);
       const gid = gidMatch ? gidMatch[1] : null;
       
-      console.log('SHEET', '   스프레드시트 ID:', spreadsheetId);
-      console.log('SHEET', '   시트 GID:', gid || '(기본 시트)');
+      ');
       
       // 2. Apps Script URL 검증
-      console.log('DEBUG', '\n2️⃣ Apps Script URL 검증');
-      console.log('DEBUG', '   URL:', debugInfo.appsScriptUrl);
-      
       if (!debugInfo.appsScriptUrl) {
         alert('❌ Apps Script URL이 설정되지 않았습니다.');
         return;
@@ -9144,8 +8417,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
       }
       
       // 3. Apps Script 연결 테스트
-      console.log('DEBUG', '\n3️⃣ Apps Script 연결 테스트');
-      
       try {
         const testData = {
           action: 'test',
@@ -9165,23 +8436,16 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
         
         const result = await response.json();
-        console.log('DEBUG', '   연결 결과:', result);
-        
         if (result.status !== 'success') {
           throw new Error(result.message || '연결 실패');
         }
-        
-        console.log('PERFORMANCE', '   ✅ Apps Script 연결 성공');
-        
-      } catch (error) {
+} catch (error) {
         console.error('ERROR', '   ❌ Apps Script 연결 실패:', error);
         alert(`❌ Apps Script 연결 실패\n\n${error.message}\n\n해결책:\n1. Apps Script가 배포되었는지 확인\n2. "모든 사용자" 액세스 설정 확인`);
         return;
       }
       
       // 4. Apps Script 권한 진단
-      console.log('DEBUG', '\n4️⃣ Apps Script 권한 진단');
-      
       try {
         const permissionData = {
           action: 'testPermissions',
@@ -9198,21 +8462,14 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         });
         
         const permResult = await permResponse.json();
-        console.log('DEBUG', '   권한 진단 결과:', permResult);
-        
         if (permResult.status !== 'success') {
-          console.warn('WARN', '   ⚠️ 권한 문제 감지:', permResult.message);
-        } else {
-          console.log('PERFORMANCE', '   ✅ 권한 확인 완료');
-        }
+          } else {
+          }
         
       } catch (permError) {
-        console.warn('WARN', '   ⚠️ 권한 테스트 건너뜀:', permError.message);
-      }
+        }
       
       // 5. 테스트 데이터 업데이트
-      console.log('SHEET', '\n5️⃣ 테스트 데이터 업데이트');
-      
       const testRow = prompt('테스트할 행 번호를 입력하세요 (예: 2)', '2');
       if (!testRow) return;
       
@@ -9224,8 +8481,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         aiAnalysis: '🔧 디버그 테스트 - ' + new Date().toLocaleString('ko-KR')  // H열
       };
       
-      console.log('SHEET', '   테스트 데이터:', testUpdateData);
-      
       try {
         const response = await fetch(debugInfo.appsScriptUrl, {
           method: 'POST',
@@ -9236,15 +8491,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         });
         
         const result = await response.json();
-        console.log('DEBUG', '   업데이트 결과:', result);
-        
         if (result.status === 'success') {
-          console.log('SHEET', '   ✅ 시트 업데이트 성공!');
-          
           const details = result.data || {};
           
           // 6. 실제 업데이트 검증 (옵션)
-          console.log('DEBUG', '\n6️⃣ 실제 업데이트 검증 (선택사항)');
+          ');
           
           // verifyUpdate 액션 지원 여부 확인
           try {
@@ -9266,7 +8517,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             // verifyUpdate 지원 확인
             if (checkResult.availableActions && !checkResult.availableActions.includes('verifyUpdate')) {
               console.error('ERROR', '   ⚠️ 현재 Apps Script 버전은 verifyUpdate를 지원하지 않습니다.');
-              console.log('SHEET', '   📋 지원되는 액션:', checkResult.availableActions);
               alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\n⚠️ 검증 기능은 Apps Script v3.3 이상에서 지원됩니다.\nGoogle Sheets에서 직접 확인하세요.`);
             } else {
               // verifyUpdate 실행
@@ -9289,12 +8539,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               });
               
               const verifyResult = await verifyResponse.json();
-              console.log('DEBUG', '   검증 결과:', verifyResult);
-              
               if (verifyResult.status === 'success' && verifyResult.verified) {
                 alert(`✅ 완벽! 시트 업데이트 및 검증 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n🕒 시간: ${new Date().toLocaleString('ko-KR')}\n\n✅ 실제 시트에서 데이터 확인됨\n업데이트된 열: ${details.updatedFields ? details.updatedFields.join(', ') : 'F, H'}\n\nGoogle Sheets에서 직접 확인하세요.`);
               } else if (verifyResult.status === 'error' && verifyResult.message.includes('알 수 없는 액션')) {
-                console.warn('WARN', '   ⚠️ verifyUpdate 액션이 지원되지 않습니다.');
                 alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\n⚠️ 검증 기능 미지원 (Apps Script 업데이트 필요)\nGoogle Sheets에서 직접 확인하세요.`);
               } else {
                 alert(`⚠️ 업데이트 성공 보고되었으나 검증 실패\n\n${verifyResult.message || '실제 시트 데이터 불일치'}\n\n가능한 원인:\n1. 권한 문제로 읽기 실패\n2. 시트 ID 또는 GID 불일치\n3. 캐시 지연\n\nGoogle Sheets를 직접 확인하고\n몇 분 후 다시 시도해보세요.`);
@@ -9302,7 +8549,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             }
             
           } catch (verifyError) {
-            console.warn('WARN', '   검증 과정 건너뜀:', verifyError.message);
             alert(`✅ 시트 업데이트 성공!\n\n📍 행 번호: ${testRow}\n📁 F열(파일명): ${testUpdateData.filename}\n🤖 H열(AI분석): ${testUpdateData.aiAnalysis}\n\nGoogle Sheets에서 직접 확인하세요.`);
           }
           
@@ -9328,8 +8574,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         alert(`❌ 시트 업데이트 실패\n\n오류: ${error.message}${troubleshootMsg}\n\n추가 진단:\n1. F12 > Console 로그 확인\n2. Apps Script 실행 로그 확인\n3. 문제해결 가이드 참조`);
       }
       
-      console.log('DEBUG', '\n🔍 === 디버귵 종료 ===');
-    });
+      });
     
     // ====================================
     // Phase 2: 캐시 통계 UI 업데이트 함수
@@ -9386,7 +8631,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     // Phase 3 제어 함수들
     function toggleSmartRefresh() {
       if (!smartRefresh) {
-        console.warn('WARN', '⚠️ SmartRefreshManager가 초기화되지 않음');
         return;
       }
 
@@ -9398,11 +8642,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
       if (smartRefresh.isEnabled) {
         smartRefresh.start();
-        console.log('PERFORMANCE', '✅ 스마트 새로고침 활성화');
-      } else {
+        } else {
         smartRefresh.stop();
-        console.log('DEBUG', '⏹️ 스마트 새로고침 비활성화');
-      }
+        }
 
       updateAllStatsUI();
     }
@@ -9437,7 +8679,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           if (value) localStorage.setItem(key, value);
         });
 
-        console.log('SHEET', '✅ 모든 데이터 초기화 완료');
         alert('모든 데이터가 초기화되었습니다. Ctrl+Shift+R로 수동 새로고침하여 반영하세요.');
         // location.reload(); // ⚠️ 자동 새로고침 비활성화 - 과도한 새로고침 방지
       } catch (error) {
@@ -9484,7 +8725,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      */
     async function loadAllHandsStatusAtOnce() {
       try {
-        console.log('PERFORMANCE', '🚀 === 전체 핸드 상태 일괄 로딩 시작 ===');
         const startTime = performance.now();
 
         // 1. 모든 핸드의 타임스탬프와 행 번호 수집
@@ -9505,10 +8745,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         }
 
-        console.log('SHEET', `📊 일괄 로딩 대상: ${handDataArray.length}개 핸드`);
-
         if (handDataArray.length === 0) {
-          console.log('MAPPING', 'ℹ️ 로드할 핸드가 없음');
           return;
         }
 
@@ -9518,8 +8755,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           sheetUrl: getSheetUrl(),
           timestamps: handDataArray.map(data => data.timestamp)
         };
-
-        console.log('API', '📡 Apps Script에 일괄 상태 요청...');
 
         try {
           const response = await fetch(getAppsScriptUrl(), {
@@ -9545,8 +8780,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
                 }
               });
 
-              console.log('CACHE', `✅ ${statusCache.size}개 핸드 상태 캐시 완료`);
-
               // 4. 캐시된 데이터로 UI 업데이트
               let updatedCount = 0;
               handDataArray.forEach(({ handNumber, timestamp, element }) => {
@@ -9566,7 +8799,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
               const endTime = performance.now();
               const totalTime = ((endTime - startTime) / 1000).toFixed(2);
 
-              console.log('TIME', `🎉 일괄 로딩 완료: ${updatedCount}/${handDataArray.length}개 업데이트 (${totalTime}초)`);
+              `);
 
               // 성공 알림
               if (updatedCount > 0) {
@@ -9578,8 +8811,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           console.error('ERROR', '❌ 일괄 상태 요청 실패:', error);
 
           // 폴백: 캐시된 CSV 데이터 사용
-          console.log('CACHE', '📦 폴백: 로컬 캐시 데이터 사용...');
-          await fallbackToCachedData(handDataArray);
+await fallbackToCachedData(handDataArray);
         }
 
       } catch (error) {
@@ -9592,7 +8824,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      */
     async function fallbackToCachedData(handDataArray) {
       if (!sheetDataCache) {
-        console.warn('WARN', '⚠️ 캐시가 없어 폴백 불가');
         return;
       }
 
@@ -9615,8 +8846,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         }
       }
 
-      console.log('PERFORMANCE', `📦 폴백 완료: ${updatedCount}개 핸드 상태 복구`);
-    }
+      }
 
     /**
      * 핸드 상태 UI 업데이트 헬퍼 함수
@@ -9650,11 +8880,8 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      */
     async function initializeAllHandsStatus() {
       try {
-        console.log('PERFORMANCE', '🔄 === 전체 핸드 상태 동기화 시작 ===');
-
         // 1. 캐시 준비 확인
         if (!sheetDataCache) {
-          console.warn('WARN', '⚠️ 캐시가 준비되지 않음 - 동기화 연기');
           return;
         }
 
@@ -9662,10 +8889,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         // 2. 현재 표시된 모든 핸드 요소 찾기
         const handElements = document.querySelectorAll('.hand-item');
-        console.log('SHEET', `📊 표시된 핸드 수: ${handElements.length}개`);
-
         if (handElements.length === 0) {
-          console.log('PERFORMANCE', 'ℹ️ 표시된 핸드가 없음 - 동기화 완료');
           return;
         }
 
@@ -9677,8 +8901,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             handNumbers.push(handNumber);
           }
         });
-
-        console.log('MAPPING', `🔍 상태 확인 대상: ${handNumbers.length}개 핸드`);
 
         // 4. Phase 2 캐시를 사용하여 일괄 상태 확인
         const statusResults = {};
@@ -9704,8 +8926,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             cacheMisses++;
           }
         }
-
-        console.log('CACHE', `📊 캐시 성능: ${cacheHits}개 적중, ${cacheMisses}개 미스`);
 
         // 5. UI 업데이트
         let updatedCount = 0;
@@ -9742,65 +8962,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
           }
         });
 
-        console.log('UI', `✅ UI 업데이트 완료: ${updatedCount}개 핸드`);
-
         // 6. 현재 선택된 핸드의 버튼 상태도 업데이트
         if (currentHand) {
           const currentStatus = statusResults[currentHand];
           if (currentStatus) {
-            console.log('UI', `🔄 현재 핸드 #${currentHand} 버튼 상태 업데이트: ${currentStatus}`);
-            await updateButtonStatesFromStatus(currentHand, currentStatus);
-          }
-        }
-
-        console.log('PERFORMANCE', '✅ === 전체 핸드 상태 동기화 완료 ===');
-
-      } catch (error) {
-        console.error('ERROR', '❌ 전체 핸드 상태 동기화 실패:', error);
-      }
-    }
-
-    /**
-     * 상태 정보를 기반으로 버튼 상태를 직접 업데이트 (API 호출 없이)
-     */
-    async function updateButtonStatesFromStatus(handNumber, status) {
-      const editBtn = document.getElementById('edit-btn');
-      const completeBtn = document.getElementById('complete-btn');
-
-      if (!editBtn || !completeBtn) return;
-
-      switch(status) {
-        case null:
-        case '':
-          editBtn.disabled = false;
-          editBtn.textContent = '편집';
-          completeBtn.disabled = true;
-          completeBtn.textContent = '완료';
-          break;
-
-        case '미완료':
-          editBtn.disabled = true;
-          editBtn.textContent = '편집';
-          completeBtn.disabled = false;
-          completeBtn.textContent = '완료';
-          break;
-
-        case '복사완료':
-          editBtn.disabled = true;
-          editBtn.textContent = '편집';
-          completeBtn.disabled = true;
-          completeBtn.textContent = '완료';
-          break;
-
-        default:
-          editBtn.disabled = false;
-          editBtn.textContent = '편집';
-          completeBtn.disabled = true;
-          completeBtn.textContent = '완료';
-      }
-
-      console.log('UI', `🔄 버튼 상태 업데이트: 핸드 #${handNumber} → ${status}`);
-    }
+            }
 
     // ⚠️ 주기적 통계 업데이트 비활성화 - 콘솔 스팸 방지
     // setInterval(updateAllStatsUI, 1000); // 1초마다 실행되어 과도한 로그 발생
@@ -9853,8 +9019,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         // 테스트 결과에 따른 Todo 업데이트
         if (results.failed === 0) {
-          console.log('PERFORMANCE', '✅ Day 1 테스트 모두 통과');
-        } else {
+} else {
           console.error('ERROR', '❌ 일부 테스트 실패 - 재작업 필요');
         }
 
@@ -9865,8 +9030,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
     // 타임스탬프 디버깅 함수
     window.debugTimestamps = function() {
-        console.log('PERFORMANCE', '🔍 타임스탬프 디버깅 시작\n');
-
         // 실패한 타임스탬프들
         const failedTimestamps = [
             1758018149, // 19:22
@@ -9881,10 +9044,9 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         console.error('ERROR', '실패한 타임스탬프 분석:');
         failedTimestamps.forEach(ts => {
             const date = new Date(ts * 1000);
-            console.log('DEBUG', `${ts} → ${date.toLocaleString('ko-KR')} (${date.toDateString()})`);
+            } (${date.toDateString()})`);
         });
 
-        console.log('DEBUG', '\n성공한 타임스탬프 분석:');
         const successTimestamps = [
             1758075882, // 11:24
             1758090528  // 15:28
@@ -9892,89 +9054,62 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         successTimestamps.forEach(ts => {
             const date = new Date(ts * 1000);
-            console.log('DEBUG', `${ts} → ${date.toLocaleString('ko-KR')} (${date.toDateString()})`);
+            } (${date.toDateString()})`);
         });
 
         // 날짜 차이 계산
         const successDate = new Date(successTimestamps[0] * 1000);
         const failedDate = new Date(failedTimestamps[0] * 1000);
         const dayDiff = Math.floor((failedDate - successDate) / (1000 * 60 * 60 * 24));
-        console.log('DEBUG', `\n날짜 차이: ${dayDiff}일`);
-
         // Virtual 시트 캐시 분석
         if (typeof sheetDataCache !== 'undefined' && sheetDataCache.cache.size > 0) {
-            console.log('CACHE', '\n📊 Virtual 시트 캐시 분석:');
             sheetDataCache.analyzeCache();
         }
     };
 
     // 고유 ID 매칭 테스트 함수
     window.testHandNumberMatching = async function() {
-        console.log('PERFORMANCE', '🧪 핸드 번호 매칭 테스트 시작\n');
-
         // 1. 캐시 갱신
-        console.log('CACHE', '📥 캐시 갱신 중...');
         await sheetDataCache.refreshCache();
 
         // 2. 테스트할 핸드 번호들
         const testHandNumbers = [138, 139, 140];
 
-        console.log('MAPPING', '\n🔍 핸드 번호로 직접 검색:');
         for (const handNum of testHandNumbers) {
             const row = sheetDataCache.findRowByHandNumber(handNum);
             if (row) {
-                console.log('PERFORMANCE', `✅ 핸드 #${handNum}:`);
-                console.log('SHEET', `   - 행: ${row.row}`);
-                console.log('TIME', `   - 시간: ${row.time}`);
-                console.log('DEBUG', `   - 상태: "${row.status || ''}"`);
-            } else {
-                console.log('MAPPING', `❌ 핸드 #${handNum}: 찾을 수 없음`);
-            }
+                } else {
+                }
         }
 
         // 3. 타임스탬프 매칭과 비교
-        console.log('DEBUG', '\n🔄 타임스탬프 매칭과 비교:');
         for (const handNum of testHandNumbers) {
             try {
                 const timestamp = await getHandTimestamp(handNum);
                 if (timestamp) {
                     const date = new Date(timestamp * 1000);
                     const timeStr = `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-                    console.log('TIME', `핸드 #${handNum}: 타임스탬프=${timestamp} → 시간=${timeStr}`);
-
                     const timestampRow = sheetDataCache.findClosestRow(timestamp);
                     if (timestampRow) {
-                        console.log('SHEET', `   타임스탬프 매칭: 행 ${timestampRow.row}, 상태="${timestampRow.status || ''}"`);
-                    } else {
+} else {
                         console.error('ERROR', `   타임스탬프 매칭: 실패`);
                     }
                 }
             } catch (error) {
-                console.log('MAPPING', `   핸드 #${handNum} 타임스탬프 조회 오류:`, error);
-            }
+                }
         }
 
-        console.log('PERFORMANCE', '\n✅ 테스트 완료');
-    };
+        };
 
     // 🔧 페이지 로드 시 자동으로 설정 불러오기
     function loadSavedSettings() {
-        console.log('CACHE', '📦 저장된 설정 불러오기 시작...');
-
         // GitHub Secrets 확인 로깅
-        console.log('DEBUG', '🔐 === GitHub Secrets 확인 ===');
         if (window.ENV_CONFIG) {
-            console.log('PERFORMANCE', '✅ ENV_CONFIG 객체 발견');
-            console.log('API', '📌 GEMINI_API_KEY:', window.ENV_CONFIG.GEMINI_API_KEY ?
-                `설정됨 (${window.ENV_CONFIG.GEMINI_API_KEY.substring(0, 10)}...)` : '❌ 미설정');
-            console.log('DEBUG', '📌 GOOGLE_APP_SCRIPT:', window.ENV_CONFIG.GOOGLE_APP_SCRIPT ?
-                `설정됨 (${window.ENV_CONFIG.GOOGLE_APP_SCRIPT.substring(0, 30)}...)` : '❌ 미설정');
+}...)` : '❌ 미설정');
+            }...)` : '❌ 미설정');
         } else {
             console.error('ERROR', '⚠️ ENV_CONFIG 없음 - GitHub Secrets가 주입되지 않음');
-            console.log('SHEET', '💡 로컬 환경이거나 GitHub Actions가 아직 실행되지 않았을 수 있습니다.');
-        }
-        console.log('DEBUG', '🔐 ======================');
-
+            }
         // GitHub Secrets 또는 기본값 설정은 전역 CONFIG 객체에서 처리됨
 
         // 1. CSV URL 설정
@@ -9983,8 +9118,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             const csvInput = document.getElementById('csv-url');
             if (csvInput) {
                 csvInput.value = savedCsvUrl;
-                console.log('SHEET', '✅ CSV URL 로드됨');
-            }
+                }
         }
 
         // 2. 시트 이름 설정
@@ -9993,13 +9127,12 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
             const sheetInput = document.getElementById('sheet-name');
             if (sheetInput) {
                 sheetInput.value = savedSheetName;
-                console.log('SHEET', '✅ 시트 이름 로드됨');
-            }
+                }
         }
 
         // 3. Gemini API 키 설정 (loadAPIKeys 함수에서 처리)
         // loadAPIKeys() 함수가 이미 localStorage > GitHub Secrets 순서로 처리함
-        console.log('API', '🔑 API 키 로딩은 loadAPIKeys() 함수에서 처리됨');
+        함수에서 처리됨');
 
         // 4. Apps Script URL 설정 (localStorage > GitHub Secrets > 빈값)
         let appsScriptUrl = localStorage.getItem('appsScriptUrl');
@@ -10007,70 +9140,49 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         if (appsScriptUrl) {
             scriptSource = 'localStorage';
-            console.log('DEBUG', '📦 Apps Script URL: localStorage에서 로드');
-        } else if (CONFIG.APPS_SCRIPT_URL) {
+            } else if (CONFIG.APPS_SCRIPT_URL) {
             appsScriptUrl = CONFIG.APPS_SCRIPT_URL;
             scriptSource = 'GitHub Secrets';
             localStorage.setItem('appsScriptUrl', appsScriptUrl);
-            console.log('CACHE', '🔐 Apps Script URL: GitHub Secrets에서 로드 및 저장');
-        } else {
+} else {
             scriptSource = '미설정';
             console.error('ERROR', '⚠️ Apps Script URL: 미설정 상태');
         }
 
         if (appsScriptUrl) {
-            console.log('PERFORMANCE', `✅ Apps Script URL 설정 완료 [출처: ${scriptSource}]`);
-        }
+            }
 
         // 5. 파일명 커스터마이징 설정 (기본값: 'VT')
         let filenamePrefix = localStorage.getItem('filenamePrefix');
         if (filenamePrefix === null) {
             filenamePrefix = CONFIG.FILENAME_PREFIX;
             localStorage.setItem('filenamePrefix', filenamePrefix);
-            console.log('PERFORMANCE', `✅ 파일명 접두사 기본값 설정: ${filenamePrefix}`);
-        } else {
-            console.log('PERFORMANCE', `✅ 파일명 접두사 로드: ${filenamePrefix}`);
-        }
+            } else {
+            }
 
         const filenameSuffix = localStorage.getItem('filenameSuffix');
         if (filenameSuffix !== null) {
-            console.log('PERFORMANCE', `✅ 파일명 접미사 로드: ${filenameSuffix}`);
-        }
+            }
 
         // 6. 템플릿 프리셋 설정 (기본값: 'ai-analysis')
         let templatePreset = localStorage.getItem('templatePreset');
         if (!templatePreset) {
             templatePreset = CONFIG.TEMPLATE_PRESET;
             localStorage.setItem('templatePreset', templatePreset);
-            console.log('PERFORMANCE', `✅ 템플릿 프리셋 기본값 설정: ${templatePreset}`);
-        } else {
-            console.log('PERFORMANCE', `✅ 템플릿 프리셋 로드: ${templatePreset}`);
-        }
+            } else {
+            }
 
         // 7. AI 기능 설정 (기본값: true)
         let useAI = localStorage.getItem('useAIForFilename');
         if (useAI === null) {
             useAI = 'true'; // AI 분석 템플릿이므로 기본 활성화
             localStorage.setItem('useAIForFilename', useAI);
-            console.log('AI', '✅ AI 파일명 기본값 활성화');
-        } else {
-            console.log('AI', `✅ AI 파일명 사용: ${useAI}`);
-        }
+            } else {
+            }
 
         // 최종 설정 상태 요약
-        console.log('SHEET', '📊 === 최종 설정 상태 ===');
-        console.log('API', '🔑 API 키:', CONFIG.GEMINI_API_KEY ? '✅ 설정됨' : '❌ 미설정');
-        console.log('PERFORMANCE', '📜 Apps Script:', appsScriptUrl ? '✅ 설정됨' : '❌ 미설정');
-        console.log('MAPPING', '🏷️ 파일명 접두사:', filenamePrefix || '미설정');
-        console.log('DEBUG', '🎨 템플릿 프리셋:', templatePreset || '미설정');
-        console.log('AI', '🤖 AI 기능:', useAI === 'true' ? '✅ 활성화' : '❌ 비활성화');
-        console.log('SHEET', '📊 ======================');
-
-        console.log('PERFORMANCE', '✅ 모든 설정 로드 완료!');
-
         // 자동으로 loadServerSettings 실행 (설정이 이미 있는 경우)
         if (savedCsvUrl || savedSheetName) {
-            console.log('CACHE', '🚀 저장된 설정으로 자동 데이터 로드 시작...');
             // loadServerSettings 함수가 있다면 실행
             if (typeof loadServerSettings === 'function') {
                 loadServerSettings();
@@ -10088,14 +9200,11 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
      * SSE 시스템 초기화
      */
     function initializeSSE() {
-        console.log('TIME', '🚀 SSE 실시간 감지 시스템 초기화...');
-
         // Apps Script URL 가져오기
         const appsScriptUrl = localStorage.getItem('appsScriptUrl') ||
                             CONFIG.APPS_SCRIPT_URL;
 
         if (!appsScriptUrl) {
-            console.warn('WARN', '⚠️ Apps Script URL이 설정되지 않음 - SSE 비활성화');
             return;
         }
 
@@ -10115,8 +9224,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         // 이벤트 핸들러 등록
         sseDetector.on('onNewHand', (handData) => {
-            console.log('MAPPING', '🎯 SSE 새 핸드 감지:', handData);
-
             // masterHandList에 추가
             if (!masterHandList.has(handData.handNumber)) {
                 masterHandList.set(handData.handNumber, {
@@ -10139,8 +9246,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         });
 
         sseDetector.on('onConnect', () => {
-            console.log('PERFORMANCE', '✅ SSE 연결 성공');
-            updateSSEStatus('connected');
+updateSSEStatus('connected');
         });
 
         sseDetector.on('onDisconnect', () => {
@@ -10149,7 +9255,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
         });
 
         sseDetector.on('onStatusChange', (newStatus, oldStatus) => {
-            console.log('DEBUG', `SSE 상태 변경: ${oldStatus} → ${newStatus}`);
             updateSSEStatus(newStatus);
         });
 
@@ -10158,8 +9263,7 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
 
         // 연결 시작
         sseDetector.connect();
-        console.log('PERFORMANCE', '✅ SSE 시스템 초기화 완료');
-    }
+        }
 
     /**
      * SSE 상태 표시 업데이트
@@ -10226,8 +9330,6 @@ CURRENT STACK - ${stackFormatted} (${stackInBB}BB)
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
             loadSavedSettings();
-            console.log('PERFORMANCE', '🚀 페이지 로드 완료 - 설정 자동 적용');
-
             // SSE 시스템 초기화
             setTimeout(() => {
                 initializeSSE();
