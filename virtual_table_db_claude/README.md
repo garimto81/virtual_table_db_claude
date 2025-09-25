@@ -1,4 +1,4 @@
-# Virtual Table DB v13.5.1
+# Virtual Table DB v13.5.2
 
 포커 핸드 모니터링 및 분석 시스템
 
@@ -16,7 +16,7 @@ virtual_table_db_claude/
 ├── index.html                    # 메인 애플리케이션
 ├── g-column-checkbox-handler.js  # G열 처리 로직
 ├── scripts/
-│   └── appScripts.gs            # Google Apps Script v13.5.1
+│   └── appScripts.gs            # Google Apps Script v13.5.2
 ├── docs/                        # 프로젝트 문서
 └── .github/                     # GitHub 설정
 ```
@@ -27,8 +27,9 @@ virtual_table_db_claude/
 2. **Apps Script**: `scripts/appScripts.gs` 배포
 3. **Gemini API**: 설정 패널에서 API 키 입력
 
-## 🔧 최신 업데이트 (v13.5.1)
+## 🔧 최신 업데이트 (v13.5.2)
 
+- **🔄 마이너 버전 업데이트**: v13.5.1 → v13.5.2 버전 업데이트
 - **🔧 DEFAULT_CONFIG 스코프 오류 수정**: 'DEFAULT_CONFIG is not defined' ReferenceError 해결
 - **🎆 대규모 디버깅 시스템 최적화**: 739개 console.log를 체계적인 로그 시스템으로 교체
 - **🚀 성능 최적화**: 프로덕션 모드에서 로그 오버헤드 완전 제거
