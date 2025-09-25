@@ -13,7 +13,7 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🃏</text></svg>">
-  <title id="page-title">포커 핸드 모니터링 v13.5.5 - AI 분석 시스템 [최종 최적화]</title>
+  <title id="page-title">포커 핸드 모니터링 v13.5.6 - AI 분석 시스템 [구문 오류 수정]</title>
   <script src="https://cdn.tailwindcss.com?v=9.6.8"></script>
   <script>
     // TailwindCSS 프로덕션 경고 무음 처리
@@ -342,7 +342,7 @@
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-4">
         <h1 class="text-lg font-bold">포커 핸드 모니터링</h1>
-        <span id="version-display" class="text-xs text-gray-500">v13.5.5</span>
+        <span id="version-display" class="text-xs text-gray-500">v13.5.6</span>
         <div class="flex items-center gap-2">
           <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
           <span class="text-xs text-gray-400">연결됨</span>
@@ -935,7 +935,6 @@
 
         const useAI = localStorage.getItem('useAIForFilename') === 'true';
         // 🔍 강화된 디버깅
-        }"`);
         // 통합 분석 데이터 가져오기 (캐시됨)
         const analysis = await getUnifiedHandAnalysis(handNumber);
 
