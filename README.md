@@ -111,7 +111,7 @@ virtual_table_db_claude/
 │   ├── PRD_virtual_table_db.md      # 제품 요구사항 문서 ✨
 │   ├── LLD_virtual_table_db.md      # 기술 설계 문서 ✨
 │   ├── PLAN_virtual_table_db.md     # 실행 계획 문서 ✨
-│   └── CLAUDE_TASK_TOOL_GUIDE.md    # Claude 작업 가이드
+│   └── CLAUDE.md                    # Claude AI 작업 가이드 ✨
 │
 ├── 📂 archive/
 │   ├── PROJECT_MASTER_v3.6.0.md     # 구버전 문서 (아카이브)
@@ -129,10 +129,10 @@ virtual_table_db_claude/
 ### 핵심 문서 (v13.5.11 기준)
 | 문서 | 설명 | 링크 |
 |------|------|------|
-| **PRD** | 제품 요구사항 정의 | [PRD_virtual_table_db.md](./PRD_virtual_table_db.md) |
-| **LLD** | 기술 설계 및 아키텍처 | [LLD_virtual_table_db.md](./LLD_virtual_table_db.md) |
-| **PLAN** | v13.5.11 → v14.0.0 실행 계획 | [PLAN_virtual_table_db.md](./PLAN_virtual_table_db.md) |
-| **CLAUDE** | Claude AI 작업 가이드 | [CLAUDE.md](./CLAUDE.md) |
+| **PRD** | 제품 요구사항 정의 | [docs/PRD_virtual_table_db.md](./docs/PRD_virtual_table_db.md) |
+| **LLD** | 기술 설계 및 아키텍처 | [docs/LLD_virtual_table_db.md](./docs/LLD_virtual_table_db.md) |
+| **PLAN** | v13.5.11 → v14.0.0 실행 계획 | [docs/PLAN_virtual_table_db.md](./docs/PLAN_virtual_table_db.md) |
+| **CLAUDE** | Claude AI 작업 가이드 | [docs/CLAUDE.md](./docs/CLAUDE.md) |
 
 ### 아카이브 문서 (구버전)
 - [PROJECT_MASTER v3.6.0](./archive/PROJECT_MASTER_v3.6.0.md) - 초기 개발 계획
@@ -143,43 +143,20 @@ virtual_table_db_claude/
 ## 🛠️ 기술 스택
 
 ### Frontend
-```yaml
-Core:
-  - HTML5 (Semantic)
-  - CSS3 (Grid, Flexbox)
-  - JavaScript ES6+
-
-Libraries:
-  - Papa Parse v5.4.1 (CSV 파싱)
-  - No Framework (순수 JS)
-
-Planned (v14.0.0):
-  - DOMPurify (XSS 방어)
-  - CryptoJS (암호화)
-  - Vite (빌드 도구)
-```
+- HTML5, CSS3, JavaScript ES6+
+- Papa Parse v5.4.1 (CSV 파싱)
 
 ### Backend
-```yaml
-Platform:
-  - Google Apps Script
-  - Google Sheets API v4
-
-APIs:
-  - Gemini AI API (핸드 분석)
-  - Server-Sent Events (실시간 감지)
-```
+- Google Apps Script
+- Google Sheets API v4
+- Gemini AI API (핸드 분석)
 
 ### Infrastructure
-```yaml
-Hosting:
-  - GitHub Pages (프론트엔드)
-  - Google Cloud (Apps Script)
+- GitHub Pages (호스팅)
+- Google Cloud (백엔드)
+- localStorage (캐싱)
 
-Storage:
-  - Google Sheets (주 데이터베이스)
-  - localStorage (클라이언트 캐시)
-```
+*상세 기술 스택은 [LLD 문서](./docs/LLD_virtual_table_db.md#기술-스택) 참조*
 
 ---
 
@@ -269,9 +246,9 @@ chore: 빌드, 패키지 설정
 ## 📞 지원
 
 ### 문서
-- [PRD](./PRD_virtual_table_db.md) - 제품 요구사항
-- [LLD](./LLD_virtual_table_db.md) - 기술 설계
-- [PLAN](./PLAN_virtual_table_db.md) - 실행 계획
+- [PRD](./docs/PRD_virtual_table_db.md) - 제품 요구사항
+- [LLD](./docs/LLD_virtual_table_db.md) - 기술 설계
+- [PLAN](./docs/PLAN_virtual_table_db.md) - 실행 계획
 
 ### 이슈 보고
 - GitHub Issues: [Create Issue](https://github.com/garimto81/virtual_table_db_claude/issues/new)
