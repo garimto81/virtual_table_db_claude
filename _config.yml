@@ -1,0 +1,19 @@
+# GitHub Pages Configuration
+source: .
+destination: ./_site
+include:
+  - index.html
+  - src
+  - sse-client.js
+  - README.md
+exclude:
+  - node_modules
+  - virtual_table_module
+  - virtual_table_db_claude
+  - package-lock.json
+  - "*.log"
+  - ".git"
+
+# Force rebuild
+version: 13.3.3
+last_updated: 2025-09-23T00:17:00Z

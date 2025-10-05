@@ -1,0 +1,17 @@
+{
+  "name": "virtual-table-db-claude",
+  "version": "13.5.11",
+  "description": "포커 핸드 모니터링 및 분석 시스템",
+  "main": "index.html",
+  "scripts": {
+    "dev": "http-server -p 8000 -o -c-1",
+    "start": "http-server -p 8000 -o -c-1",
+    "serve": "python -m http.server 8000"
+  },
+  "keywords": ["poker", "monitoring", "analysis"],
+  "author": "Claude AI",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}
